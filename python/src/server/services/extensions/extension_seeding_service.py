@@ -63,6 +63,22 @@ class ExtensionSeedingService:
         return Path(__file__).parents[5] / "integrations" / "claude-code" / "extensions"
 
     @staticmethod
+    def default_commands_dir() -> Path:
+        """Return the absolute path to the bundled commands directory.
+
+        Walks up the directory tree from this file's location until it finds
+        an ancestor that contains integrations/claude-code/commands/. This works
+        for both local development (python/ is an intermediate directory) and
+        Docker (python/ is stripped, /app is the root).
+        """
+        for parent in Path(__file__).resolve().parents:
+            candidate = parent / "integrations" / "claude-code" / "commands"
+            if candidate.is_dir():
+                return candidate
+        # Fall back to a sensible guess — caller handles missing path gracefully
+        return Path(__file__).parents[5] / "integrations" / "claude-code" / "commands"
+
+    @staticmethod
     def default_plugins_dir() -> Path:
         """Return the absolute path to the bundled plugins directory.
 
@@ -161,6 +177,113 @@ class ExtensionSeedingService:
             f"{counts['errors']} errors"
         )
         return counts
+
+    def seed_commands(self, commands_dir: Path | None = None) -> dict[str, int]:
+        """Scan commands_dir and upsert every .md file into the registry as a command.
+
+        Flat (root-level) .md files are seeded without a group. Files inside
+        subdirectories are seeded with the subdirectory name as the command group.
+
+        Args:
+            commands_dir: Directory to scan. Defaults to ``default_commands_dir()``.
+
+        Returns:
+            Counts dict with keys ``created``, ``updated``, ``skipped``, ``errors``.
+        """
+        if commands_dir is None:
+            commands_dir = self.default_commands_dir()
+
+        counts: dict[str, int] = {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+
+        if not commands_dir.exists():
+            logger.warning(f"Commands directory does not exist, skipping seed: {commands_dir}")
+            return counts
+
+        items: list[tuple[Path, str | None]] = []
+        for entry in sorted(commands_dir.iterdir()):
+            if entry.is_file() and entry.suffix == ".md":
+                items.append((entry, None))
+            elif entry.is_dir():
+                for filepath in sorted(entry.iterdir()):
+                    if filepath.is_file() and filepath.suffix == ".md":
+                        items.append((filepath, entry.name))
+
+        for filepath, group in items:
+            try:
+                self._seed_one_command(filepath, group, counts)
+            except Exception:
+                logger.error(f"Failed to seed command from {filepath}", exc_info=True)
+                counts["errors"] += 1
+
+        logger.info(
+            f"Command seeding complete: {counts['created']} created, "
+            f"{counts['updated']} updated, {counts['skipped']} skipped, "
+            f"{counts['errors']} errors"
+        )
+        return counts
+
+    def _seed_one_command(self, filepath: Path, group: str | None, counts: dict[str, int]) -> None:
+        """Upsert a single command .md file into the registry.
+
+        Derives the extension name from the filename stem, optionally prefixed with
+        the group name when the stem does not already start with the group. Extracts
+        the description from frontmatter or the first heading line.
+
+        Args:
+            filepath: Absolute path to the command .md file.
+            group: Subdirectory name (command group), or None for flat commands.
+            counts: Mutable counts dict updated in place.
+        """
+        content = filepath.read_text(encoding="utf-8")
+        stem = filepath.stem
+
+        # Derive name: prefix with group if stem doesn't already start with it
+        if group and not stem.startswith(group):
+            name = f"{group}-{stem}"
+        else:
+            name = stem
+
+        # Derive description from frontmatter or first heading
+        frontmatter = _parse_frontmatter(content)
+        description = frontmatter.get("description", "")
+        if not description:
+            for line in content.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("# "):
+                    description = stripped[2:].strip()
+                    break
+
+        command_metadata: dict[str, Any] = {"command_group": group, "filename": filepath.name}
+        content_hash = ExtensionService.compute_content_hash(content)
+        existing: dict[str, Any] | None = self.extension_service.find_by_name(name)
+
+        if existing is None:
+            self.extension_service.create_extension(
+                name,
+                description,
+                content,
+                created_by="archon-seeder",
+                type="command",
+                plugin_manifest=command_metadata,
+            )
+            logger.info(f"Created command extension: {name}")
+            counts["created"] += 1
+            return
+
+        if existing["content_hash"] == content_hash:
+            logger.debug(f"Command extension unchanged, skipping: {name}")
+            counts["skipped"] += 1
+            return
+
+        self.extension_service.update_extension(
+            existing["id"],
+            content,
+            new_version=existing["current_version"] + 1,
+            updated_by="archon-seeder",
+            description=description or None,
+        )
+        logger.info(f"Updated command extension: {name} -> v{existing['current_version'] + 1}")
+        counts["updated"] += 1
 
     def _seed_one_plugin(self, plugin_json_path: Path, counts: dict[str, int]) -> None:
         """Upsert a single plugin into the extension registry.
