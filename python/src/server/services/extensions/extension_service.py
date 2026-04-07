@@ -37,6 +37,9 @@ class ExtensionService:
         description: str,
         content: str,
         created_by: str,
+        skill_groups: list[str] | None = None,
+        type: str | None = None,
+        plugin_manifest: dict | None = None,
     ) -> dict[str, Any]:
         """Create a new extension and save version 1.
 
@@ -45,6 +48,11 @@ class ExtensionService:
             description: Human-readable description.
             content: Full SKILL.md content.
             created_by: Identifier of the user or agent creating the extension.
+            skill_groups: Optional list of skill group tags for project-scoped delivery.
+            type: Optional extension type ('skill' or 'command'). When omitted the DB
+                default ('skill') applies.
+            plugin_manifest: Optional JSONB metadata for command extensions (e.g.
+                command_group, filename).
 
         Returns:
             The created extension row as a dict.
@@ -55,7 +63,7 @@ class ExtensionService:
         content_hash = self.compute_content_hash(content)
         now = datetime.now(UTC).isoformat()
 
-        extension_data = {
+        extension_data: dict[str, Any] = {
             "name": name,
             "display_name": name,
             "description": description,
@@ -66,6 +74,13 @@ class ExtensionService:
             "created_at": now,
             "updated_at": now,
         }
+
+        if skill_groups is not None:
+            extension_data["skill_groups"] = skill_groups
+        if type is not None:
+            extension_data["type"] = type
+        if plugin_manifest is not None:
+            extension_data["plugin_manifest"] = plugin_manifest
 
         response = self.supabase_client.table(EXTENSIONS_TABLE).insert(extension_data).execute()
 
@@ -86,27 +101,43 @@ class ExtensionService:
 
         return extension
 
-    def list_extensions(self) -> list[dict[str, Any]]:
+    def list_extensions(self, skill_group: str | None = None, type: str | None = None) -> list[dict[str, Any]]:
         """List all extensions without the full content field.
 
+        Args:
+            skill_group: Optional skill group tag to filter by.
+            type: Optional extension type to filter by ('skill' or 'command').
+
         Returns:
-            List of extension metadata dicts (id, name, description, version, timestamps).
+            List of extension metadata dicts (id, name, description, version, type, timestamps).
         """
-        response = (
+        query = (
             self.supabase_client.table(EXTENSIONS_TABLE)
-            .select("id, name, display_name, description, current_version, content_hash, is_required, is_validated, tags, created_by, created_at, updated_at")
-            .order("name")
-            .execute()
+            .select("id, name, display_name, description, current_version, content_hash, type, skill_groups, is_required, is_validated, tags, created_by, created_at, updated_at")
         )
+        if skill_group is not None:
+            query = query.contains("skill_groups", [skill_group])
+        if type is not None:
+            query = query.eq("type", type)
+        response = query.order("name").execute()
         return response.data
 
-    def list_extensions_full(self) -> list[dict[str, Any]]:
+    def list_extensions_full(self, skill_group: str | None = None, type: str | None = None) -> list[dict[str, Any]]:
         """List all extensions including full content (used by sync endpoint).
+
+        Args:
+            skill_group: Optional skill group tag to filter by.
+            type: Optional extension type to filter by ('skill' or 'command').
 
         Returns:
             List of full extension dicts including the content field.
         """
-        response = self.supabase_client.table(EXTENSIONS_TABLE).select("*").order("name").execute()
+        query = self.supabase_client.table(EXTENSIONS_TABLE).select("*")
+        if skill_group is not None:
+            query = query.contains("skill_groups", [skill_group])
+        if type is not None:
+            query = query.eq("type", type)
+        response = query.order("name").execute()
         return response.data
 
     def get_extension(self, extension_id: str) -> dict[str, Any] | None:

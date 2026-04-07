@@ -434,3 +434,194 @@ class TestGetProjectExtensions:
         assert len(result) == 2
         mock_supabase.table.assert_called_with("archon_project_extensions")
         builder.eq.assert_called_once_with("project_id", "proj-1")
+
+
+# ── create_extension with type / plugin_manifest ────────────────────────────
+
+
+class TestCreateExtensionWithType:
+    def test_creates_extension_with_command_type(self, service, mock_supabase):
+        """create_extension with type='command' should include type in the insert payload."""
+        content = "# Archon Setup\n\nSome content."
+        extension_row = {
+            "id": "cmd-uuid-1",
+            "name": "archon-setup",
+            "type": "command",
+            "content": content,
+            "content_hash": ExtensionService.compute_content_hash(content),
+        }
+
+        extensions_builder = MagicMock()
+        extensions_builder.insert.return_value = extensions_builder
+        extensions_builder.execute.return_value = MagicMock(data=[extension_row])
+
+        versions_builder = MagicMock()
+        versions_builder.insert.return_value = versions_builder
+        versions_builder.execute.return_value = MagicMock(data=[{"id": "v1"}])
+
+        def _table(name):
+            if name == "archon_extensions":
+                return extensions_builder
+            return versions_builder
+
+        mock_supabase.table.side_effect = _table
+
+        result = service.create_extension(
+            name="archon-setup",
+            description="Setup command",
+            content=content,
+            created_by="test",
+            type="command",
+        )
+
+        insert_call = extensions_builder.insert.call_args
+        assert insert_call[0][0]["type"] == "command"
+        assert result["type"] == "command"
+
+    def test_creates_extension_with_plugin_manifest(self, service, mock_supabase):
+        """create_extension with plugin_manifest should include it in the insert payload."""
+        manifest = {"command_group": "archon", "filename": "archon-prime.md"}
+        extension_row = {
+            "id": "cmd-uuid-2",
+            "name": "archon-prime",
+            "type": "command",
+            "plugin_manifest": manifest,
+        }
+
+        extensions_builder = MagicMock()
+        extensions_builder.insert.return_value = extensions_builder
+        extensions_builder.execute.return_value = MagicMock(data=[extension_row])
+
+        versions_builder = MagicMock()
+        versions_builder.insert.return_value = versions_builder
+        versions_builder.execute.return_value = MagicMock(data=[{"id": "v1"}])
+
+        def _table(name):
+            if name == "archon_extensions":
+                return extensions_builder
+            return versions_builder
+
+        mock_supabase.table.side_effect = _table
+
+        result = service.create_extension(
+            name="archon-prime",
+            description="Prime command",
+            content="# Prime",
+            created_by="test",
+            type="command",
+            plugin_manifest=manifest,
+        )
+
+        insert_call = extensions_builder.insert.call_args
+        assert insert_call[0][0]["plugin_manifest"] == manifest
+
+    def test_creates_extension_without_type_uses_db_default(self, service, mock_supabase):
+        """create_extension without type should NOT include type in the payload (DB default applies)."""
+        extension_row = {"id": "ext-uuid-1", "name": "my-skill"}
+
+        extensions_builder = MagicMock()
+        extensions_builder.insert.return_value = extensions_builder
+        extensions_builder.execute.return_value = MagicMock(data=[extension_row])
+
+        versions_builder = MagicMock()
+        versions_builder.insert.return_value = versions_builder
+        versions_builder.execute.return_value = MagicMock(data=[{"id": "v1"}])
+
+        def _table(name):
+            if name == "archon_extensions":
+                return extensions_builder
+            return versions_builder
+
+        mock_supabase.table.side_effect = _table
+
+        service.create_extension(
+            name="my-skill",
+            description="A skill",
+            content="---\nname: my-skill\n---\n# Content",
+            created_by="test",
+        )
+
+        insert_call = extensions_builder.insert.call_args
+        assert "type" not in insert_call[0][0]
+        assert "plugin_manifest" not in insert_call[0][0]
+
+
+# ── list_extensions with type filter ────────────────────────────────────────
+
+
+class TestListExtensionsTypeFilter:
+    def test_list_extensions_filters_by_type(self, service, mock_supabase):
+        """list_extensions with type='command' should add an eq filter on type."""
+        command_extensions = [
+            {"id": "c1", "name": "archon-setup", "type": "command"},
+        ]
+
+        builder = MagicMock()
+        builder.select.return_value = builder
+        builder.eq.return_value = builder
+        builder.order.return_value = builder
+        builder.execute.return_value = MagicMock(data=command_extensions)
+
+        mock_supabase.table.side_effect = lambda name: builder
+
+        result = service.list_extensions(type="command")
+
+        assert len(result) == 1
+        builder.eq.assert_called_once_with("type", "command")
+
+    def test_list_extensions_no_type_filter_skips_eq(self, service, mock_supabase):
+        """list_extensions without type param should not add a type eq filter."""
+        builder = MagicMock()
+        builder.select.return_value = builder
+        builder.order.return_value = builder
+        builder.execute.return_value = MagicMock(data=[])
+
+        mock_supabase.table.side_effect = lambda name: builder
+
+        service.list_extensions()
+
+        builder.eq.assert_not_called()
+
+    def test_list_extensions_full_filters_by_type(self, service, mock_supabase):
+        """list_extensions_full with type='command' should add an eq filter on type."""
+        builder = MagicMock()
+        builder.select.return_value = builder
+        builder.eq.return_value = builder
+        builder.order.return_value = builder
+        builder.execute.return_value = MagicMock(data=[{"id": "c1", "name": "cmd", "type": "command"}])
+
+        mock_supabase.table.side_effect = lambda name: builder
+
+        result = service.list_extensions_full(type="command")
+
+        assert len(result) == 1
+        builder.eq.assert_called_once_with("type", "command")
+
+    def test_list_extensions_full_no_type_filter_skips_eq(self, service, mock_supabase):
+        """list_extensions_full without type param should not add a type eq filter."""
+        builder = MagicMock()
+        builder.select.return_value = builder
+        builder.order.return_value = builder
+        builder.execute.return_value = MagicMock(data=[])
+
+        mock_supabase.table.side_effect = lambda name: builder
+
+        service.list_extensions_full()
+
+        builder.eq.assert_not_called()
+
+    def test_list_extensions_select_includes_type_field(self, service, mock_supabase):
+        """list_extensions should include 'type' in the selected fields."""
+        builder = MagicMock()
+        builder.select.return_value = builder
+        builder.order.return_value = builder
+        builder.execute.return_value = MagicMock(data=[])
+
+        mock_supabase.table.side_effect = lambda name: builder
+
+        service.list_extensions()
+
+        builder.select.assert_called_once()
+        select_arg = builder.select.call_args[0][0]
+        fields = [f.strip() for f in select_arg.split(",")]
+        assert "type" in fields, "list_extensions should select the 'type' column"
