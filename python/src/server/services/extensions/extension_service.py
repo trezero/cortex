@@ -122,6 +122,36 @@ class ExtensionService:
         response = query.order("name").execute()
         return response.data
 
+    def list_extensions_for_project(
+        self,
+        project_id: str,
+        include_content: bool = False,
+        type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List extensions that are scoped to a project via skill_groups overlap.
+
+        Args:
+            project_id: The project UUID to match against skill_groups.
+            include_content: When True, selects all columns including content.
+                When False, excludes the content column.
+            type: Optional extension type to filter by ('skill' or 'command').
+
+        Returns:
+            List of extension dicts for the project.
+        """
+        if include_content:
+            query = self.supabase_client.table(EXTENSIONS_TABLE).select("*")
+        else:
+            query = (
+                self.supabase_client.table(EXTENSIONS_TABLE)
+                .select("id, name, display_name, description, current_version, content_hash, type, skill_groups, is_required, is_validated, tags, created_by, created_at, updated_at")
+            )
+        query = query.overlaps("skill_groups", [project_id])
+        if type is not None:
+            query = query.eq("type", type)
+        response = query.order("name").execute()
+        return response.data
+
     def list_extensions_full(self, skill_group: str | None = None, type: str | None = None) -> list[dict[str, Any]]:
         """List all extensions including full content (used by sync endpoint).
 

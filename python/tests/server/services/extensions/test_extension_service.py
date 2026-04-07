@@ -625,3 +625,89 @@ class TestListExtensionsTypeFilter:
         select_arg = builder.select.call_args[0][0]
         fields = [f.strip() for f in select_arg.split(",")]
         assert "type" in fields, "list_extensions should select the 'type' column"
+
+
+# ── list_extensions_for_project ──────────────────────────────────────────────
+
+
+class TestListExtensionsForProject:
+    def test_filters_by_project_id_via_overlaps(self, service, mock_supabase):
+        """list_extensions_for_project should filter by project_id using overlaps on skill_groups."""
+        project_extensions = [
+            {"id": "e1", "name": "proj-skill", "type": "skill", "skill_groups": ["proj-uuid-1"]},
+        ]
+
+        builder = MagicMock()
+        builder.select.return_value = builder
+        builder.overlaps.return_value = builder
+        builder.order.return_value = builder
+        builder.execute.return_value = MagicMock(data=project_extensions)
+
+        mock_supabase.table.side_effect = lambda name: builder
+
+        result = service.list_extensions_for_project("proj-uuid-1")
+
+        assert len(result) == 1
+        assert result[0]["name"] == "proj-skill"
+        builder.overlaps.assert_called_once_with("skill_groups", ["proj-uuid-1"])
+
+    def test_type_filter_adds_eq_constraint(self, service, mock_supabase):
+        """list_extensions_for_project with type='command' should add an eq filter on type."""
+        builder = MagicMock()
+        builder.select.return_value = builder
+        builder.overlaps.return_value = builder
+        builder.eq.return_value = builder
+        builder.order.return_value = builder
+        builder.execute.return_value = MagicMock(data=[])
+
+        mock_supabase.table.side_effect = lambda name: builder
+
+        service.list_extensions_for_project("proj-uuid-1", type="command")
+
+        builder.overlaps.assert_called_once_with("skill_groups", ["proj-uuid-1"])
+        builder.eq.assert_called_once_with("type", "command")
+
+    def test_no_type_filter_skips_eq(self, service, mock_supabase):
+        """list_extensions_for_project without type param should not add a type eq filter."""
+        builder = MagicMock()
+        builder.select.return_value = builder
+        builder.overlaps.return_value = builder
+        builder.order.return_value = builder
+        builder.execute.return_value = MagicMock(data=[])
+
+        mock_supabase.table.side_effect = lambda name: builder
+
+        service.list_extensions_for_project("proj-uuid-1")
+
+        builder.eq.assert_not_called()
+
+    def test_include_content_false_excludes_content_column(self, service, mock_supabase):
+        """list_extensions_for_project with include_content=False should not select the content column."""
+        builder = MagicMock()
+        builder.select.return_value = builder
+        builder.overlaps.return_value = builder
+        builder.order.return_value = builder
+        builder.execute.return_value = MagicMock(data=[])
+
+        mock_supabase.table.side_effect = lambda name: builder
+
+        service.list_extensions_for_project("proj-uuid-1", include_content=False)
+
+        builder.select.assert_called_once()
+        select_arg = builder.select.call_args[0][0]
+        fields = [f.strip() for f in select_arg.split(",")]
+        assert "content" not in fields, "include_content=False should not select the 'content' column"
+
+    def test_include_content_true_selects_all_columns(self, service, mock_supabase):
+        """list_extensions_for_project with include_content=True should select all columns."""
+        builder = MagicMock()
+        builder.select.return_value = builder
+        builder.overlaps.return_value = builder
+        builder.order.return_value = builder
+        builder.execute.return_value = MagicMock(data=[])
+
+        mock_supabase.table.side_effect = lambda name: builder
+
+        service.list_extensions_for_project("proj-uuid-1", include_content=True)
+
+        builder.select.assert_called_once_with("*")
