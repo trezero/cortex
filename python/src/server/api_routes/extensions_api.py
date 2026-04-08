@@ -75,6 +75,10 @@ class SyncSystemRequest(BaseModel):
     local_extensions: list[dict[str, Any]] = []
 
 
+class SetExtensionDefaultRequest(BaseModel):
+    is_default: bool
+
+
 # ── Extensions CRUD ───────────────────────────────────────────────────────────
 
 
@@ -402,6 +406,25 @@ async def delete_system(system_id: str):
         raise HTTPException(status_code=500, detail={"error": str(e)}) from e
 
 
+@router.patch("/extensions/{extension_id}/default")
+async def set_extension_default(extension_id: str, request: SetExtensionDefaultRequest):
+    """Toggle is_default on a single extension.
+
+    Extensions with is_default=True are included in the default template installed
+    on every new Archon-connected application.
+    """
+    try:
+        logfire.info(f"Setting is_default | extension_id={extension_id} | is_default={request.is_default}")
+        extension_service = ExtensionService()
+        extension = extension_service.set_extension_default(extension_id, request.is_default)
+        return extension
+    except RuntimeError as e:
+        raise HTTPException(status_code=404, detail={"error": str(e)}) from e
+    except Exception as e:
+        logfire.error(f"Failed to set is_default | extension_id={extension_id} | error={e}", exc_info=True)
+        raise HTTPException(status_code=500, detail={"error": str(e)}) from e
+
+
 # ── Project-scoped extensions ─────────────────────────────────────────────────
 
 
@@ -578,6 +601,48 @@ async def unlink_system_from_project(project_id: str, system_id: str):
     except Exception as e:
         logfire.error(
             f"Failed to unlink system | project_id={project_id} | system_id={system_id} | error={e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail={"error": str(e)}) from e
+
+
+@router.post("/projects/{project_id}/extensions/{extension_id}/link")
+async def link_extension_to_project(project_id: str, extension_id: str):
+    """Associate an extension with a project by adding project_id to its skill_groups.
+
+    Idempotent — calling it again when already linked is a no-op.
+    """
+    try:
+        logfire.info(f"Linking extension to project | project_id={project_id} | extension_id={extension_id}")
+        extension_service = ExtensionService()
+        extension = extension_service.link_extension_to_project(extension_id, project_id)
+        return extension
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail={"error": str(e)}) from e
+    except Exception as e:
+        logfire.error(
+            f"Failed to link extension | project_id={project_id} | extension_id={extension_id} | error={e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail={"error": str(e)}) from e
+
+
+@router.delete("/projects/{project_id}/extensions/{extension_id}/link")
+async def unlink_extension_from_project_route(project_id: str, extension_id: str):
+    """Remove an extension from a project by removing project_id from its skill_groups.
+
+    Idempotent — calling it when not linked is a no-op.
+    """
+    try:
+        logfire.info(f"Unlinking extension from project | project_id={project_id} | extension_id={extension_id}")
+        extension_service = ExtensionService()
+        extension = extension_service.unlink_extension_from_project(extension_id, project_id)
+        return extension
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail={"error": str(e)}) from e
+    except Exception as e:
+        logfire.error(
+            f"Failed to unlink extension | project_id={project_id} | extension_id={extension_id} | error={e}",
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail={"error": str(e)}) from e
