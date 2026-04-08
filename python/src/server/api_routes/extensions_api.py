@@ -27,6 +27,9 @@ class CreateExtensionRequest(BaseModel):
     description: str
     content: str
     created_by: str
+    skill_groups: list[str] | None = None
+    type: str | None = None
+    plugin_manifest: dict | None = None
 
 
 class UpdateExtensionRequest(BaseModel):
@@ -72,6 +75,10 @@ class SyncSystemRequest(BaseModel):
     local_extensions: list[dict[str, Any]] = []
 
 
+class SetExtensionDefaultRequest(BaseModel):
+    is_default: bool
+
+
 # ── Extensions CRUD ───────────────────────────────────────────────────────────
 
 
@@ -91,15 +98,19 @@ async def validate_extension_standalone(request: ValidateExtensionRequest):
 
 
 @router.get("/extensions")
-async def list_extensions(include_content: bool = Query(False)):
+async def list_extensions(
+    include_content: bool = Query(False),
+    skill_group: str | None = Query(None),
+    type: str | None = Query(None),
+):
     """List all extensions. Pass ?include_content=true to include full extension content."""
     try:
         logfire.debug(f"Listing all extensions | include_content={include_content}")
         service = ExtensionService()
         if include_content:
-            extensions = service.list_extensions_full()
+            extensions = service.list_extensions_full(skill_group=skill_group, type=type)
         else:
-            extensions = service.list_extensions()
+            extensions = service.list_extensions(skill_group=skill_group, type=type)
         return {"extensions": extensions, "count": len(extensions)}
     except HTTPException:
         raise
@@ -150,7 +161,7 @@ async def create_extension(request: CreateExtensionRequest):
 
         # Validate content first
         validator = ExtensionValidationService()
-        validation = validator.validate(request.content)
+        validation = validator.validate(request.content, extension_type=request.type or "skill")
         if not validation["valid"]:
             raise HTTPException(
                 status_code=422,
@@ -166,6 +177,9 @@ async def create_extension(request: CreateExtensionRequest):
             description=request.description,
             content=request.content,
             created_by=request.created_by,
+            skill_groups=request.skill_groups,
+            type=request.type,
+            plugin_manifest=request.plugin_manifest,
         )
 
         logfire.info(f"Extension created | extension_id={extension.get('id')} | name={request.name}")
@@ -392,6 +406,25 @@ async def delete_system(system_id: str):
         raise HTTPException(status_code=500, detail={"error": str(e)}) from e
 
 
+@router.patch("/extensions/{extension_id}/default")
+async def set_extension_default(extension_id: str, request: SetExtensionDefaultRequest):
+    """Toggle is_default on a single extension.
+
+    Extensions with is_default=True are included in the default template installed
+    on every new Archon-connected application.
+    """
+    try:
+        logfire.info(f"Setting is_default | extension_id={extension_id} | is_default={request.is_default}")
+        extension_service = ExtensionService()
+        extension = extension_service.set_extension_default(extension_id, request.is_default)
+        return extension
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail={"error": str(e)}) from e
+    except Exception as e:
+        logfire.error(f"Failed to set is_default | extension_id={extension_id} | error={e}", exc_info=True)
+        raise HTTPException(status_code=500, detail={"error": str(e)}) from e
+
+
 # ── Project-scoped extensions ─────────────────────────────────────────────────
 
 
@@ -480,7 +513,7 @@ async def sync_system(project_id: str, request: SyncSystemRequest):
 
 
 @router.get("/projects/{project_id}/extensions")
-async def get_project_extensions(project_id: str):
+async def get_project_extensions(project_id: str, type: str | None = Query(None)):
     """Get extensions data for a project.
 
     Returns all extensions from the registry and systems with their install state,
@@ -489,7 +522,7 @@ async def get_project_extensions(project_id: str):
     try:
         logfire.debug(f"Getting project extensions | project_id={project_id}")
         extension_service = ExtensionService()
-        all_extensions = extension_service.list_extensions()
+        all_extensions = extension_service.list_extensions_for_project(project_id, type=type)
 
         # Build systems with nested extension install state
         systems_with_extensions: list[dict[str, Any]] = []
@@ -568,6 +601,48 @@ async def unlink_system_from_project(project_id: str, system_id: str):
     except Exception as e:
         logfire.error(
             f"Failed to unlink system | project_id={project_id} | system_id={system_id} | error={e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail={"error": str(e)}) from e
+
+
+@router.post("/projects/{project_id}/extensions/{extension_id}/link")
+async def link_extension_to_project(project_id: str, extension_id: str):
+    """Associate an extension with a project by adding project_id to its skill_groups.
+
+    Idempotent — calling it again when already linked is a no-op.
+    """
+    try:
+        logfire.info(f"Linking extension to project | project_id={project_id} | extension_id={extension_id}")
+        extension_service = ExtensionService()
+        extension = extension_service.link_extension_to_project(extension_id, project_id)
+        return extension
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail={"error": str(e)}) from e
+    except Exception as e:
+        logfire.error(
+            f"Failed to link extension | project_id={project_id} | extension_id={extension_id} | error={e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail={"error": str(e)}) from e
+
+
+@router.delete("/projects/{project_id}/extensions/{extension_id}/link")
+async def unlink_extension_from_project_route(project_id: str, extension_id: str):
+    """Remove an extension from a project by removing project_id from its skill_groups.
+
+    Idempotent — calling it when not linked is a no-op.
+    """
+    try:
+        logfire.info(f"Unlinking extension from project | project_id={project_id} | extension_id={extension_id}")
+        extension_service = ExtensionService()
+        extension = extension_service.unlink_extension_from_project(extension_id, project_id)
+        return extension
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail={"error": str(e)}) from e
+    except Exception as e:
+        logfire.error(
+            f"Failed to unlink extension | project_id={project_id} | extension_id={extension_id} | error={e}",
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail={"error": str(e)}) from e

@@ -37,6 +37,9 @@ class ExtensionService:
         description: str,
         content: str,
         created_by: str,
+        skill_groups: list[str] | None = None,
+        type: str | None = None,
+        plugin_manifest: dict | None = None,
     ) -> dict[str, Any]:
         """Create a new extension and save version 1.
 
@@ -45,6 +48,11 @@ class ExtensionService:
             description: Human-readable description.
             content: Full SKILL.md content.
             created_by: Identifier of the user or agent creating the extension.
+            skill_groups: Optional list of skill group tags for project-scoped delivery.
+            type: Optional extension type ('skill' or 'command'). When omitted the DB
+                default ('skill') applies.
+            plugin_manifest: Optional JSONB metadata for command extensions (e.g.
+                command_group, filename).
 
         Returns:
             The created extension row as a dict.
@@ -55,7 +63,7 @@ class ExtensionService:
         content_hash = self.compute_content_hash(content)
         now = datetime.now(UTC).isoformat()
 
-        extension_data = {
+        extension_data: dict[str, Any] = {
             "name": name,
             "display_name": name,
             "description": description,
@@ -66,6 +74,13 @@ class ExtensionService:
             "created_at": now,
             "updated_at": now,
         }
+
+        if skill_groups is not None:
+            extension_data["skill_groups"] = skill_groups
+        if type is not None:
+            extension_data["type"] = type
+        if plugin_manifest is not None:
+            extension_data["plugin_manifest"] = plugin_manifest
 
         response = self.supabase_client.table(EXTENSIONS_TABLE).insert(extension_data).execute()
 
@@ -86,27 +101,73 @@ class ExtensionService:
 
         return extension
 
-    def list_extensions(self) -> list[dict[str, Any]]:
+    def list_extensions(self, skill_group: str | None = None, type: str | None = None) -> list[dict[str, Any]]:
         """List all extensions without the full content field.
 
+        Args:
+            skill_group: Optional skill group tag to filter by.
+            type: Optional extension type to filter by ('skill' or 'command').
+
         Returns:
-            List of extension metadata dicts (id, name, description, version, timestamps).
+            List of extension metadata dicts (id, name, description, version, type, timestamps).
         """
-        response = (
+        query = (
             self.supabase_client.table(EXTENSIONS_TABLE)
-            .select("id, name, display_name, description, current_version, content_hash, is_required, is_validated, tags, created_by, created_at, updated_at")
-            .order("name")
-            .execute()
+            .select("id, name, display_name, description, current_version, content_hash, type, skill_groups, is_required, is_default, is_validated, tags, created_by, created_at, updated_at")
         )
+        if skill_group is not None:
+            query = query.contains("skill_groups", [skill_group])
+        if type is not None:
+            query = query.eq("type", type)
+        response = query.order("name").execute()
         return response.data
 
-    def list_extensions_full(self) -> list[dict[str, Any]]:
+    def list_extensions_for_project(
+        self,
+        project_id: str,
+        include_content: bool = False,
+        type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List extensions that are scoped to a project via skill_groups overlap.
+
+        Args:
+            project_id: The project UUID to match against skill_groups.
+            include_content: When True, selects all columns including content.
+                When False, excludes the content column.
+            type: Optional extension type to filter by ('skill' or 'command').
+
+        Returns:
+            List of extension dicts for the project.
+        """
+        if include_content:
+            query = self.supabase_client.table(EXTENSIONS_TABLE).select("*")
+        else:
+            query = (
+                self.supabase_client.table(EXTENSIONS_TABLE)
+                .select("id, name, display_name, description, current_version, content_hash, type, skill_groups, is_required, is_default, is_validated, tags, created_by, created_at, updated_at")
+            )
+        query = query.overlaps("skill_groups", [project_id])
+        if type is not None:
+            query = query.eq("type", type)
+        response = query.order("name").execute()
+        return response.data
+
+    def list_extensions_full(self, skill_group: str | None = None, type: str | None = None) -> list[dict[str, Any]]:
         """List all extensions including full content (used by sync endpoint).
+
+        Args:
+            skill_group: Optional skill group tag to filter by.
+            type: Optional extension type to filter by ('skill' or 'command').
 
         Returns:
             List of full extension dicts including the content field.
         """
-        response = self.supabase_client.table(EXTENSIONS_TABLE).select("*").order("name").execute()
+        query = self.supabase_client.table(EXTENSIONS_TABLE).select("*")
+        if skill_group is not None:
+            query = query.contains("skill_groups", [skill_group])
+        if type is not None:
+            query = query.eq("type", type)
+        response = query.order("name").execute()
         return response.data
 
     def get_extension(self, extension_id: str) -> dict[str, Any] | None:
@@ -243,6 +304,91 @@ class ExtensionService:
             .execute()
         )
         return response.data
+
+    def link_extension_to_project(self, extension_id: str, project_id: str) -> dict[str, Any]:
+        """Append project_id to an extension's skill_groups, making it part of that project.
+
+        Idempotent — if project_id is already in skill_groups, returns the extension unchanged.
+
+        Raises:
+            ValueError: If the extension_id does not exist.
+            RuntimeError: If the database update fails.
+        """
+        ext = self.get_extension(extension_id)
+        if ext is None:
+            raise ValueError(f"Extension '{extension_id}' not found")
+
+        skill_groups: list[str] = ext.get("skill_groups") or []
+        if project_id in skill_groups:
+            return ext
+
+        updated_groups = [*skill_groups, project_id]
+        response = (
+            self.supabase_client.table(EXTENSIONS_TABLE)
+            .update({"skill_groups": updated_groups, "updated_at": datetime.now(UTC).isoformat()})
+            .eq("id", extension_id)
+            .execute()
+        )
+        if not response.data:
+            raise RuntimeError(f"Failed to link extension '{extension_id}' to project '{project_id}'")
+
+        logger.info(f"Extension linked to project: {extension_id} -> {project_id}")
+        return response.data[0]
+
+    def unlink_extension_from_project(self, extension_id: str, project_id: str) -> dict[str, Any]:
+        """Remove project_id from an extension's skill_groups.
+
+        Idempotent — if project_id is not in skill_groups, returns the extension unchanged.
+
+        Raises:
+            ValueError: If the extension_id does not exist.
+            RuntimeError: If the database update fails.
+        """
+        ext = self.get_extension(extension_id)
+        if ext is None:
+            raise ValueError(f"Extension '{extension_id}' not found")
+
+        skill_groups: list[str] = ext.get("skill_groups") or []
+        if project_id not in skill_groups:
+            return ext
+
+        updated_groups = [g for g in skill_groups if g != project_id]
+        response = (
+            self.supabase_client.table(EXTENSIONS_TABLE)
+            .update({"skill_groups": updated_groups, "updated_at": datetime.now(UTC).isoformat()})
+            .eq("id", extension_id)
+            .execute()
+        )
+        if not response.data:
+            raise RuntimeError(f"Failed to unlink extension '{extension_id}' from project '{project_id}'")
+
+        logger.info(f"Extension unlinked from project: {extension_id} -> {project_id}")
+        return response.data[0]
+
+    def set_extension_default(self, extension_id: str, is_default: bool) -> dict[str, Any]:
+        """Set or clear the is_default flag on an extension.
+
+        Extensions with is_default = True are installed on every new Archon-connected application.
+
+        Raises:
+            ValueError: If the extension_id does not exist.
+            RuntimeError: If the database update fails.
+        """
+        ext = self.get_extension(extension_id)
+        if ext is None:
+            raise ValueError(f"Extension '{extension_id}' not found")
+
+        response = (
+            self.supabase_client.table(EXTENSIONS_TABLE)
+            .update({"is_default": is_default, "updated_at": datetime.now(UTC).isoformat()})
+            .eq("id", extension_id)
+            .execute()
+        )
+        if not response.data:
+            raise RuntimeError(f"Failed to update is_default for extension '{extension_id}'")
+
+        logger.info(f"Extension is_default set to {is_default}: {extension_id}")
+        return response.data[0]
 
     def save_project_override(
         self,

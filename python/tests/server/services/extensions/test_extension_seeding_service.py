@@ -208,3 +208,176 @@ class TestDefaultDirResolvesCorrectly:
         default_dir = service.default_extensions_dir()
         parts = default_dir.parts
         assert parts[-3:] == ("integrations", "claude-code", "extensions")
+
+
+# ── Command Seeding Tests ────────────────────────────────────────────────────
+
+SAMPLE_COMMAND_NO_FRONTMATTER = textwrap.dedent("""\
+    # Archon Setup — Register This Machine
+
+    Connect this machine to Archon.
+
+    ## Phase 0: Health Check
+
+    Call `health_check()` via the Archon MCP tool.
+""")
+
+SAMPLE_COMMAND_WITH_FRONTMATTER = textwrap.dedent("""\
+    ---
+    name: prime
+    description: Prime Claude Code with deep context.
+    argument-hint: <service> <focus>
+    ---
+
+    # Prime
+
+    You're about to work on the codebase.
+""")
+
+
+def _make_command_file(base: Path, filename: str, content: str, group: str | None = None) -> Path:
+    """Create a command .md file at base/filename or base/group/filename."""
+    if group:
+        target_dir = base / group
+        target_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        target_dir = base
+    filepath = target_dir / filename
+    filepath.write_text(content)
+    return filepath
+
+
+class TestSeedCommandsFlatFile:
+    def test_creates_flat_command_with_correct_args(self, service, mock_extension_service, tmp_path):
+        """A flat (root-level) .md file is seeded as a command with no group."""
+        mock_extension_service.find_by_name.return_value = None
+        mock_extension_service.create_extension.return_value = {"id": "cmd1", "name": "archon-setup"}
+
+        _make_command_file(tmp_path, "archon-setup.md", SAMPLE_COMMAND_NO_FRONTMATTER)
+
+        counts = service.seed_commands(tmp_path)
+
+        mock_extension_service.find_by_name.assert_called_once_with("archon-setup")
+        mock_extension_service.create_extension.assert_called_once_with(
+            "archon-setup",
+            "Archon Setup — Register This Machine",
+            SAMPLE_COMMAND_NO_FRONTMATTER,
+            created_by="archon-seeder",
+            type="command",
+            plugin_manifest={"command_group": None, "filename": "archon-setup.md"},
+        )
+        assert counts == {"created": 1, "updated": 0, "skipped": 0, "errors": 0}
+
+
+class TestSeedCommandsGroupedFile:
+    def test_creates_grouped_command_with_group_prefix_stripped(self, service, mock_extension_service, tmp_path):
+        """A file in archon/ whose stem already starts with 'archon' keeps its stem as name."""
+        mock_extension_service.find_by_name.return_value = None
+        mock_extension_service.create_extension.return_value = {"id": "cmd2", "name": "archon-prime"}
+
+        _make_command_file(tmp_path, "archon-prime.md", SAMPLE_COMMAND_WITH_FRONTMATTER, group="archon")
+
+        counts = service.seed_commands(tmp_path)
+
+        mock_extension_service.find_by_name.assert_called_once_with("archon-prime")
+        mock_extension_service.create_extension.assert_called_once_with(
+            "archon-prime",
+            "Prime Claude Code with deep context.",
+            SAMPLE_COMMAND_WITH_FRONTMATTER,
+            created_by="archon-seeder",
+            type="command",
+            plugin_manifest={"command_group": "archon", "filename": "archon-prime.md"},
+        )
+        assert counts == {"created": 1, "updated": 0, "skipped": 0, "errors": 0}
+
+
+class TestSeedCommandsGroupPrefixed:
+    def test_creates_group_prefixed_name_when_stem_has_different_prefix(
+        self, service, mock_extension_service, tmp_path
+    ):
+        """A file in agent-work-orders/ whose stem is 'commit' gets name 'agent-work-orders-commit'."""
+        mock_extension_service.find_by_name.return_value = None
+        mock_extension_service.create_extension.return_value = {"id": "cmd3", "name": "agent-work-orders-commit"}
+
+        content = textwrap.dedent("""\
+            # Commit
+
+            Create a git commit.
+        """)
+        _make_command_file(tmp_path, "commit.md", content, group="agent-work-orders")
+
+        counts = service.seed_commands(tmp_path)
+
+        mock_extension_service.find_by_name.assert_called_once_with("agent-work-orders-commit")
+        mock_extension_service.create_extension.assert_called_once_with(
+            "agent-work-orders-commit",
+            "Commit",
+            content,
+            created_by="archon-seeder",
+            type="command",
+            plugin_manifest={"command_group": "agent-work-orders", "filename": "commit.md"},
+        )
+        assert counts == {"created": 1, "updated": 0, "skipped": 0, "errors": 0}
+
+
+class TestSeedCommandsSkipUnchanged:
+    def test_skips_command_when_hash_unchanged(self, service, mock_extension_service, tmp_path):
+        """When the content hash matches the registry entry, no create or update is called."""
+        content_hash = ExtensionService.compute_content_hash(SAMPLE_COMMAND_NO_FRONTMATTER)
+        mock_extension_service.find_by_name.return_value = {
+            "id": "cmd1",
+            "name": "archon-setup",
+            "content_hash": content_hash,
+            "current_version": 1,
+        }
+
+        _make_command_file(tmp_path, "archon-setup.md", SAMPLE_COMMAND_NO_FRONTMATTER)
+
+        counts = service.seed_commands(tmp_path)
+
+        mock_extension_service.create_extension.assert_not_called()
+        mock_extension_service.update_extension.assert_not_called()
+        assert counts == {"created": 0, "updated": 0, "skipped": 1, "errors": 0}
+
+
+class TestSeedCommandsUpdateChanged:
+    def test_updates_command_when_hash_differs(self, service, mock_extension_service, tmp_path):
+        """When the content hash differs from the registry, update_extension is called."""
+        mock_extension_service.find_by_name.return_value = {
+            "id": "cmd1",
+            "name": "archon-setup",
+            "content_hash": "old-hash-does-not-match",
+            "current_version": 2,
+        }
+        mock_extension_service.update_extension.return_value = {"id": "cmd1"}
+
+        _make_command_file(tmp_path, "archon-setup.md", SAMPLE_COMMAND_NO_FRONTMATTER)
+
+        counts = service.seed_commands(tmp_path)
+
+        mock_extension_service.update_extension.assert_called_once_with(
+            "cmd1",
+            SAMPLE_COMMAND_NO_FRONTMATTER,
+            new_version=3,
+            updated_by="archon-seeder",
+            description="Archon Setup — Register This Machine",
+        )
+        mock_extension_service.create_extension.assert_not_called()
+        assert counts == {"created": 0, "updated": 1, "skipped": 0, "errors": 0}
+
+
+class TestSeedCommandsEmptyDir:
+    def test_returns_zero_counts_for_empty_dir(self, service, mock_extension_service, tmp_path):
+        """An empty commands directory produces zero counts and no DB calls."""
+        counts = service.seed_commands(tmp_path)
+
+        mock_extension_service.find_by_name.assert_not_called()
+        assert counts == {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+
+
+class TestDefaultCommandsDirResolvesCorrectly:
+    def test_default_commands_dir_resolves_correctly(self, service):
+        """default_commands_dir() should end with integrations/claude-code/commands."""
+        default_dir = service.default_commands_dir()
+        parts = default_dir.parts
+        assert parts[-3:] == ("integrations", "claude-code", "commands")

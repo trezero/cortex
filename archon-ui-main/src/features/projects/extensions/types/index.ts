@@ -6,6 +6,11 @@ export interface PluginManifest {
   min_python_version: string;
 }
 
+export interface CommandMetadata {
+  command_group: string | null;
+  filename: string;
+}
+
 export interface Extension {
   id: string;
   name: string;
@@ -15,10 +20,11 @@ export interface Extension {
   content_hash: string;
   current_version: number;
   is_required: boolean;
+  is_default: boolean;
   is_validated: boolean;
   tags: string[];
-  type: "skill" | "plugin";
-  plugin_manifest?: PluginManifest | null;
+  type: "skill" | "plugin" | "command";
+  plugin_manifest?: PluginManifest | CommandMetadata | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

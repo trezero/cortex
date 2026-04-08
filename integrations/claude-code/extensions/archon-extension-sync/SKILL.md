@@ -75,6 +75,33 @@ For each extension definition file found:
 
 Build `local_extensions` list: `[{name, content_hash}]`
 
+### 1d. Find all command files
+
+Scan for command definition files alongside extensions:
+- `<install_dir>/commands/` (user-installed commands)
+- `integrations/claude-code/commands/` (repo commands, if in Archon repo)
+
+```
+Glob: <install_dir>/commands/**/*.md
+Glob: integrations/claude-code/commands/**/*.md
+```
+
+### 1e. Parse each command
+
+For each command `.md` file found:
+1. Read the file content
+2. Derive the extension name:
+   - If file is in a subdirectory (group): use `{group}-{filename_stem}` if the stem doesn't already start with the group name, otherwise use `{filename_stem}`
+   - If file is at root: use `{filename_stem}`
+3. Compute SHA256 hash of the full content:
+   ```bash
+   sha256sum <filepath> | cut -d' ' -f1
+   ```
+
+Add to the `local_extensions` list: `[{name, content_hash}]`
+
+Commands and skills share the same `local_extensions` list for the sync call.
+
 ---
 
 ## Phase 2: Sync with Archon
@@ -126,14 +153,18 @@ manage_extensions(
 ### 3a. Install pending extensions
 
 For each item in `pending_install`:
-1. Write the `content` to `<install_dir>/skills/<name>/SKILL.md` (extension definition file)
-2. Report: "Installed extension: <name>"
+1. Check the `type` field:
+   - If `type == "command"`: Read `plugin_manifest` for `command_group` and `filename`. Write `content` to `<install_dir>/commands/{command_group}/{filename}` (create directory if needed). If no `command_group`, write to `<install_dir>/commands/{filename}`.
+   - Otherwise (skill): Write `content` to `<install_dir>/skills/<name>/SKILL.md`
+2. Report: "Installed {type}: <name>"
 
 ### 3b. Remove pending extensions
 
 For each item in `pending_remove`:
-1. Delete `<install_dir>/skills/<name>/SKILL.md` (extension definition file)
-2. Report: "Removed extension: <name>"
+1. Check the `type` field:
+   - If `type == "command"`: Read `plugin_manifest` for path info. Delete `<install_dir>/commands/{command_group}/{filename}` (or `<install_dir>/commands/{filename}`).
+   - Otherwise (skill): Delete `<install_dir>/skills/<name>/SKILL.md`
+2. Report: "Removed {type}: <name>"
 
 ### 3c. Resolve local changes
 
@@ -190,20 +221,6 @@ manage_extensions(action="upload", extension_content="<content>")
 ```
 If validation has errors, show them and ask user to fix.
 
-### 3e. Update slash commands
-
-Download the latest command files from the Archon server so slash commands like
-`/scan-projects` and `/archon-setup` stay up to date without re-running the setup script.
-
-Read `archon_mcp_url` from `.claude/archon-config.json` (or `~/.claude/archon-config.json`).
-
-```bash
-mkdir -p ~/.claude/commands && curl -sf "<archon_mcp_url>/archon-setup/commands.tar.gz" | tar xz -C ~/.claude/commands/
-```
-
-If the download fails, warn the user but continue:
-> "Could not update slash commands from Archon server. Existing commands will continue to work."
-
 ---
 
 ## Phase 4: Update State
@@ -224,13 +241,12 @@ Merge with existing state — do not overwrite other fields.
 ### 4b. Summary
 
 > "**Extension sync complete:**
-> - In sync: <N> extensions
+> - In sync: <N> extensions (<M> skills, <K> commands)
 > - Installed: <list or 'none'>
 > - Removed: <list or 'none'>
 > - Updated: <list or 'none'>
 > - Uploaded: <list or 'none'>
-> - Skipped: <list or 'none'>
-> - Slash commands: updated"
+> - Skipped: <list or 'none'>"
 
 ---
 
@@ -247,11 +263,14 @@ If last_extension_sync is missing or older than 24h:
 
 ### Extension File Locations
 
-- **Installed extensions:** `<install_dir>/skills/<name>/SKILL.md` (extension definition file)
+- **Installed skills:** `<install_dir>/skills/<name>/SKILL.md`
   - Project scope (`install_scope: "project"`): `.claude/skills/`
   - Global scope (`install_scope: "global"`): `~/.claude/skills/`
-- **Repo extensions:** `integrations/claude-code/extensions/<name>/SKILL.md`
-- Extensions are identified by their frontmatter `name` field, not directory name
+- **Installed commands:** `<install_dir>/commands/{group}/{filename}.md` or `<install_dir>/commands/{filename}.md`
+- **Repo skills:** `integrations/claude-code/extensions/<name>/SKILL.md`
+- **Repo commands:** `integrations/claude-code/commands/{group}/{filename}.md`
+- Skills are identified by their frontmatter `name` field, not directory name
+- Commands are identified by their file path (group + filename)
 
 ### Error Recovery
 

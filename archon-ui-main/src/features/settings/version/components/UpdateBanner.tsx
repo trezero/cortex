@@ -46,7 +46,7 @@ export function UpdateBanner() {
               </a>
             )}
             <a
-              href="https://github.com/coleam00/Archon#upgrading"
+              href="https://github.com/trezero/Archon/releases"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/50 rounded-lg text-purple-400 transition-all duration-200"

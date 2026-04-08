@@ -106,6 +106,16 @@ Verify installed extensions:
 ls <install_dir>/skills/*/SKILL.md 2>/dev/null
 ```
 
+### 5b. Download commands
+
+```bash
+mkdir -p "<install_dir>/commands"
+curl -sf "<archon_mcp_url>/archon-setup/commands.tar.gz" | tar xz -C "<install_dir>/commands/"
+```
+
+If the download fails (e.g., no commands registered yet), warn but continue:
+> "No commands available from the registry. Commands will be installed during the next extension sync."
+
 ## Phase 6: Update State
 
 Read `.claude/archon-state.json` if it exists, or start with an empty object `{}`.
@@ -128,8 +138,10 @@ Print the following summary:
 ## Archon Bootstrap Complete
 
 **System:** <system_name> (<system_id>)
-**Extensions installed:** <N> → <install_dir>/skills/ (extension definition files)
-  - <list each extension name>
+**Skills installed:** <N> → <install_dir>/skills/
+  - <list each skill name>
+**Commands installed:** <N> → <install_dir>/commands/
+  - <list each command name>
 **Project:** <project_title if registered> — or "No project linked"
 
 Restart Claude Code for the new extensions to take effect.
