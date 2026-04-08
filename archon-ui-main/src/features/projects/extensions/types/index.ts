@@ -20,6 +20,7 @@ export interface Extension {
   content_hash: string;
   current_version: number;
   is_required: boolean;
+  is_default: boolean;
   is_validated: boolean;
   tags: string[];
   type: "skill" | "plugin" | "command";

@@ -79,3 +79,39 @@ export function useUnlinkSystem() {
     },
   });
 }
+
+export function useLinkExtensions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ projectId, extensionIds }: { projectId: string; extensionIds: string[] }) =>
+      Promise.all(extensionIds.map((id) => extensionService.linkExtension(projectId, id))),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: extensionKeys.byProject(variables.projectId) });
+    },
+  });
+}
+
+export function useUnlinkExtension() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ projectId, extensionId }: { projectId: string; extensionId: string }) =>
+      extensionService.unlinkExtension(projectId, extensionId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: extensionKeys.byProject(variables.projectId) });
+    },
+  });
+}
+
+export function useSetExtensionDefault() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ extensionId, isDefault }: { extensionId: string; isDefault: boolean }) =>
+      extensionService.setExtensionDefault(extensionId, isDefault),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: extensionKeys.lists() });
+    },
+  });
+}
