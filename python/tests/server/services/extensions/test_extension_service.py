@@ -854,6 +854,19 @@ class TestUnlinkExtensionFromProject:
         assert result == existing
         get_builder.update.assert_not_called()
 
+    def test_raises_value_error_when_extension_not_found(self, mock_supabase):
+        """unlink_extension_from_project should raise ValueError for unknown extension_id."""
+        get_builder = MagicMock()
+        get_builder.select.return_value = get_builder
+        get_builder.eq.return_value = get_builder
+        get_builder.execute.return_value = MagicMock(data=[])
+
+        mock_supabase.table.side_effect = lambda name: get_builder
+        service = ExtensionService(supabase_client=mock_supabase)
+
+        with pytest.raises(ValueError, match="not found"):
+            service.unlink_extension_from_project("bad-id", "proj-1")
+
 
 # ── set_extension_default ─────────────────────────────────────────────────
 
