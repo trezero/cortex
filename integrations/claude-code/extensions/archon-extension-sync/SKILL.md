@@ -1,11 +1,11 @@
 ---
 name: archon-extension-sync
-description: Sync local Claude Code extensions with the Archon extension registry. Detects new extensions, local modifications, and pending installs. Use when "sync extensions", "check extensions", "update extensions", or at startup when sync is stale.
+description: Sync local Claude Code skills, commands, and plugins with the Archon extension registry. Detects new extensions, local modifications, and pending installs across all three types. Use when "sync extensions", "check extensions", "update extensions", or at startup when sync is stale.
 ---
 
 # Archon Extension Sync
 
-Synchronizes local Claude Code extensions with the Archon extension registry. Detects drift, handles conflict resolution, installs pending extensions, and uploads new local extensions.
+Synchronizes local Claude Code **skills**, **commands**, and **plugins** with the Archon extension registry. Detects drift, handles conflict resolution, installs pending extensions, and uploads new local extensions across all extension types.
 
 **Invocation:** `/archon-extension-sync`
 **Auto-trigger:** Runs automatically when any Archon extension detects last_extension_sync > 24h in `.claude/archon-state.json`
@@ -42,20 +42,22 @@ Store as `system_fingerprint`.
 
 ## Phase 1: Scan Local Extensions
 
+Initialize an empty `local_extensions` list: `[{name, content_hash, type, source_path}]`
+
 ### 1a. Determine install scope
 
 Read `.claude/archon-config.json` if it exists (fall back to `~/.claude/archon-config.json`). Extract:
-- `install_scope` → `<install_scope>` (may be absent)
+- `install_scope` -> `<install_scope>` (may be absent)
 
 Determine `<install_dir>`:
-- If `<install_scope>` is `"project"` → `.claude`
-- If `<install_scope>` is `"global"` or absent → `~/.claude`
+- If `<install_scope>` is `"project"` -> `.claude`
+- If `<install_scope>` is `"global"` or absent -> `~/.claude`
 
-### 1b. Find all extension definition files
+### 1b. Find all skill definition files
 
-Scan these directories for SKILL.md extension definition files:
-- `<install_dir>/skills/` (user-installed extensions)
-- `integrations/claude-code/extensions/` (repo extensions, if in Archon repo)
+Scan these directories for SKILL.md files:
+- `<install_dir>/skills/` (user-installed skills)
+- `integrations/claude-code/extensions/` (repo skills, if in Archon repo)
 - Any directory listed in `.claude/archon-state.json` under `extension_directories`
 
 ```
@@ -63,44 +65,77 @@ Glob: <install_dir>/skills/**/SKILL.md
 Glob: integrations/claude-code/extensions/**/SKILL.md
 ```
 
-### 1c. Parse each extension
+### 1c. Parse each skill
 
-For each extension definition file found:
+For each SKILL.md file found:
 1. Read the file content
 2. Parse YAML frontmatter to extract `name`
 3. Compute SHA256 hash of the full content:
    ```bash
    sha256sum <filepath> | cut -d' ' -f1
    ```
-
-Build `local_extensions` list: `[{name, content_hash}]`
+4. Add to `local_extensions`: `{name, content_hash, type: "skill", source_path}`
 
 ### 1d. Find all command files
 
-Scan for command definition files alongside extensions:
+Scan for command `.md` files:
 - `<install_dir>/commands/` (user-installed commands)
+- `.claude/commands/` (project-level commands, if different from install_dir)
 - `integrations/claude-code/commands/` (repo commands, if in Archon repo)
 
 ```
 Glob: <install_dir>/commands/**/*.md
+Glob: .claude/commands/**/*.md
 Glob: integrations/claude-code/commands/**/*.md
 ```
+
+Deduplicate by absolute path (project and install_dir may overlap).
 
 ### 1e. Parse each command
 
 For each command `.md` file found:
 1. Read the file content
-2. Derive the extension name:
-   - If file is in a subdirectory (group): use `{group}-{filename_stem}` if the stem doesn't already start with the group name, otherwise use `{filename_stem}`
-   - If file is at root: use `{filename_stem}`
+2. Derive the command name from its path:
+   - Root-level file (e.g. `commands/commit.md`): name = `commit`
+   - Grouped file (e.g. `commands/archon/archon-prime.md`): name = `archon-prime`
+   - Grouped file where stem doesn't include group (e.g. `commands/archon/rca.md`): name = `archon-rca`
+   - Nested deeper (e.g. `commands/core_piv_loop/plan-feature.md`): name = `core_piv_loop-plan-feature`
 3. Compute SHA256 hash of the full content:
    ```bash
    sha256sum <filepath> | cut -d' ' -f1
    ```
+4. Add to `local_extensions`: `{name, content_hash, type: "command", source_path}`
 
-Add to the `local_extensions` list: `[{name, content_hash}]`
+### 1f. Find all plugin directories
 
-Commands and skills share the same `local_extensions` list for the sync call.
+Scan for plugin manifest files:
+- `<install_dir>/plugins/*/` (user-installed plugins — look for `.mcp.json` or `.claude-plugin/`)
+- `integrations/claude-code/plugins/*/` (repo plugins, if in Archon repo)
+
+```
+Glob: <install_dir>/plugins/*/.mcp.json
+Glob: integrations/claude-code/plugins/*/.mcp.json
+```
+
+Exclude Claude Code internal files (`blocklist.json`, `installed_plugins.json`, `cache/`, `data/`, `marketplaces/`, `known_marketplaces.json`, `install-counts-cache.json`).
+
+### 1g. Parse each plugin
+
+For each plugin directory found (containing `.mcp.json`):
+1. Read the `.mcp.json` file content
+2. Derive the plugin name from the directory name (e.g. `plugins/archon-memory/` -> `archon-memory`)
+3. Compute a combined SHA256 hash of `.mcp.json` content:
+   ```bash
+   sha256sum <plugin_dir>/.mcp.json | cut -d' ' -f1
+   ```
+4. Add to `local_extensions`: `{name, content_hash, type: "plugin", source_path}`
+
+**Note:** Plugins are complex multi-file structures (Python code, MCP servers, hooks). The sync tracks them by their `.mcp.json` manifest hash for drift detection. Full plugin content sync (uploading all plugin files) is not yet supported — only metadata registration and drift alerts.
+
+### 1h. Summary before sync
+
+Log the scan results:
+> "Scanned local extensions: <N> skills, <M> commands, <P> plugins"
 
 ---
 
@@ -153,24 +188,26 @@ manage_extensions(
 ### 3a. Install pending extensions
 
 For each item in `pending_install`:
-1. Check the `type` field:
-   - If `type == "command"`: Read `plugin_manifest` for `command_group` and `filename`. Write `content` to `<install_dir>/commands/{command_group}/{filename}` (create directory if needed). If no `command_group`, write to `<install_dir>/commands/{filename}`.
-   - Otherwise (skill): Write `content` to `<install_dir>/skills/<name>/SKILL.md`
+1. Check the `type` field to determine where to write:
+   - **`type == "command"`**: Read `plugin_manifest` for `command_group` and `filename`. Write `content` to `<install_dir>/commands/{command_group}/{filename}` (create directory if needed). If no `command_group`, write to `<install_dir>/commands/{filename}`.
+   - **`type == "skill"`** (or absent): Write `content` to `<install_dir>/skills/<name>/SKILL.md`
+   - **`type == "plugin"`**: Log a notice — plugin installation requires manual setup. Report the plugin name and suggest the user install it from the repo.
 2. Report: "Installed {type}: <name>"
 
 ### 3b. Remove pending extensions
 
 For each item in `pending_remove`:
 1. Check the `type` field:
-   - If `type == "command"`: Read `plugin_manifest` for path info. Delete `<install_dir>/commands/{command_group}/{filename}` (or `<install_dir>/commands/{filename}`).
-   - Otherwise (skill): Delete `<install_dir>/skills/<name>/SKILL.md`
+   - **`type == "command"`**: Read `plugin_manifest` for path info. Delete `<install_dir>/commands/{command_group}/{filename}` (or `<install_dir>/commands/{filename}`).
+   - **`type == "skill"`** (or absent): Delete `<install_dir>/skills/<name>/SKILL.md`
+   - **`type == "plugin"`**: Log a notice — plugin removal requires manual cleanup. Report the plugin name.
 2. Report: "Removed {type}: <name>"
 
 ### 3c. Resolve local changes
 
 For each item in `local_changes`, ask the user:
 
-> "Extension **<name>** has local modifications (local hash: `<local_hash>`, Archon hash: `<archon_hash>`). What would you like to do?"
+> "Extension **<name>** ({type}) has local modifications (local hash: `<local_hash>`, Archon hash: `<archon_hash>`). What would you like to do?"
 
 Options:
 - **Update Source** — Push local content to Archon as a new version
@@ -181,7 +218,7 @@ Options:
 **If Update Source:**
 Read the local file content, then:
 ```
-manage_extensions(action="upload", extension_content="<local content>")
+manage_extensions(action="upload", extension_content="<local content>", extension_type="<type>")
 ```
 
 **If Save as Project Version:**
@@ -194,7 +231,7 @@ manage_extensions(action="validate", extension_content="<local content>")
 ```
 If validation passes:
 ```
-manage_extensions(action="upload", extension_content="<local content>", extension_name="<new-name>")
+manage_extensions(action="upload", extension_content="<local content>", extension_name="<new-name>", extension_type="<type>")
 ```
 
 **If Discard Changes:**
@@ -204,7 +241,7 @@ Fetch the Archon version via `find_extensions(extension_id="<extension_id>")` an
 
 For each item in `unknown_local`, ask the user:
 
-> "Found local extension **<name>** not in Archon. Would you like to upload it to the registry?"
+> "Found local {type} **<name>** not in Archon. Would you like to upload it to the registry?"
 
 Options:
 - **Upload** — Validate and upload
@@ -217,9 +254,11 @@ manage_extensions(action="validate", extension_content="<content>")
 ```
 If validation passes (or user accepts warnings):
 ```
-manage_extensions(action="upload", extension_content="<content>")
+manage_extensions(action="upload", extension_content="<content>", extension_type="<type>")
 ```
 If validation has errors, show them and ask user to fix.
+
+**Note for plugins:** Since plugins are multi-file, uploading only registers the plugin metadata (name and `.mcp.json` manifest). The full plugin source lives in the repo and must be distributed via git.
 
 ---
 
@@ -241,7 +280,8 @@ Merge with existing state — do not overwrite other fields.
 ### 4b. Summary
 
 > "**Extension sync complete:**
-> - In sync: <N> extensions (<M> skills, <K> commands)
+> - Scanned: <N> skills, <M> commands, <P> plugins
+> - In sync: <count>
 > - Installed: <list or 'none'>
 > - Removed: <list or 'none'>
 > - Updated: <list or 'none'>
@@ -258,19 +298,29 @@ Other Archon extensions check sync freshness in their Phase 0:
 ```
 Read .claude/archon-state.json
 If last_extension_sync is missing or older than 24h:
-  → Run /archon-extension-sync before continuing
+  -> Run /archon-extension-sync before continuing
 ```
 
 ### Extension File Locations
 
-- **Installed skills:** `<install_dir>/skills/<name>/SKILL.md`
-  - Project scope (`install_scope: "project"`): `.claude/skills/`
-  - Global scope (`install_scope: "global"`): `~/.claude/skills/`
-- **Installed commands:** `<install_dir>/commands/{group}/{filename}.md` or `<install_dir>/commands/{filename}.md`
-- **Repo skills:** `integrations/claude-code/extensions/<name>/SKILL.md`
-- **Repo commands:** `integrations/claude-code/commands/{group}/{filename}.md`
-- Skills are identified by their frontmatter `name` field, not directory name
-- Commands are identified by their file path (group + filename)
+**Skills:**
+- Installed: `<install_dir>/skills/<name>/SKILL.md`
+  - Project scope: `.claude/skills/`
+  - Global scope: `~/.claude/skills/`
+- Repo source: `integrations/claude-code/extensions/<name>/SKILL.md`
+- Identified by: YAML frontmatter `name` field
+
+**Commands:**
+- Installed: `<install_dir>/commands/{group}/{filename}.md` or `<install_dir>/commands/{filename}.md`
+- Project-level: `.claude/commands/{group}/{filename}.md`
+- Repo source: `integrations/claude-code/commands/{group}/{filename}.md`
+- Identified by: file path (group + filename stem)
+
+**Plugins:**
+- Installed: `<install_dir>/plugins/<name>/` (directory with `.mcp.json`)
+- Repo source: `integrations/claude-code/plugins/<name>/`
+- Identified by: directory name containing `.mcp.json`
+- Sync scope: metadata tracking only (drift detection via `.mcp.json` hash)
 
 ### Error Recovery
 
