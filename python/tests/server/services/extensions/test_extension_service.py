@@ -711,3 +711,180 @@ class TestListExtensionsForProject:
         service.list_extensions_for_project("proj-uuid-1", include_content=True)
 
         builder.select.assert_called_once_with("*")
+
+
+# ── link_extension_to_project ──────────────────────────────────────────────
+
+
+class TestLinkExtensionToProject:
+    def test_appends_project_id_to_skill_groups(self, mock_supabase):
+        """link_extension_to_project should add project_id to skill_groups."""
+        extension_id = "ext-uuid-1"
+        project_id = "proj-uuid-1"
+
+        existing = {
+            "id": extension_id,
+            "name": "my-skill",
+            "skill_groups": ["proj-uuid-0"],
+            "updated_at": "2024-01-01T00:00:00+00:00",
+        }
+        updated = {**existing, "skill_groups": ["proj-uuid-0", project_id]}
+
+        get_builder = MagicMock()
+        get_builder.select.return_value = get_builder
+        get_builder.eq.return_value = get_builder
+        get_builder.execute.return_value = MagicMock(data=[existing])
+
+        update_builder = MagicMock()
+        update_builder.update.return_value = update_builder
+        update_builder.eq.return_value = update_builder
+        update_builder.execute.return_value = MagicMock(data=[updated])
+
+        call_count = {"n": 0}
+
+        def _table(name):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return get_builder
+            return update_builder
+
+        mock_supabase.table.side_effect = _table
+        service = ExtensionService(supabase_client=mock_supabase)
+        result = service.link_extension_to_project(extension_id, project_id)
+
+        assert project_id in result["skill_groups"]
+        update_builder.update.assert_called_once()
+        update_call_kwargs = update_builder.update.call_args[0][0]
+        assert project_id in update_call_kwargs["skill_groups"]
+
+    def test_idempotent_when_already_linked(self, mock_supabase):
+        """link_extension_to_project should return early if project_id already present."""
+        extension_id = "ext-uuid-1"
+        project_id = "proj-uuid-1"
+
+        existing = {
+            "id": extension_id,
+            "name": "my-skill",
+            "skill_groups": [project_id],
+        }
+
+        get_builder = MagicMock()
+        get_builder.select.return_value = get_builder
+        get_builder.eq.return_value = get_builder
+        get_builder.execute.return_value = MagicMock(data=[existing])
+
+        mock_supabase.table.side_effect = lambda name: get_builder
+        service = ExtensionService(supabase_client=mock_supabase)
+        result = service.link_extension_to_project(extension_id, project_id)
+
+        assert result == existing
+        # update should NOT be called
+        get_builder.update.assert_not_called()
+
+    def test_raises_value_error_when_extension_not_found(self, mock_supabase):
+        """link_extension_to_project should raise ValueError for unknown extension_id."""
+        get_builder = MagicMock()
+        get_builder.select.return_value = get_builder
+        get_builder.eq.return_value = get_builder
+        get_builder.execute.return_value = MagicMock(data=[])
+
+        mock_supabase.table.side_effect = lambda name: get_builder
+        service = ExtensionService(supabase_client=mock_supabase)
+
+        with pytest.raises(ValueError, match="not found"):
+            service.link_extension_to_project("bad-id", "proj-1")
+
+
+# ── unlink_extension_from_project ─────────────────────────────────────────
+
+
+class TestUnlinkExtensionFromProject:
+    def test_removes_project_id_from_skill_groups(self, mock_supabase):
+        """unlink_extension_from_project should remove project_id from skill_groups."""
+        extension_id = "ext-uuid-1"
+        project_id = "proj-uuid-1"
+
+        existing = {
+            "id": extension_id,
+            "name": "my-skill",
+            "skill_groups": ["proj-uuid-0", project_id],
+        }
+        updated = {**existing, "skill_groups": ["proj-uuid-0"]}
+
+        get_builder = MagicMock()
+        get_builder.select.return_value = get_builder
+        get_builder.eq.return_value = get_builder
+        get_builder.execute.return_value = MagicMock(data=[existing])
+
+        update_builder = MagicMock()
+        update_builder.update.return_value = update_builder
+        update_builder.eq.return_value = update_builder
+        update_builder.execute.return_value = MagicMock(data=[updated])
+
+        call_count = {"n": 0}
+
+        def _table(name):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return get_builder
+            return update_builder
+
+        mock_supabase.table.side_effect = _table
+        service = ExtensionService(supabase_client=mock_supabase)
+        result = service.unlink_extension_from_project(extension_id, project_id)
+
+        assert project_id not in result["skill_groups"]
+
+    def test_idempotent_when_not_linked(self, mock_supabase):
+        """unlink_extension_from_project should return early if project_id not present."""
+        extension_id = "ext-uuid-1"
+        project_id = "proj-uuid-1"
+
+        existing = {"id": extension_id, "name": "my-skill", "skill_groups": []}
+
+        get_builder = MagicMock()
+        get_builder.select.return_value = get_builder
+        get_builder.eq.return_value = get_builder
+        get_builder.execute.return_value = MagicMock(data=[existing])
+
+        mock_supabase.table.side_effect = lambda name: get_builder
+        service = ExtensionService(supabase_client=mock_supabase)
+        result = service.unlink_extension_from_project(extension_id, project_id)
+
+        assert result == existing
+        get_builder.update.assert_not_called()
+
+
+# ── set_extension_default ─────────────────────────────────────────────────
+
+
+class TestSetExtensionDefault:
+    def test_sets_is_default_true(self, mock_supabase):
+        """set_extension_default should update is_default on the extension."""
+        extension_id = "ext-uuid-1"
+        updated = {"id": extension_id, "name": "my-skill", "is_default": True}
+
+        builder = MagicMock()
+        for method in ("update", "eq"):
+            getattr(builder, method).return_value = builder
+        builder.execute.return_value = MagicMock(data=[updated])
+        mock_supabase.table.side_effect = lambda name: builder
+
+        service = ExtensionService(supabase_client=mock_supabase)
+        result = service.set_extension_default(extension_id, is_default=True)
+
+        assert result["is_default"] is True
+        update_kwargs = builder.update.call_args[0][0]
+        assert update_kwargs["is_default"] is True
+
+    def test_raises_runtime_error_when_extension_not_found(self, mock_supabase):
+        """set_extension_default should raise RuntimeError if update returns no data."""
+        builder = MagicMock()
+        for method in ("update", "eq"):
+            getattr(builder, method).return_value = builder
+        builder.execute.return_value = MagicMock(data=[])
+        mock_supabase.table.side_effect = lambda name: builder
+
+        service = ExtensionService(supabase_client=mock_supabase)
+        with pytest.raises(RuntimeError, match="Failed to update"):
+            service.set_extension_default("bad-id", is_default=True)

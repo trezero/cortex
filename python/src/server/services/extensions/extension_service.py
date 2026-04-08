@@ -113,7 +113,7 @@ class ExtensionService:
         """
         query = (
             self.supabase_client.table(EXTENSIONS_TABLE)
-            .select("id, name, display_name, description, current_version, content_hash, type, skill_groups, is_required, is_validated, tags, created_by, created_at, updated_at")
+            .select("id, name, display_name, description, current_version, content_hash, type, skill_groups, is_required, is_default, is_validated, tags, created_by, created_at, updated_at")
         )
         if skill_group is not None:
             query = query.contains("skill_groups", [skill_group])
@@ -144,7 +144,7 @@ class ExtensionService:
         else:
             query = (
                 self.supabase_client.table(EXTENSIONS_TABLE)
-                .select("id, name, display_name, description, current_version, content_hash, type, skill_groups, is_required, is_validated, tags, created_by, created_at, updated_at")
+                .select("id, name, display_name, description, current_version, content_hash, type, skill_groups, is_required, is_default, is_validated, tags, created_by, created_at, updated_at")
             )
         query = query.overlaps("skill_groups", [project_id])
         if type is not None:
@@ -304,6 +304,86 @@ class ExtensionService:
             .execute()
         )
         return response.data
+
+    def link_extension_to_project(self, extension_id: str, project_id: str) -> dict[str, Any]:
+        """Append project_id to an extension's skill_groups, making it part of that project.
+
+        Idempotent — if project_id is already in skill_groups, returns the extension unchanged.
+
+        Raises:
+            ValueError: If the extension_id does not exist.
+            RuntimeError: If the database update fails.
+        """
+        ext = self.get_extension(extension_id)
+        if ext is None:
+            raise ValueError(f"Extension '{extension_id}' not found")
+
+        skill_groups: list[str] = ext.get("skill_groups") or []
+        if project_id in skill_groups:
+            return ext
+
+        updated_groups = [*skill_groups, project_id]
+        response = (
+            self.supabase_client.table(EXTENSIONS_TABLE)
+            .update({"skill_groups": updated_groups, "updated_at": datetime.now(UTC).isoformat()})
+            .eq("id", extension_id)
+            .execute()
+        )
+        if not response.data:
+            raise RuntimeError(f"Failed to link extension '{extension_id}' to project '{project_id}'")
+
+        logger.info(f"Extension linked to project: {extension_id} -> {project_id}")
+        return response.data[0]
+
+    def unlink_extension_from_project(self, extension_id: str, project_id: str) -> dict[str, Any]:
+        """Remove project_id from an extension's skill_groups.
+
+        Idempotent — if project_id is not in skill_groups, returns the extension unchanged.
+
+        Raises:
+            ValueError: If the extension_id does not exist.
+            RuntimeError: If the database update fails.
+        """
+        ext = self.get_extension(extension_id)
+        if ext is None:
+            raise ValueError(f"Extension '{extension_id}' not found")
+
+        skill_groups: list[str] = ext.get("skill_groups") or []
+        if project_id not in skill_groups:
+            return ext
+
+        updated_groups = [g for g in skill_groups if g != project_id]
+        response = (
+            self.supabase_client.table(EXTENSIONS_TABLE)
+            .update({"skill_groups": updated_groups, "updated_at": datetime.now(UTC).isoformat()})
+            .eq("id", extension_id)
+            .execute()
+        )
+        if not response.data:
+            raise RuntimeError(f"Failed to unlink extension '{extension_id}' from project '{project_id}'")
+
+        logger.info(f"Extension unlinked from project: {extension_id} -> {project_id}")
+        return response.data[0]
+
+    def set_extension_default(self, extension_id: str, is_default: bool) -> dict[str, Any]:
+        """Set or clear the is_default flag on an extension.
+
+        Extensions with is_default = True are installed on every new Archon-connected application.
+
+        Raises:
+            RuntimeError: If the extension_id does not exist or update fails.
+        """
+        response = (
+            self.supabase_client.table(EXTENSIONS_TABLE)
+            .update({"is_default": is_default, "updated_at": datetime.now(UTC).isoformat()})
+            .eq("id", extension_id)
+            .execute()
+        )
+        if not response.data:
+            raise RuntimeError(f"Failed to update is_default for extension '{extension_id}'")
+
+        logger.info(f"Extension is_default set to {is_default}: {extension_id}")
+        return response.data[0]
 
     def save_project_override(
         self,
