@@ -49,8 +49,13 @@ Read `.claude/archon-config.json` if it exists (fall back to `~/.claude/archon-c
 - `install_scope` → `<install_scope>` (may be absent)
 
 Determine `<install_dir>`:
-- If `<install_scope>` is `"project"` → `.claude`
-- If `<install_scope>` is `"global"` or absent → `~/.claude`
+- If `<install_scope>` is `"global"` → `~/.claude`
+- Otherwise (including `"project"` or absent) → `.claude`
+
+**Important:** The default is always project-scoped (`.claude` in the repo root). Extensions,
+commands, and plugins must never be installed into `~/.claude` unless the user has explicitly
+opted into global scope via their `archon-config.json`. If the `.claude` directory does not
+exist, create it.
 
 ## Phase 2: Collect System Info and Compute Fingerprint
 
@@ -133,15 +138,13 @@ curl -sf "<archon_mcp_url>/archon-setup/extensions.tar.gz" | tar xz -C "<install
 
 ## Phase 5b: Update Slash Commands
 
-Download the latest command files from the Archon server:
+Download the latest command files from the Archon server into the repo-local `.claude/commands/` directory:
 
 ```bash
-mkdir -p ~/.claude/commands && curl -sf "<archon_mcp_url>/archon-setup/commands.tar.gz" | tar xz -C ~/.claude/commands/
+mkdir -p <install_dir>/commands && curl -sf "<archon_mcp_url>/archon-setup/commands.tar.gz" | tar xz -C "<install_dir>/commands/"
 ```
 
 If the download fails, warn the user but continue — existing commands will still work.
-
-Read `archon_mcp_url` from `.claude/archon-config.json` (or `~/.claude/archon-config.json`).
 
 ## Phase 5c: CLAUDE.md Rules Integration
 

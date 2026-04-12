@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Local-only deployment** - each user runs their own instance.
 
+### Extension Install Scope
+
+**Never install extensions, commands, or plugins into `~/.claude` (the user's global folder).** Everything must be installed into the `.claude` directory within the repo the user is working in. If the `.claude` directory does not exist, create it. This applies to skills, commands, plugins, config files, and any other Archon-managed artifacts. The only exception is if the user has explicitly set `"install_scope": "global"` in their `archon-config.json`.
+
 ### Core Principles
 
 - **No backwards compatibility; we follow a fix‑forward approach** — remove deprecated code immediately
