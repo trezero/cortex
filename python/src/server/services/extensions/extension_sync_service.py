@@ -69,6 +69,12 @@ class ExtensionSyncService:
                 unknown_local.append({"name": name, "content_hash": local["content_hash"]})
                 continue
 
+            # is_required extensions are system-critical and must never be auto-updated
+            # or removed by sync — always treat as in_sync regardless of content hash
+            if archon_extension.get("is_required"):
+                in_sync.append(name)
+                continue
+
             sys_extension = system_by_extension_id.get(archon_extension["id"])
 
             if sys_extension and sys_extension["status"] == "pending_remove":
@@ -87,13 +93,15 @@ class ExtensionSyncService:
                 })
 
         # Detect pending installs: extensions in Archon with pending_install status
-        # that are NOT already present locally
+        # that are NOT already present locally (skip is_required extensions)
         for sys_extension in system_extensions:
             if sys_extension["status"] != "pending_install":
                 continue
             extension_id = sys_extension["extension_id"]
             archon_extension = next((s for s in archon_extensions if s["id"] == extension_id), None)
             if archon_extension and archon_extension["name"] not in local_by_name:
+                if archon_extension.get("is_required"):
+                    continue
                 pending_install.append({
                     "extension_id": extension_id,
                     "name": archon_extension["name"],
