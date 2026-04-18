@@ -102,6 +102,7 @@ services:
       - default  # Connects to supabase_default network
     volumes:
       - archon-mcp-data:/app/data # Persistent data storage
+      - ./python/src:/app/src # Mount source code for hot reload
       - ./integrations:/app/integrations # Setup script templates
     depends_on:
       archon-server:
