@@ -4,11 +4,12 @@ Tests sync report computation (hash comparison, drift detection),
 install status management, and queue operations using mocked Supabase client.
 """
 
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
 
-from src.server.services.extensions.extension_sync_service import ExtensionSyncService
+from src.server.services.extensions.extension_sync_service import ExtensionSyncService, _compute_direction
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -157,6 +158,120 @@ class TestComputeSyncReport:
         # It should be in_sync (hashes match), not pending_install
         assert "already-here" in report["in_sync"]
         assert len(report["pending_install"]) == 0
+
+
+# ── _compute_direction ───────────────────────────────────────────────────────
+
+
+class TestComputeDirection:
+    def _ts(self, dt: datetime) -> float:
+        """Convert datetime to Unix timestamp."""
+        return dt.replace(tzinfo=timezone.utc).timestamp()
+
+    def _iso(self, dt: datetime) -> str:
+        """Convert datetime to ISO string as stored in DB."""
+        return dt.replace(tzinfo=timezone.utc).isoformat()
+
+    def test_local_newer_when_local_mtime_is_later(self):
+        base = datetime(2025, 1, 1, 12, 0, 0)
+        archon = datetime(2025, 1, 1, 11, 0, 0)  # 1 hour earlier
+        assert _compute_direction(self._ts(base), self._iso(archon)) == "local_newer"
+
+    def test_archon_newer_when_archon_updated_at_is_later(self):
+        local = datetime(2025, 1, 1, 11, 0, 0)
+        archon = datetime(2025, 1, 1, 12, 0, 0)  # 1 hour later
+        assert _compute_direction(self._ts(local), self._iso(archon)) == "archon_newer"
+
+    def test_conflict_when_within_clock_skew_threshold(self):
+        base = datetime(2025, 1, 1, 12, 0, 0)
+        # 3 seconds apart — within 5-second threshold
+        archon = datetime(2025, 1, 1, 12, 0, 3)
+        assert _compute_direction(self._ts(base), self._iso(archon)) == "conflict"
+
+    def test_conflict_when_timestamps_are_equal(self):
+        dt = datetime(2025, 1, 1, 12, 0, 0)
+        assert _compute_direction(self._ts(dt), self._iso(dt)) == "conflict"
+
+    def test_unknown_when_local_mtime_is_none(self):
+        archon = datetime(2025, 1, 1, 12, 0, 0)
+        assert _compute_direction(None, self._iso(archon)) == "unknown"
+
+    def test_unknown_when_archon_updated_at_is_none(self):
+        local = datetime(2025, 1, 1, 12, 0, 0)
+        assert _compute_direction(self._ts(local), None) == "unknown"
+
+    def test_unknown_when_both_missing(self):
+        assert _compute_direction(None, None) == "unknown"
+
+    def test_unknown_when_archon_timestamp_is_unparseable(self):
+        assert _compute_direction(1700000000.0, "not-a-timestamp") == "unknown"
+
+    def test_accepts_integer_local_mtime(self):
+        base = datetime(2025, 1, 1, 12, 0, 0)
+        archon = datetime(2025, 1, 1, 11, 0, 0)
+        assert _compute_direction(int(self._ts(base)), self._iso(archon)) == "local_newer"
+
+    def test_accepts_z_suffix_iso_timestamp(self):
+        local = datetime(2025, 1, 1, 11, 0, 0)
+        archon_iso = "2025-01-01T12:00:00Z"
+        assert _compute_direction(self._ts(local), archon_iso) == "archon_newer"
+
+
+class TestComputeSyncReportWithTimestamps:
+    """Tests that verify direction field is included in local_changes."""
+
+    def test_local_changes_include_direction_local_newer(self, service):
+        local_ts = datetime(2025, 6, 1, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+        archon_updated = "2025-06-01T11:00:00+00:00"
+        local_extensions = [{"name": "my-skill", "content_hash": "bbb", "local_mtime": local_ts}]
+        archon_extensions = [{"id": "s1", "name": "my-skill", "content_hash": "aaa", "updated_at": archon_updated}]
+
+        report = service.compute_sync_report(local_extensions, archon_extensions, [])
+
+        assert len(report["local_changes"]) == 1
+        change = report["local_changes"][0]
+        assert change["direction"] == "local_newer"
+        assert change["local_mtime"] == local_ts
+        assert change["archon_updated_at"] == archon_updated
+
+    def test_local_changes_include_direction_archon_newer(self, service):
+        local_ts = datetime(2025, 6, 1, 11, 0, 0, tzinfo=timezone.utc).timestamp()
+        archon_updated = "2025-06-01T12:00:00+00:00"
+        local_extensions = [{"name": "my-skill", "content_hash": "bbb", "local_mtime": local_ts}]
+        archon_extensions = [{"id": "s1", "name": "my-skill", "content_hash": "aaa", "updated_at": archon_updated}]
+
+        report = service.compute_sync_report(local_extensions, archon_extensions, [])
+
+        assert report["local_changes"][0]["direction"] == "archon_newer"
+
+    def test_local_changes_direction_unknown_when_no_mtime(self, service):
+        local_extensions = [{"name": "my-skill", "content_hash": "bbb"}]
+        archon_extensions = [{"id": "s1", "name": "my-skill", "content_hash": "aaa", "updated_at": "2025-06-01T12:00:00Z"}]
+
+        report = service.compute_sync_report(local_extensions, archon_extensions, [])
+
+        assert report["local_changes"][0]["direction"] == "unknown"
+        assert report["local_changes"][0]["local_mtime"] is None
+
+    def test_local_changes_direction_unknown_when_no_archon_timestamp(self, service):
+        local_ts = datetime(2025, 6, 1, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+        local_extensions = [{"name": "my-skill", "content_hash": "bbb", "local_mtime": local_ts}]
+        archon_extensions = [{"id": "s1", "name": "my-skill", "content_hash": "aaa"}]
+
+        report = service.compute_sync_report(local_extensions, archon_extensions, [])
+
+        assert report["local_changes"][0]["direction"] == "unknown"
+        assert report["local_changes"][0]["archon_updated_at"] is None
+
+    def test_in_sync_extensions_not_affected_by_timestamps(self, service):
+        local_ts = datetime(2025, 6, 1, 12, 0, 0, tzinfo=timezone.utc).timestamp()
+        local_extensions = [{"name": "my-skill", "content_hash": "aaa", "local_mtime": local_ts}]
+        archon_extensions = [{"id": "s1", "name": "my-skill", "content_hash": "aaa", "updated_at": "2025-01-01T00:00:00Z"}]
+
+        report = service.compute_sync_report(local_extensions, archon_extensions, [])
+
+        assert "my-skill" in report["in_sync"]
+        assert len(report["local_changes"]) == 0
 
 
 # ── get_system_extensions ────────────────────────────────────────────────────

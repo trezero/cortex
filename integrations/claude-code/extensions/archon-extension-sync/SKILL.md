@@ -42,7 +42,7 @@ Store as `system_fingerprint`.
 
 ## Phase 1: Scan Local Extensions
 
-Initialize an empty `local_extensions` list: `[{name, content_hash, type, source_path}]`
+Initialize an empty `local_extensions` list: `[{name, content_hash, type, source_path, local_mtime}]`
 
 ### 1a. Determine install scope
 
@@ -74,7 +74,12 @@ For each SKILL.md file found:
    ```bash
    sha256sum <filepath> | cut -d' ' -f1
    ```
-4. Add to `local_extensions`: `{name, content_hash, type: "skill", source_path}`
+4. Get the file's last modification time as a Unix timestamp (integer seconds since epoch):
+   ```bash
+   date -r <filepath> +%s
+   ```
+   (Works on both Linux and macOS. On Windows use PowerShell: `[int](Get-Item '<filepath>').LastWriteTimeUtc.Subtract([datetime]'1970-01-01').TotalSeconds`)
+5. Add to `local_extensions`: `{name, content_hash, type: "skill", source_path, local_mtime: <integer>}`
 
 ### 1d. Find all command files
 
@@ -104,7 +109,12 @@ For each command `.md` file found:
    ```bash
    sha256sum <filepath> | cut -d' ' -f1
    ```
-4. Add to `local_extensions`: `{name, content_hash, type: "command", source_path}`
+4. Get the file's last modification time as a Unix timestamp (integer seconds since epoch):
+   ```bash
+   date -r <filepath> +%s
+   ```
+   (Works on both Linux and macOS. On Windows use PowerShell: `[int](Get-Item '<filepath>').LastWriteTimeUtc.Subtract([datetime]'1970-01-01').TotalSeconds`)
+5. Add to `local_extensions`: `{name, content_hash, type: "command", source_path, local_mtime: <integer>}`
 
 ### 1f. Find all plugin directories
 
@@ -128,7 +138,12 @@ For each plugin directory found (containing `.mcp.json`):
    ```bash
    sha256sum <plugin_dir>/.mcp.json | cut -d' ' -f1
    ```
-4. Add to `local_extensions`: `{name, content_hash, type: "plugin", source_path}`
+4. Get the manifest's last modification time as a Unix timestamp (integer seconds since epoch):
+   ```bash
+   date -r <plugin_dir>/.mcp.json +%s
+   ```
+   (Works on both Linux and macOS. On Windows use PowerShell: `[int](Get-Item '<plugin_dir>\.mcp.json').LastWriteTimeUtc.Subtract([datetime]'1970-01-01').TotalSeconds`)
+5. Add to `local_extensions`: `{name, content_hash, type: "plugin", source_path, local_mtime: <integer>}`
 
 **Note:** Plugins are complex multi-file structures (Python code, MCP servers, hooks). The sync tracks them by their `.mcp.json` manifest hash for drift detection. Full plugin content sync (uploading all plugin files) is not yet supported — only metadata registration and drift alerts.
 
@@ -205,9 +220,43 @@ For each item in `pending_remove`:
 
 ### 3c. Resolve local changes
 
-For each item in `local_changes`, ask the user:
+The `direction` field in each `local_changes` item indicates which copy is newer:
+- `local_newer` — local file mtime is later than Archon's `updated_at`
+- `archon_newer` — Archon's `updated_at` is later than local file mtime
+- `conflict` — timestamps are within the clock-skew threshold (genuine ambiguity)
+- `unknown` — one or both timestamps were not available
 
-> "Extension **<name>** ({type}) has local modifications (local hash: `<local_hash>`, Archon hash: `<archon_hash>`). What would you like to do?"
+Format timestamps for display: convert `local_mtime` (Unix seconds) and `archon_updated_at` (ISO string) to human-readable UTC dates.
+
+**For `direction == "local_newer"`:**
+
+> "Extension **<name>** ({type}): your local copy is newer (local: `<local date>`, Archon last updated: `<archon date>`).
+> **Recommended: Push local version to Archon.**
+> Choose: [Push to Archon] / [Keep Archon version] / [Skip]"
+
+- **Push to Archon:** Read local file content, then:
+  ```
+  manage_extensions(action="upload", extension_content="<local content>", extension_type="<type>")
+  ```
+- **Keep Archon version:** Fetch Archon version via `find_extensions(extension_id="<extension_id>")` and overwrite local file.
+- **Skip:** Leave both as-is and continue.
+
+**For `direction == "archon_newer"`:**
+
+> "Extension **<name>** ({type}): Archon has a newer version (Archon last updated: `<archon date>`, local: `<local date>`).
+> **Recommended: Pull from Archon (update local file).**
+> Choose: [Pull from Archon] / [Keep local version] / [Skip]"
+
+- **Pull from Archon:** Fetch Archon version via `find_extensions(extension_id="<extension_id>")` and overwrite local file.
+- **Keep local version:** Read local file content, then push to Archon:
+  ```
+  manage_extensions(action="upload", extension_content="<local content>", extension_type="<type>")
+  ```
+- **Skip:** Leave both as-is and continue.
+
+**For `direction == "conflict"` or `direction == "unknown"`:**
+
+> "Extension **<name>** ({type}) has diverged (local hash: `<local_hash>`, Archon hash: `<archon_hash>`). Unable to determine which is newer. What would you like to do?"
 
 Options:
 - **Update Source** — Push local content to Archon as a new version

@@ -5,6 +5,7 @@ resolves pending actions, and detects drift between
 what a system has installed and what the registry expects.
 """
 
+from datetime import datetime, timezone
 from typing import Any
 
 from ...config.logfire_config import get_logger
@@ -13,6 +14,33 @@ logger = get_logger(__name__)
 
 SYSTEM_EXTENSIONS_TABLE = "archon_system_extensions"
 REGISTRATIONS_TABLE = "archon_project_system_registrations"
+
+# Seconds of tolerance when comparing local file mtime against archon updated_at.
+# Guards against minor clock skew between machines.
+_CLOCK_SKEW_SECONDS = 5
+
+
+def _compute_direction(local_mtime: float | int | None, archon_updated_at: str | None) -> str:
+    """Determine which copy of an extension is newer based on timestamps.
+
+    Returns one of:
+      "local_newer"   — local file mtime is meaningfully later than Archon's updated_at
+      "archon_newer"  — Archon's updated_at is meaningfully later than local file mtime
+      "conflict"      — timestamps are within clock-skew threshold (genuine conflict)
+      "unknown"       — one or both timestamps are missing or unparseable
+    """
+    if local_mtime is None or not archon_updated_at:
+        return "unknown"
+    try:
+        archon_ts = datetime.fromisoformat(archon_updated_at.replace("Z", "+00:00")).timestamp()
+        local_ts = float(local_mtime)
+        if local_ts > archon_ts + _CLOCK_SKEW_SECONDS:
+            return "local_newer"
+        if archon_ts > local_ts + _CLOCK_SKEW_SECONDS:
+            return "archon_newer"
+        return "conflict"
+    except (ValueError, TypeError, AttributeError):
+        return "unknown"
 
 
 class ExtensionSyncService:
@@ -42,13 +70,19 @@ class ExtensionSyncService:
         """Compare local extensions against Archon state and return a sync report.
 
         Args:
-            local_extensions: [{name, content_hash}] from the client's disk.
+            local_extensions: [{name, content_hash, local_mtime?}] from the client's disk.
+                local_mtime is a Unix timestamp (seconds) of the file's last modification.
             archon_extensions: Full extension records from archon_extensions table.
             system_extensions: Records from archon_system_extensions for this system+project.
 
         Returns:
             Sync report with keys: in_sync, local_changes, pending_install,
             pending_remove, unknown_local.
+
+            Each local_changes item includes:
+              direction: "local_newer" | "archon_newer" | "conflict" | "unknown"
+              local_mtime: Unix timestamp from the client (or None)
+              archon_updated_at: ISO timestamp from the Archon record (or None)
         """
         archon_by_name: dict[str, dict[str, Any]] = {s["name"]: s for s in archon_extensions}
         system_by_extension_id: dict[str, dict[str, Any]] = {s["extension_id"]: s for s in system_extensions}
@@ -85,11 +119,16 @@ class ExtensionSyncService:
             elif local["content_hash"] == archon_extension["content_hash"]:
                 in_sync.append(name)
             else:
+                local_mtime = local.get("local_mtime")
+                archon_updated_at = archon_extension.get("updated_at")
                 local_changes.append({
                     "name": name,
                     "extension_id": archon_extension["id"],
                     "local_hash": local["content_hash"],
                     "archon_hash": archon_extension["content_hash"],
+                    "direction": _compute_direction(local_mtime, archon_updated_at),
+                    "local_mtime": local_mtime,
+                    "archon_updated_at": archon_updated_at,
                 })
 
         # Detect pending installs: extensions in Archon with pending_install status
