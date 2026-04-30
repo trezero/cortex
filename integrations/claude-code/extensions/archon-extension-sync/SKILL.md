@@ -50,8 +50,8 @@ Read `.claude/archon-config.json` if it exists (fall back to `~/.claude/archon-c
 - `install_scope` -> `<install_scope>` (may be absent)
 
 Determine `<install_dir>`:
-- If `<install_scope>` is `"project"` -> `.claude`
-- If `<install_scope>` is `"global"` or absent -> `~/.claude`
+- If `<install_scope>` is `"global"` -> `~/.claude`
+- Otherwise (including `"project"` or absent) -> `.claude`
 
 ### 1b. Find all skill definition files
 

@@ -471,16 +471,16 @@ echo.
 
 :: -- Step 4/4: Install slash commands ---------------------------------------
 echo [4/4] Installing slash commands...
-if not exist "%USERPROFILE%\.claude\commands" mkdir "%USERPROFILE%\.claude\commands"
+if not exist "!INSTALL_DIR!\commands" mkdir "!INSTALL_DIR!\commands"
 curl -sf "%ARCHON_MCP_URL%/archon-setup/commands.tar.gz" -o "%TEMP%\commands.tar.gz"
 if %ERRORLEVEL% equ 0 (
-    tar xzf "%TEMP%\commands.tar.gz" -C "%USERPROFILE%\.claude\commands\"
+    tar xzf "%TEMP%\commands.tar.gz" -C "!INSTALL_DIR!\commands\"
     del "%TEMP%\commands.tar.gz" 2>nul
     echo       Slash commands installed from registry
 ) else (
     echo       Could not download commands from registry, trying individual files...
-    curl -sf "%ARCHON_MCP_URL%/archon-setup.md" -o "%USERPROFILE%\.claude\commands\archon-setup.md" 2>nul
-    curl -sf "%ARCHON_MCP_URL%/scan-projects.md" -o "%USERPROFILE%\.claude\commands\scan-projects.md" 2>nul
+    curl -sf "%ARCHON_MCP_URL%/archon-setup.md" -o "!INSTALL_DIR!\commands\archon-setup.md" 2>nul
+    curl -sf "%ARCHON_MCP_URL%/scan-projects.md" -o "!INSTALL_DIR!\commands\scan-projects.md" 2>nul
 )
 echo.
 
