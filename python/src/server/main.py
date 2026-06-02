@@ -142,17 +142,6 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             api_logger.warning(f"Extension seeding failed (non-fatal): {e}", exc_info=True)
 
-        # Mark any sources stuck in "crawling" status as failed (crash recovery)
-        try:
-            from .config.database import get_supabase_client
-            client = get_supabase_client()
-            result = client.table("archon_sources").update(
-                {"crawl_status": "failed"}
-            ).eq("crawl_status", "crawling").execute()
-            if result.data:
-                logger.warning(f"Marked {len(result.data)} stale crawls as failed (server restart recovery)")
-        except Exception as e:
-            logger.warning(f"Failed to recover stale crawls on startup: {e}")
 
         # Recover any auto-research jobs left in 'running' state after a restart
         try:

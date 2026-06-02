@@ -20,12 +20,17 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 # Basic validation - simplified inline version
-
 # Import unified logging
 from ..config.logfire_config import get_logger, safe_logfire_error, safe_logfire_info
 from ..services.crawler_manager import get_crawler
 from ..services.crawling import CrawlingService
 from ..services.credential_service import credential_service
+from ..services.embeddings.embedding_exceptions import (
+    EmbeddingAPIError,
+    EmbeddingAuthenticationError,
+    EmbeddingQuotaExhaustedError,
+    EmbeddingRateLimitError,
+)
 from ..services.embeddings.provider_error_adapters import ProviderErrorFactory
 from ..services.knowledge import DatabaseMetricsService, KnowledgeItemService, KnowledgeSummaryService
 from ..services.search.rag_service import RAGService
@@ -62,12 +67,143 @@ _crawl_count_lock = asyncio.Lock()
 active_crawl_tasks: dict[str, asyncio.Task] = {}
 
 
+def _get_provider_display_name(provider: str) -> str:
+    """Return a human-readable provider name for API responses."""
+    provider_names = {
+        "openai": "OpenAI",
+        "openrouter": "OpenRouter",
+        "google": "Google",
+        "anthropic": "Anthropic",
+        "grok": "Grok",
+        "ollama": "Ollama",
+    }
+    return provider_names.get(provider.lower(), provider.title())
+
+
+def _sanitize_provider_validation_error(provider: str, error: Exception) -> str:
+    """Sanitize provider validation errors before returning them to clients."""
+    error_text = str(error).strip()
+    if not error_text:
+        error_text = f"{provider.title()} API encountered an error."
+    return ProviderErrorFactory.sanitize_provider_error(error_text, provider)
+
+
+def _build_provider_validation_exception(provider: str, error: Exception) -> HTTPException:
+    """Map embedding validation failures to accurate HTTP responses."""
+    provider_name = provider or "openai"
+    provider_title = _get_provider_display_name(provider_name)
+    sanitized_error = _sanitize_provider_validation_error(provider_name, error)
+    error_lower = sanitized_error.lower()
+
+    auth_markers = (
+        "incorrect api key",
+        "invalid api key",
+        "invalid_api_key",
+        "authentication",
+        "unauthorized",
+        "error code: 401",
+        "status code: 401",
+    )
+    config_markers = (
+        "api key not found",
+        "provider not configured",
+        "no embedding provider configured",
+        "unsupported llm provider",
+        "does not support embeddings",
+        "unsupported",
+        "invalid dimension",
+        "invalid dimensions",
+        "invalid_request_error",
+        "bad request",
+        "ollama fallback failed",
+        "no ollama base url resolved",
+    )
+    availability_markers = (
+        "timed out",
+        "timeout",
+        "connection",
+        "service unavailable",
+        "temporarily unavailable",
+        "dns",
+        "refused",
+        "unreachable",
+    )
+
+    if isinstance(error, EmbeddingQuotaExhaustedError) or "quota" in error_lower:
+        return HTTPException(
+            status_code=429,
+            detail={
+                "error": f"{provider_title} quota exhausted",
+                "message": (
+                    f"{provider_title} quota exhausted. Check billing and usage limits. "
+                    f"Error: {sanitized_error}"
+                ),
+                "error_type": "quota_exhausted",
+                "provider": provider_name,
+            },
+        )
+
+    if isinstance(error, EmbeddingRateLimitError) or "rate limit" in error_lower:
+        return HTTPException(
+            status_code=429,
+            detail={
+                "error": f"{provider_title} rate limit exceeded",
+                "message": f"{provider_title} rate limit exceeded. Wait and retry. Error: {sanitized_error}",
+                "error_type": "rate_limit",
+                "provider": provider_name,
+            },
+        )
+
+    if isinstance(error, EmbeddingAuthenticationError) or any(
+        marker in error_lower for marker in auth_markers
+    ):
+        return HTTPException(
+            status_code=401,
+            detail={
+                "error": f"Invalid {provider_title} API key",
+                "message": f"Please verify your {provider_title} API key in Settings. Error: {sanitized_error}",
+                "error_type": "authentication_failed",
+                "provider": provider_name,
+            },
+        )
+
+    if isinstance(error, EmbeddingAPIError) and any(marker in error_lower for marker in config_markers):
+        return HTTPException(
+            status_code=400,
+            detail={
+                "error": f"{provider_title} embedding configuration failed",
+                "message": f"{provider_title} embedding configuration failed. Error: {sanitized_error}",
+                "error_type": "configuration_error",
+                "provider": provider_name,
+            },
+        )
+
+    if any(marker in error_lower for marker in availability_markers):
+        return HTTPException(
+            status_code=503,
+            detail={
+                "error": f"{provider_title} provider unavailable",
+                "message": f"{provider_title} provider unavailable. Error: {sanitized_error}",
+                "error_type": "provider_unavailable",
+                "provider": provider_name,
+            },
+        )
+
+    return HTTPException(
+        status_code=502,
+        detail={
+            "error": f"{provider_title} embedding validation failed",
+            "message": f"{provider_title} embedding validation failed. Error: {sanitized_error}",
+            "error_type": "provider_error",
+            "provider": provider_name,
+        },
+    )
 
 
 async def _validate_provider_api_key(provider: str = None) -> None:
     """Validate LLM provider API key before starting operations."""
     logger.info("🔑 Starting API key validation...")
-    
+
     try:
         # Basic provider validation
         if not provider:
@@ -113,16 +249,8 @@ async def _validate_provider_api_key(provider: str = None) -> None:
                 f"❌ {provider.title()} API key validation failed: {e}",
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=401,
-                detail={
-                    "error": f"Invalid {provider.title()} API key",
-                    "message": f"Please verify your {provider.title()} API key in Settings. Error: {str(e)[:100]}",
-                    "error_type": "authentication_failed",
-                    "provider": provider,
-                },
-            )
-            
+            raise _build_provider_validation_exception(provider, e) from e
+
         logger.info(f"✅ {provider.title()} API key validation successful")
 
     except HTTPException:
@@ -134,18 +262,9 @@ async def _validate_provider_api_key(provider: str = None) -> None:
         error_str = str(e)
         sanitized_error = ProviderErrorFactory.sanitize_provider_error(error_str, provider or "openai")
         logger.error(f"❌ Caught exception during API key validation: {sanitized_error}")
-        
-        # Always fail for any exception during validation - better safe than sorry
-        logger.error("🚨 API key validation failed - blocking crawl operation")
-        raise HTTPException(
-            status_code=401,
-            detail={
-                "error": "Invalid API key",
-                "message": f"Please verify your {(provider or 'openai').title()} API key in Settings before starting a crawl.",
-                "error_type": "authentication_failed",
-                "provider": provider or "openai"
-            }
-        ) from None
+
+        logger.error("🚨 Provider validation failed - blocking crawl operation")
+        raise _build_provider_validation_exception(provider or "openai", e) from e
 
 
 # Request Models
@@ -658,14 +777,14 @@ async def get_knowledge_item_code_examples(
 @router.post("/knowledge-items/{source_id}/refresh")
 async def refresh_knowledge_item(source_id: str):
     """Refresh a knowledge item by re-crawling its URL with the same metadata."""
-    
+
     # Validate API key before starting expensive refresh operation
     logger.info("🔍 About to validate API key for refresh...")
     provider_config = await credential_service.get_active_provider("embedding")
     provider = provider_config.get("provider", "openai")
     await _validate_provider_api_key(provider)
     logger.info("✅ API key validation completed successfully for refresh")
-    
+
     try:
         safe_logfire_info(f"Starting knowledge item refresh | source_id={source_id}")
 
@@ -850,7 +969,7 @@ async def crawl_knowledge_item(request: KnowledgeItemRequest):
             except Exception as e:
                 logger.warning(f"Failed to pre-link project {request.project_id} to source {source_id}: {e}")
 
-        # Mark source as "crawling" in the database for crash recovery
+        # Mark source as in-progress in the database for crash recovery
         try:
             supabase_client = get_supabase_client()
             supabase_client.table("archon_sources").upsert(
@@ -858,7 +977,6 @@ async def crawl_knowledge_item(request: KnowledgeItemRequest):
                     "source_id": source_id,
                     "url": str(request.url),
                     "display_name": str(request.url),
-                    "crawl_status": "crawling",
                     "metadata": json.dumps({
                         "progress_id": progress_id,
                         "started_at": datetime.now(timezone.utc).isoformat(),
@@ -971,15 +1089,6 @@ async def _perform_crawl_with_progress(
                 await tracker.error(error_message)
             except Exception:
                 pass
-            # Mark source as failed in DB for crash recovery visibility
-            try:
-                from ..services.crawling.helpers.url_handler import URLHandler
-                fail_source_id = URLHandler.generate_unique_source_id(str(request.url))
-                get_supabase_client().table("archon_sources").update(
-                    {"crawl_status": "failed"}
-                ).eq("source_id", fail_source_id).execute()
-            except Exception:
-                pass  # Best effort
         finally:
             global _queued_crawl_count
             async with _crawl_count_lock:
@@ -1165,14 +1274,14 @@ async def upload_document(
     extract_code_examples: bool = Form(True),
 ):
     """Upload and process a document with progress tracking."""
-    
-    # Validate API key before starting expensive upload operation  
+
+    # Validate API key before starting expensive upload operation
     logger.info("🔍 About to validate API key for upload...")
     provider_config = await credential_service.get_active_provider("embedding")
     provider = provider_config.get("provider", "openai")
     await _validate_provider_api_key(provider)
     logger.info("✅ API key validation completed successfully for upload")
-    
+
     try:
         # DETAILED LOGGING: Track knowledge_type parameter flow
         safe_logfire_info(

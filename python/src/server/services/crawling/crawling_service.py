@@ -1043,19 +1043,6 @@ class CrawlingService:
                 crawl_type=crawl_type
             )
 
-            # If this sitemap was selected by discovery, just return the sitemap itself (single-file mode)
-            if request.get("is_discovery_target"):
-                logger.info(f"Discovery single-file mode: returning sitemap itself without crawling URLs from {url}")
-                crawl_type = "discovery_sitemap"
-                # Return the sitemap file as the result
-                crawl_results = [{
-                    'url': url,
-                    'markdown': f"# Sitemap: {url}\n\nThis is a sitemap file discovered and returned in single-file mode.",
-                    'title': f"Sitemap - {self.url_handler.extract_display_name(url)}",
-                    'crawl_type': crawl_type
-                }]
-                return crawl_results, crawl_type
-
             sitemap_urls = self.parse_sitemap(url)
 
             if sitemap_urls:
