@@ -20,6 +20,14 @@ interface ErrorWithMessage {
   message?: string;
 }
 
+interface ErrorWithDetail {
+  detail?: {
+    error_type?: string;
+    provider?: string;
+    message?: string;
+  };
+}
+
 // Type guard functions
 function hasStatusProperty(obj: unknown): obj is ErrorWithStatus {
   return typeof obj === "object" && obj !== null && ("statusCode" in obj || "status" in obj);
@@ -27,6 +35,24 @@ function hasStatusProperty(obj: unknown): obj is ErrorWithStatus {
 
 function hasMessageProperty(obj: unknown): obj is ErrorWithMessage {
   return typeof obj === "object" && obj !== null && "message" in obj;
+}
+
+function hasProviderDetail(obj: unknown): obj is ErrorWithDetail {
+  return typeof obj === "object" && obj !== null && "detail" in obj;
+}
+
+function getProviderDisplayName(provider: string): string {
+  const providerNames: Record<string, string> = {
+    openai: "OpenAI",
+    openrouter: "OpenRouter",
+    google: "Google",
+    anthropic: "Anthropic",
+    grok: "Grok",
+    ollama: "Ollama",
+    llm: "LLM",
+  };
+
+  return providerNames[provider.toLowerCase()] || provider;
 }
 
 /**
@@ -54,6 +80,14 @@ export function parseProviderError(error: unknown): ProviderError {
     providerError.statusCode = error.statusCode || error.status;
   }
 
+  if (hasProviderDetail(error) && error.detail?.error_type) {
+    providerError.isProviderError = true;
+    providerError.provider = error.detail.provider || "LLM";
+    providerError.errorType = error.detail.error_type;
+    providerError.message = error.detail.message || providerError.message;
+    return providerError;
+  }
+
   // Parse backend error structure with type safety
   if (hasMessageProperty(error) && error.message && error.message.includes("detail")) {
     try {
@@ -79,7 +113,7 @@ export function getProviderErrorMessage(error: unknown): string {
   const parsed = parseProviderError(error);
 
   if (parsed.isProviderError) {
-    const provider = parsed.provider || "LLM";
+    const provider = getProviderDisplayName(parsed.provider || "LLM");
 
     switch (parsed.errorType) {
       case "authentication_failed":
@@ -88,8 +122,12 @@ export function getProviderErrorMessage(error: unknown): string {
         return `${provider} quota exhausted. Please check your billing settings.`;
       case "rate_limit":
         return `${provider} rate limit exceeded. Please wait and try again.`;
+      case "configuration_error":
+      case "provider_unavailable":
+      case "provider_error":
+        return parsed.message || `${provider} API error. Please check your configuration.`;
       default:
-        return `${provider} API error. Please check your configuration.`;
+        return parsed.message || `${provider} API error. Please check your configuration.`;
     }
   }
 

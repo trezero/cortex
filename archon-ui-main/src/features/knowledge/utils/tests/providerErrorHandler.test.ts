@@ -53,6 +53,26 @@ describe("providerErrorHandler", () => {
       expect(result.message).toBe("Invalid API key");
     });
 
+    it("should parse provider detail attached directly to the error", () => {
+      const error = {
+        message: "OpenAI embedding configuration failed",
+        detail: {
+          error_type: "configuration_error",
+          provider: "OpenAI",
+          message: "OpenAI embedding configuration failed. Error: This model does not support embeddings.",
+        },
+      };
+
+      const result = parseProviderError(error);
+
+      expect(result.isProviderError).toBe(true);
+      expect(result.provider).toBe("OpenAI");
+      expect(result.errorType).toBe("configuration_error");
+      expect(result.message).toBe(
+        "OpenAI embedding configuration failed. Error: This model does not support embeddings.",
+      );
+    });
+
     it("should handle malformed JSON in message gracefully", () => {
       const error = {
         message: "invalid json { detail",
@@ -165,7 +185,20 @@ describe("providerErrorHandler", () => {
       expect(result).toBe("Anthropic rate limit exceeded. Please wait and try again.");
     });
 
-    it("should return generic provider message for unknown error types", () => {
+    it("should return the backend message for configuration_error", () => {
+      const error: ProviderError = {
+        name: "Error",
+        message: "Configuration failed",
+        isProviderError: true,
+        provider: "OpenAI",
+        errorType: "configuration_error",
+      };
+
+      const result = getProviderErrorMessage(error);
+      expect(result).toBe("Configuration failed");
+    });
+
+    it("should return the backend message for unknown provider error types", () => {
       const error: ProviderError = {
         name: "Error",
         message: "Unknown error",
@@ -175,7 +208,7 @@ describe("providerErrorHandler", () => {
       };
 
       const result = getProviderErrorMessage(error);
-      expect(result).toBe("OpenAI API error. Please check your configuration.");
+      expect(result).toBe("Unknown error");
     });
 
     it("should use default provider when provider is missing", () => {

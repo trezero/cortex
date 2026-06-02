@@ -17,6 +17,11 @@
  * Base API error class for all service errors
  */
 export class APIServiceError extends Error {
+  detail?: unknown;
+  provider?: string;
+  errorType?: string;
+  isProviderError?: boolean;
+
   constructor(
     message: string,
     public code?: string,

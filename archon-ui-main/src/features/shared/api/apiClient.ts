@@ -87,13 +87,19 @@ export async function callAPIWithETag<T = unknown>(endpoint: string, options: Re
     // Handle errors
     if (!response.ok) {
       let errorMessage = `HTTP error! status: ${response.status}`;
+      let errorDetail: unknown;
       try {
         const errorBody = await response.text();
         if (errorBody) {
           const errorJson = JSON.parse(errorBody);
           // Handle nested error structure from backend {"detail": {"error": "message"}}
-          if (typeof errorJson.detail === "object" && errorJson.detail !== null && "error" in errorJson.detail) {
-            errorMessage = errorJson.detail.error;
+          if (typeof errorJson.detail === "object" && errorJson.detail !== null) {
+            errorDetail = errorJson.detail;
+            if ("message" in errorJson.detail && typeof errorJson.detail.message === "string") {
+              errorMessage = errorJson.detail.message;
+            } else if ("error" in errorJson.detail && typeof errorJson.detail.error === "string") {
+              errorMessage = errorJson.detail.error;
+            }
           } else if (errorJson.detail) {
             errorMessage = errorJson.detail;
           } else if (errorJson.error) {
@@ -103,7 +109,22 @@ export async function callAPIWithETag<T = unknown>(endpoint: string, options: Re
       } catch (_e) {
         // Ignore parse errors
       }
-      throw new APIServiceError(errorMessage, "HTTP_ERROR", response.status);
+      const apiError = new APIServiceError(errorMessage, "HTTP_ERROR", response.status);
+
+      if (typeof errorDetail === "object" && errorDetail !== null) {
+        apiError.detail = errorDetail;
+
+        if ("provider" in errorDetail && typeof errorDetail.provider === "string") {
+          apiError.provider = errorDetail.provider;
+        }
+
+        if ("error_type" in errorDetail && typeof errorDetail.error_type === "string") {
+          apiError.errorType = errorDetail.error_type;
+          apiError.isProviderError = true;
+        }
+      }
+
+      throw apiError;
     }
 
     // Handle 204 No Content (DELETE operations)
