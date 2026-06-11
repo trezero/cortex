@@ -221,6 +221,29 @@ services:
       retries: 3
       start_period: 10s
 
+  # Cloudflare Tunnel — publishes Archon at https://archon.persalto.io.
+  # Access to that hostname is gated at the Cloudflare edge by a Cloudflare Access
+  # service-auth policy (per-machine service tokens); this daemon only carries traffic.
+  # Ingress (path -> service) is configured remotely on the tunnel, routing:
+  #   /mcp, /archon-setup -> archon-mcp:8051 | /api, /socket.io -> archon-server:8181
+  #   /agents -> archon-agents:8052 | everything else -> archon-ui:3737
+  # Starts only with the "tunnel" profile: docker compose --profile tunnel up -d
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: archon-cloudflared
+    profiles:
+      - tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${ARCHON_TUNNEL_TOKEN}
+    networks:
+      - app-network
+    depends_on:
+      - archon-server
+      - archon-mcp
+      - archon-frontend
+
 networks:
   app-network:
     driver: bridge
