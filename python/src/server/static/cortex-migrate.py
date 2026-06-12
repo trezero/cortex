@@ -39,6 +39,7 @@ OLD_SKILLS = [
     "archon-bootstrap",
     "archon-link-project",
     "archon-extension-sync",
+    "archon-skill-sync",
     "archon-move-project",
     "api-docs",
     "postman-integration",
@@ -83,6 +84,14 @@ def fetch_url(url: str, cf_headers: dict) -> bytes:
     req = urllib.request.Request(url, headers=cf_headers)
     with urllib.request.urlopen(req, timeout=30) as resp:
         return resp.read()
+
+
+def extract_tar(tf: tarfile.TarFile, dest: Path) -> None:
+    """Extract a tar archive safely; falls back for Pythons without the filter arg."""
+    try:
+        tf.extractall(dest, filter="data")
+    except TypeError:
+        tf.extractall(dest)
 
 
 # ---------------------------------------------------------------------------
@@ -153,20 +162,26 @@ class Migrator:
     # ------------------------------------------------------------------
 
     def discover_projects(self, roots: list[Path]) -> list[Path]:
-        """Find .claude/archon-config.json at depth 1 and 2 under each root."""
+        """Find projects at depth 1 and 2 under each root.
+
+        Matches both unmigrated (.claude/archon-config.json) and already
+        migrated (.claude/cortex-config.json) projects so re-runs report
+        migrated projects as skipped instead of not finding anything.
+        """
         found: list[Path] = []
         seen: set[Path] = set()
 
         for root in roots:
             if not root.is_dir():
                 continue
-            for depth in (1, 2):
-                pattern = "/".join(["*"] * depth) + "/.claude/archon-config.json"
-                for config_file in root.glob(pattern):
-                    proj_dir = config_file.parent.parent
-                    if proj_dir not in seen:
-                        seen.add(proj_dir)
-                        found.append(proj_dir)
+            for marker in ("archon-config.json", "cortex-config.json"):
+                for depth in (1, 2):
+                    pattern = "/".join(["*"] * depth) + f"/.claude/{marker}"
+                    for config_file in root.glob(pattern):
+                        proj_dir = config_file.parent.parent
+                        if proj_dir not in seen:
+                            seen.add(proj_dir)
+                            found.append(proj_dir)
 
         return sorted(found)
 
@@ -233,18 +248,28 @@ class Migrator:
             return False
 
     def _step_rename_state_files(self, dot_claude: Path) -> None:
-        """Rename archon-state.json and archon-memory-buffer.jsonl."""
-        renames = [
-            ("archon-state.json", "cortex-state.json"),
-            ("archon-memory-buffer.jsonl", "cortex-memory-buffer.jsonl"),
-        ]
-        for old_name, new_name in renames:
-            old_path = dot_claude / old_name
-            new_path = dot_claude / new_name
-            if old_path.exists():
-                self.log_action(f"Rename {old_path.name} -> {new_name}")
-                if not self.dry_run:
-                    old_path.rename(new_path)
+        """Rename archon-state.json (with key renames) and archon-memory-buffer.jsonl."""
+        # archon-state.json contains archon-named keys (e.g. archon_project_id);
+        # rewrite keys while preserving all values.
+        state_path = dot_claude / "archon-state.json"
+        if state_path.exists():
+            new_state_path = dot_claude / "cortex-state.json"
+            self.log_action(f"Rename {state_path.name} -> {new_state_path.name} with key renames")
+            if not self.dry_run:
+                state_data = json.loads(state_path.read_text(encoding="utf-8"))
+                new_state_path.write_text(
+                    json.dumps(ren_keys(state_data), indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                state_path.unlink()
+
+        # Memory buffer is observation data; rename only.
+        buffer_path = dot_claude / "archon-memory-buffer.jsonl"
+        if buffer_path.exists():
+            new_buffer_path = dot_claude / "cortex-memory-buffer.jsonl"
+            self.log_action(f"Rename {buffer_path.name} -> {new_buffer_path.name}")
+            if not self.dry_run:
+                buffer_path.rename(new_buffer_path)
 
     def _step_update_mcp_json(self, proj_dir: Path) -> None:
         """Rename 'archon' key -> 'cortex' in .mcp.json if URL matches known host pattern."""
@@ -303,9 +328,66 @@ class Migrator:
             mcp_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
     def _step_replace_extensions(self, dot_claude: Path) -> None:
-        """Remove old archon skills/commands/plugin and install new cortex bundles."""
-        # Remove old skills
+        """Install new cortex bundles, then remove old archon skills/commands/plugin.
+
+        Install happens first so that old archon-named items are removed even if
+        the served bundles still contain them — removal is the final word.
+        """
         skills_dir = dot_claude / "skills"
+        commands_dir = dot_claude / "commands"
+        plugins_dir = dot_claude / "plugins"
+        plugin_dir = plugins_dir / "cortex-memory"
+
+        if self.dry_run:
+            self.log_action(f"Would download+extract extensions.tar.gz to {skills_dir}/")
+            self.log_action(f"Would download+extract commands.tar.gz to {commands_dir}/")
+            self.log_action(f"Would download+extract cortex-memory.tar.gz to {plugin_dir}/")
+            self.log_action(f"Would create venv at {plugin_dir}/.venv")
+        else:
+            # Install new bundles. Failures here raise so the project is marked
+            # FAILED and the cortex-config.json marker is never written — a re-run
+            # will then retry the install instead of skipping a half-migrated project.
+            extensions_url = f"{self.mcp_url}/cortex-setup/extensions.tar.gz"
+            bundle = self._fetch_bundle(extensions_url)
+            skills_dir.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                tmp_path = Path(tmpdir) / "extensions.tar.gz"
+                tmp_path.write_bytes(bundle)
+                with tarfile.open(tmp_path, "r:gz") as tf:
+                    extract_tar(tf, skills_dir)
+            self.log_ok(f"Installed extensions -> {skills_dir}/")
+
+            commands_url = f"{self.mcp_url}/cortex-setup/commands.tar.gz"
+            bundle = self._fetch_bundle(commands_url)
+            commands_dir.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                tmp_path = Path(tmpdir) / "commands.tar.gz"
+                tmp_path.write_bytes(bundle)
+                with tarfile.open(tmp_path, "r:gz") as tf:
+                    extract_tar(tf, commands_dir)
+            self.log_ok(f"Installed commands -> {commands_dir}/")
+
+            plugin_url = f"{self.mcp_url}/cortex-setup/plugin/cortex-memory.tar.gz"
+            bundle = self._fetch_bundle(plugin_url)
+            plugins_dir.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                tmp_path = Path(tmpdir) / "cortex-memory.tar.gz"
+                tmp_path.write_bytes(bundle)
+                with tarfile.open(tmp_path, "r:gz") as tf:
+                    extract_tar(tf, plugins_dir)
+
+            # Ensure extracted files are at least owner-readable
+            if plugin_dir.is_dir():
+                for item in plugin_dir.rglob("*"):
+                    try:
+                        item.chmod(item.stat().st_mode | 0o400)
+                    except OSError:
+                        pass
+
+            self.log_ok(f"Installed plugin -> {plugin_dir}/")
+
+        # Remove old skills (after install, so stale bundle content cannot
+        # re-introduce archon-named extensions)
         if skills_dir.is_dir():
             for skill_name in OLD_SKILLS:
                 skill_path = skills_dir / skill_name
@@ -315,84 +397,29 @@ class Migrator:
                         shutil.rmtree(skill_path)
 
         # Remove old commands
-        commands_dir = dot_claude / "commands"
         if commands_dir.is_dir():
             for cmd_name in OLD_COMMANDS:
                 cmd_path = commands_dir / cmd_name
                 if cmd_path.exists():
                     self.log_action(f"Remove command: {cmd_path}")
                     if not self.dry_run:
-                        cmd_path.unlink()
+                        if cmd_path.is_dir():
+                            shutil.rmtree(cmd_path)
+                        else:
+                            cmd_path.unlink()
 
         # Remove old plugin
-        old_plugin = dot_claude / "plugins" / "archon-memory"
+        old_plugin = plugins_dir / "archon-memory"
         if old_plugin.is_dir():
             self.log_action(f"Remove plugin: {old_plugin}")
             if not self.dry_run:
                 shutil.rmtree(old_plugin)
 
         if self.dry_run:
-            self.log_action(f"Would download+extract extensions.tar.gz to {skills_dir}/")
-            self.log_action(f"Would download+extract commands.tar.gz to {commands_dir}/")
-            plugin_dir = dot_claude / "plugins" / "cortex-memory"
-            self.log_action(f"Would download+extract cortex-memory.tar.gz to {plugin_dir}/")
-            self.log_action(f"Would create venv at {plugin_dir}/.venv")
             return
 
-        # Install new extensions bundle
-        extensions_url = f"{self.mcp_url}/cortex-setup/extensions.tar.gz"
-        try:
-            bundle = self._fetch_bundle(extensions_url)
-            skills_dir.mkdir(parents=True, exist_ok=True)
-            with tempfile.TemporaryDirectory() as tmpdir:
-                tmp_path = Path(tmpdir) / "extensions.tar.gz"
-                tmp_path.write_bytes(bundle)
-                with tarfile.open(tmp_path, "r:gz") as tf:
-                    tf.extractall(skills_dir)
-            self.log_ok(f"Installed extensions -> {skills_dir}/")
-        except Exception as exc:  # noqa: BLE001
-            self.log_warn(f"Extensions bundle failed: {exc}")
-
-        # Install new commands bundle
-        commands_url = f"{self.mcp_url}/cortex-setup/commands.tar.gz"
-        try:
-            bundle = self._fetch_bundle(commands_url)
-            commands_dir.mkdir(parents=True, exist_ok=True)
-            with tempfile.TemporaryDirectory() as tmpdir:
-                tmp_path = Path(tmpdir) / "commands.tar.gz"
-                tmp_path.write_bytes(bundle)
-                with tarfile.open(tmp_path, "r:gz") as tf:
-                    tf.extractall(commands_dir)
-            self.log_ok(f"Installed commands -> {commands_dir}/")
-        except Exception as exc:  # noqa: BLE001
-            self.log_warn(f"Commands bundle failed: {exc}")
-
-        # Install cortex-memory plugin
-        plugin_url = f"{self.mcp_url}/cortex-setup/plugin/cortex-memory.tar.gz"
-        plugins_dir = dot_claude / "plugins"
-        plugin_dir = plugins_dir / "cortex-memory"
-        try:
-            bundle = self._fetch_bundle(plugin_url)
-            plugins_dir.mkdir(parents=True, exist_ok=True)
-            with tempfile.TemporaryDirectory() as tmpdir:
-                tmp_path = Path(tmpdir) / "cortex-memory.tar.gz"
-                tmp_path.write_bytes(bundle)
-                with tarfile.open(tmp_path, "r:gz") as tf:
-                    tf.extractall(plugins_dir)
-
-            # Fix permissions
-            if plugin_dir.is_dir():
-                for item in plugin_dir.rglob("*"):
-                    try:
-                        item.chmod(item.stat().st_mode | 0o400)
-                    except OSError:
-                        pass
-
-            self.log_ok(f"Installed plugin -> {plugin_dir}/")
-        except Exception as exc:  # noqa: BLE001
-            self.log_warn(f"Plugin bundle failed: {exc}")
-
-        # Create plugin venv — mirror cortexSetup.sh logic
+        # Create plugin venv after old plugin removal so a failure here still
+        # leaves the new plugin tree in place for a retry.
         self._create_plugin_venv(plugin_dir)
 
     def _create_plugin_venv(self, plugin_dir: Path) -> None:
@@ -488,11 +515,9 @@ class Migrator:
         if self.dry_run:
             return
 
-        try:
-            snippet = self._fetch_snippet()
-        except Exception as exc:  # noqa: BLE001
-            self.log_warn(f"Could not fetch CLAUDE.md snippet: {exc}; skipping")
-            return
+        # Snippet fetch failure raises so the project is marked FAILED and the
+        # migration marker is never written; a re-run will retry.
+        snippet = self._fetch_snippet()
 
         replacement = f"<!-- cortex-rules-start -->\n{snippet}\n<!-- cortex-rules-end -->"
         new_content = RULES_RE.sub(replacement, content)
