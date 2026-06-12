@@ -1,21 +1,21 @@
 # Docker Compose overview:
-# - Default (no profile): Starts archon-server, archon-mcp, archon-agents, and archon-frontend
+# - Default (no profile): Starts cortex-server, cortex-mcp, cortex-agents, and cortex-frontend
 # Usage:
 #   docker compose up  # Starts server, mcp, agents, frontend
 
 services:
   # Server Service (FastAPI + Socket.IO + Crawling)
-  archon-server:
+  cortex-server:
     build:
       context: ./python
       dockerfile: Dockerfile.server
       args:
         BUILDKIT_INLINE_CACHE: 1
-        ARCHON_SERVER_PORT: ${ARCHON_SERVER_PORT:-8181}
-    container_name: archon-server
+        CORTEX_SERVER_PORT: ${CORTEX_SERVER_PORT:-8181}
+    container_name: cortex-server
     restart: unless-stopped
     ports:
-      - "${ARCHON_SERVER_PORT:-8181}:${ARCHON_SERVER_PORT:-8181}"
+      - "${CORTEX_SERVER_PORT:-8181}:${CORTEX_SERVER_PORT:-8181}"
     environment:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
@@ -23,11 +23,11 @@ services:
       - LOGFIRE_TOKEN=${LOGFIRE_TOKEN:-}
       - SERVICE_DISCOVERY_MODE=docker_compose
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - ARCHON_SERVER_PORT=${ARCHON_SERVER_PORT:-8181}
-      - ARCHON_MCP_PORT=${ARCHON_MCP_PORT:-8051}
-      - ARCHON_AGENTS_PORT=${ARCHON_AGENTS_PORT:-8052}
+      - CORTEX_SERVER_PORT=${CORTEX_SERVER_PORT:-8181}
+      - CORTEX_MCP_PORT=${CORTEX_MCP_PORT:-8051}
+      - CORTEX_AGENTS_PORT=${CORTEX_AGENTS_PORT:-8052}
       - AGENTS_ENABLED=${AGENTS_ENABLED:-false}
-      - ARCHON_HOST=${ARCHON_HOST:-localhost}
+      - CORTEX_HOST=${CORTEX_HOST:-localhost}
     networks:
       - app-network
       - default  # Connects to supabase_default network
@@ -42,7 +42,7 @@ services:
       - ./python/tests:/app/tests # Mount tests for UI test execution
       - ./migration:/app/migration # Mount migration files for version tracking
       - ./integrations:/app/integrations # Bundled skills for registry seeding
-      - archon-server-data:/app/data # Persistent data storage
+      - cortex-server-data:/app/data # Persistent data storage
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command:
@@ -54,7 +54,7 @@ services:
         "--host",
         "0.0.0.0",
         "--port",
-        "${ARCHON_SERVER_PORT:-8181}",
+        "${CORTEX_SERVER_PORT:-8181}",
         "--reload",
       ]
     healthcheck:
@@ -63,7 +63,7 @@ services:
           "CMD",
           "sh",
           "-c",
-          'python -c "import urllib.request; urllib.request.urlopen(''http://localhost:${ARCHON_SERVER_PORT:-8181}/health'')"',
+          'python -c "import urllib.request; urllib.request.urlopen(''http://localhost:${CORTEX_SERVER_PORT:-8181}/health'')"',
         ]
       interval: 30s
       timeout: 10s
@@ -71,17 +71,17 @@ services:
       start_period: 120s
 
   # Lightweight MCP Server Service (HTTP-based)
-  archon-mcp:
+  cortex-mcp:
     build:
       context: ./python
       dockerfile: Dockerfile.mcp
       args:
         BUILDKIT_INLINE_CACHE: 1
-        ARCHON_MCP_PORT: ${ARCHON_MCP_PORT:-8051}
-    container_name: archon-mcp
+        CORTEX_MCP_PORT: ${CORTEX_MCP_PORT:-8051}
+    container_name: cortex-mcp
     restart: unless-stopped
     ports:
-      - "${ARCHON_MCP_PORT:-8051}:${ARCHON_MCP_PORT:-8051}"
+      - "${CORTEX_MCP_PORT:-8051}:${CORTEX_MCP_PORT:-8051}"
     environment:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
@@ -90,22 +90,22 @@ services:
       - TRANSPORT=sse
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       # MCP needs to know where to find other services
-      - API_SERVICE_URL=http://archon-server:${ARCHON_SERVER_PORT:-8181}
+      - API_SERVICE_URL=http://cortex-server:${CORTEX_SERVER_PORT:-8181}
       - AGENTS_ENABLED=${AGENTS_ENABLED:-false}
-      - AGENTS_SERVICE_URL=${AGENTS_SERVICE_URL:-http://archon-agents:${ARCHON_AGENTS_PORT:-8052}}
-      - ARCHON_MCP_PORT=${ARCHON_MCP_PORT:-8051}
-      - ARCHON_SERVER_PORT=${ARCHON_SERVER_PORT:-8181}
-      - ARCHON_AGENTS_PORT=${ARCHON_AGENTS_PORT:-8052}
-      - ARCHON_HOST=${ARCHON_HOST:-localhost}
+      - AGENTS_SERVICE_URL=${AGENTS_SERVICE_URL:-http://cortex-agents:${CORTEX_AGENTS_PORT:-8052}}
+      - CORTEX_MCP_PORT=${CORTEX_MCP_PORT:-8051}
+      - CORTEX_SERVER_PORT=${CORTEX_SERVER_PORT:-8181}
+      - CORTEX_AGENTS_PORT=${CORTEX_AGENTS_PORT:-8052}
+      - CORTEX_HOST=${CORTEX_HOST:-localhost}
     networks:
       - app-network
       - default  # Connects to supabase_default network
     volumes:
-      - archon-mcp-data:/app/data # Persistent data storage
+      - cortex-mcp-data:/app/data # Persistent data storage
       - ./python/src:/app/src # Mount source code for hot reload
       - ./integrations:/app/integrations # Setup script templates
     depends_on:
-      archon-server:
+      cortex-server:
         condition: service_healthy
       
     extra_hosts:
@@ -116,7 +116,7 @@ services:
           "CMD",
           "sh",
           "-c",
-          'python -c "import socket; s=socket.socket(); s.connect((''localhost'', ${ARCHON_MCP_PORT:-8051})); s.close()"',
+          'python -c "import socket; s=socket.socket(); s.connect((''localhost'', ${CORTEX_MCP_PORT:-8051})); s.close()"',
         ]
       interval: 30s
       timeout: 10s
@@ -124,17 +124,17 @@ services:
       start_period: 60s # Give dependencies time to start
 
   # AI Agents Service (ML/Reranking)
-  archon-agents:
+  cortex-agents:
     build:
       context: ./python
       dockerfile: Dockerfile.agents
       args:
         BUILDKIT_INLINE_CACHE: 1
-        ARCHON_AGENTS_PORT: ${ARCHON_AGENTS_PORT:-8052}
-    container_name: archon-agents
+        CORTEX_AGENTS_PORT: ${CORTEX_AGENTS_PORT:-8052}
+    container_name: cortex-agents
     restart: unless-stopped
     ports:
-      - "${ARCHON_AGENTS_PORT:-8052}:${ARCHON_AGENTS_PORT:-8052}"
+      - "${CORTEX_AGENTS_PORT:-8052}:${CORTEX_AGENTS_PORT:-8052}"
     environment:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
@@ -142,20 +142,20 @@ services:
       - LOGFIRE_TOKEN=${LOGFIRE_TOKEN:-}
       - SERVICE_DISCOVERY_MODE=docker_compose
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - ARCHON_AGENTS_PORT=${ARCHON_AGENTS_PORT:-8052}
-      - ARCHON_SERVER_PORT=${ARCHON_SERVER_PORT:-8181}
+      - CORTEX_AGENTS_PORT=${CORTEX_AGENTS_PORT:-8052}
+      - CORTEX_SERVER_PORT=${CORTEX_SERVER_PORT:-8181}
     networks:
       - app-network
       - default  # Connects to supabase_default network
     volumes:
-      - archon-agents-data:/app/data # Persistent data storage
+      - cortex-agents-data:/app/data # Persistent data storage
     healthcheck:
       test:
         [
           "CMD",
           "sh",
           "-c",
-          'python -c "import urllib.request; urllib.request.urlopen(''http://localhost:${ARCHON_AGENTS_PORT:-8052}/health'')"',
+          'python -c "import urllib.request; urllib.request.urlopen(''http://localhost:${CORTEX_AGENTS_PORT:-8052}/health'')"',
         ]
       interval: 30s
       timeout: 10s
@@ -163,19 +163,19 @@ services:
       start_period: 40s
 
   # Frontend
-  archon-frontend:
-    build: ./archon-ui-main
-    container_name: archon-ui
+  cortex-frontend:
+    build: ./cortex-ui
+    container_name: cortex-ui
     restart: unless-stopped
     ports:
-      - "${ARCHON_UI_PORT:-3737}:3737"
+      - "${CORTEX_UI_PORT:-3737}:3737"
     environment:
       # Don't set VITE_API_URL so frontend uses relative URLs through proxy
-      # - VITE_API_URL=http://${HOST:-localhost}:${ARCHON_SERVER_PORT:-8181}
-      - VITE_ARCHON_SERVER_PORT=${ARCHON_SERVER_PORT:-8181}
-      - ARCHON_SERVER_PORT=${ARCHON_SERVER_PORT:-8181}
+      # - VITE_API_URL=http://${HOST:-localhost}:${CORTEX_SERVER_PORT:-8181}
+      - VITE_CORTEX_SERVER_PORT=${CORTEX_SERVER_PORT:-8181}
+      - CORTEX_SERVER_PORT=${CORTEX_SERVER_PORT:-8181}
       - HOST=${HOST:-localhost}
-      - ARCHON_HOST=${ARCHON_HOST:-localhost}
+      - CORTEX_HOST=${CORTEX_HOST:-localhost}
       - PROD=${PROD:-false}
       - VITE_ALLOWED_HOSTS=${VITE_ALLOWED_HOSTS:-}
       - VITE_SHOW_DEVTOOLS=${VITE_SHOW_DEVTOOLS:-false}
@@ -189,11 +189,11 @@ services:
       timeout: 10s
       retries: 3
     volumes:
-      - ./archon-ui-main/src:/app/src
-      - ./archon-ui-main/public:/app/public
-      - archon-ui-data:/app/data # Persistent data storage
+      - ./cortex-ui/src:/app/src
+      - ./cortex-ui/public:/app/public
+      - cortex-ui-data:/app/data # Persistent data storage
     depends_on:
-      archon-server:
+      cortex-server:
         condition: service_healthy
 
   # Trinity A2UI Generation Service (Second Brain)
@@ -221,44 +221,44 @@ services:
       retries: 3
       start_period: 10s
 
-  # Cloudflare Tunnel — publishes Archon at https://archon.persalto.io.
+  # Cloudflare Tunnel — publishes Cortex at https://cortex.persalto.io.
   # Access to that hostname is gated at the Cloudflare edge by a Cloudflare Access
   # service-auth policy (per-machine service tokens); this daemon only carries traffic.
   # Ingress (path -> service) is configured remotely on the tunnel, routing:
-  #   /mcp, /archon-setup -> archon-mcp:8051 | /api, /socket.io -> archon-server:8181
-  #   /agents -> archon-agents:8052 | everything else -> archon-ui:3737
+  #   /mcp, /cortex-setup -> cortex-mcp:8051 | /api, /socket.io -> cortex-server:8181
+  #   /agents -> cortex-agents:8052 | everything else -> cortex-ui:3737
   # Starts only with the "tunnel" profile: docker compose --profile tunnel up -d
   cloudflared:
     image: cloudflare/cloudflared:latest
-    container_name: archon-cloudflared
+    container_name: cortex-cloudflared
     profiles:
       - tunnel
     restart: unless-stopped
     command: tunnel --no-autoupdate run
     environment:
-      - TUNNEL_TOKEN=${ARCHON_TUNNEL_TOKEN}
+      - TUNNEL_TOKEN=${CORTEX_TUNNEL_TOKEN}
     networks:
       - app-network
     depends_on:
-      - archon-server
-      - archon-mcp
-      - archon-frontend
+      - cortex-server
+      - cortex-mcp
+      - cortex-frontend
 
 networks:
   app-network:
     driver: bridge
   # Use external Supabase network for database connectivity
-  # This allows archon containers to communicate with Supabase services
+  # This allows cortex containers to communicate with Supabase services
   default:
     name: supabase_default
     external: true
 
 volumes:
-  archon-server-data:
-    name: archon-server-data
-  archon-mcp-data:
-    name: archon-mcp-data
-  archon-agents-data:
-    name: archon-agents-data
-  archon-ui-data:
-    name: archon-ui-data
+  cortex-server-data:
+    name: cortex-server-data
+  cortex-mcp-data:
+    name: cortex-mcp-data
+  cortex-agents-data:
+    name: cortex-agents-data
+  cortex-ui-data:
+    name: cortex-ui-data
