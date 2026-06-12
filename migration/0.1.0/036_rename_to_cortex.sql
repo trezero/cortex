@@ -98,7 +98,7 @@ UPDATE cortex_projects
 SET title = 'cortex',
     github_repo = replace(replace(coalesce(github_repo, ''),
                   'archon-trinity', 'cortex'), 'Archon', 'cortex')
-WHERE title = 'archon';
+WHERE title ILIKE 'archon';
 
 -- 7. Self-record (the tracking table was just renamed to cortex_migrations;
 --    historical rows survive because they only contain filenames).
