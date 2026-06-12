@@ -8,12 +8,12 @@ from typing import Any
 import httpx
 import logfire
 
-from ..config.version import ARCHON_VERSION, GITHUB_REPO_NAME, GITHUB_REPO_OWNER
+from ..config.version import CORTEX_VERSION, GITHUB_REPO_NAME, GITHUB_REPO_OWNER
 from ..utils.semantic_version import is_newer_version
 
 
 class VersionService:
-    """Service for checking Archon version against GitHub releases."""
+    """Service for checking Cortex version against GitHub releases."""
 
     def __init__(self):
         self._cache: dict[str, Any] | None = None
@@ -49,7 +49,7 @@ class VersionService:
                     url,
                     headers={
                         "Accept": "application/vnd.github.v3+json",
-                        "User-Agent": f"Archon/{ARCHON_VERSION}",
+                        "User-Agent": f"Cortex/{CORTEX_VERSION}",
                     },
                 )
 
@@ -88,7 +88,7 @@ class VersionService:
 
     async def check_for_updates(self) -> dict[str, Any]:
         """
-        Check if a newer version of Archon is available.
+        Check if a newer version of Cortex is available.
 
         Returns:
             Dictionary with version check results
@@ -100,7 +100,7 @@ class VersionService:
             if not release:
                 # No releases found or error occurred
                 return {
-                    "current": ARCHON_VERSION,
+                    "current": CORTEX_VERSION,
                     "latest": None,
                     "update_available": False,
                     "release_url": None,
@@ -115,7 +115,7 @@ class VersionService:
                 latest_version = latest_version[1:]
 
             # Check if update is available
-            update_available = is_newer_version(ARCHON_VERSION, latest_version)
+            update_available = is_newer_version(CORTEX_VERSION, latest_version)
 
             # Parse published date
             published_at = None
@@ -128,7 +128,7 @@ class VersionService:
                     pass
 
             return {
-                "current": ARCHON_VERSION,
+                "current": CORTEX_VERSION,
                 "latest": latest_version,
                 "update_available": update_available,
                 "release_url": release.get("html_url"),
@@ -143,7 +143,7 @@ class VersionService:
             logfire.error(f"Error checking for updates: {e}")
             # Return safe default with error
             return {
-                "current": ARCHON_VERSION,
+                "current": CORTEX_VERSION,
                 "latest": None,
                 "update_available": False,
                 "release_url": None,

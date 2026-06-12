@@ -1,5 +1,5 @@
 """
-Crawling Service Module for Archon RAG
+Crawling Service Module for Cortex RAG
 
 This module combines crawling functionality and orchestration.
 It handles web crawling operations including single page crawling,
@@ -695,7 +695,7 @@ class CrawlingService:
                 try:
                     from datetime import datetime, timezone
                     sc = get_supabase_client()
-                    existing_meta = sc.table("archon_sources").select("metadata").eq(
+                    existing_meta = sc.table("cortex_sources").select("metadata").eq(
                         "source_id", crawl_source_id
                     ).execute()
                     if existing_meta.data:
@@ -707,7 +707,7 @@ class CrawlingService:
                             "code_examples_stored": code_examples_count,
                             "status": "completed",
                         }
-                        sc.table("archon_sources").update(
+                        sc.table("cortex_sources").update(
                             {"metadata": meta}
                         ).eq("source_id", crawl_source_id).execute()
                 except Exception as persist_err:

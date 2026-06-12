@@ -2,11 +2,11 @@
 
 ## Overview
 
-The **Local Project Scanner** enables a user to point Archon at a directory on their local filesystem (e.g. `~/projects/`), automatically discover all Git/GitHub repositories within it, and **bulk-run the equivalent of `/archon-setup`** for every discovered project. This eliminates the need to open each project individually and run setup manually.
+The **Local Project Scanner** enables a user to point Cortex at a directory on their local filesystem (e.g. `~/projects/`), automatically discover all Git/GitHub repositories within it, and **bulk-run the equivalent of `/cortex-setup`** for every discovered project. This eliminates the need to open each project individually and run setup manually.
 
 **v1 Scope**: Claude Code CLI flow via MCP tools. Web UI deferred to [local-project-scanner-web-plan.md](./local-project-scanner-web-plan.md).
 
-**Expected Usage**: Most users will run this once per system to onboard all their existing projects into Archon.
+**Expected Usage**: Most users will run this once per system to onboard all their existing projects into Cortex.
 
 ---
 
@@ -14,28 +14,28 @@ The **Local Project Scanner** enables a user to point Archon at a directory on t
 
 Users with many local projects (10, 50, 100+) currently must:
 1. Open Claude Code in each project directory
-2. Run `/archon-setup` manually in each one
+2. Run `/cortex-setup` manually in each one
 3. Wait for each setup to complete before moving to the next
 
-For a user with 50 projects, this could take hours of manual work. The Local Project Scanner automates this by scanning a directory tree, detecting repositories, and running the equivalent of `/archon-setup` for all of them in a single batch operation.
+For a user with 50 projects, this could take hours of manual work. The Local Project Scanner automates this by scanning a directory tree, detecting repositories, and running the equivalent of `/cortex-setup` for all of them in a single batch operation.
 
 ---
 
 ## What the Scanner Replicates
 
-The scanner produces the same end state as if the user ran `/archon-setup` in each discovered project. Per project, this means:
+The scanner produces the same end state as if the user ran `/cortex-setup` in each discovered project. Per project, this means:
 
-### Per-Project Operations (from archon-setup)
+### Per-Project Operations (from cortex-setup)
 
 | Operation | How Scanner Implements It |
 |-----------|--------------------------|
-| Create Archon project in DB | `ProjectService.create_project(title, github_repo, tags, metadata)` — includes dependencies in metadata, infra markers in tags |
+| Create Cortex project in DB | `ProjectService.create_project(title, github_repo, tags, metadata)` — includes dependencies in metadata, infra markers in tags |
 | Register system for project | `POST /api/projects/{project_id}/sync` with system fingerprint |
-| Write `.claude/archon-config.json` | Backend writes to mounted volume at project path |
-| Write `.claude/archon-state.json` | Backend writes to mounted volume at project path |
+| Write `.claude/cortex-config.json` | Backend writes to mounted volume at project path |
+| Write `.claude/cortex-state.json` | Backend writes to mounted volume at project path |
 | Write `.claude/settings.local.json` | Backend writes PostToolUse hook config |
 | Install extensions to `.claude/skills/` | Extract cached tarball into project's `.claude/skills/` |
-| Update `.gitignore` | Backend appends Archon entries if not present |
+| Update `.gitignore` | Backend appends Cortex entries if not present |
 | Ingest local README to knowledge base | Store full README as document with embeddings — immediate searchable knowledge |
 | Crawl GitHub README as knowledge source | `POST /api/knowledge-items/crawl` with `project_id` (supplements local copy) |
 | Generate AI description | Claude Code generates from README content (see AI Description section) |
@@ -46,7 +46,7 @@ Extensions are installed **per-project** (into each project's `.claude/skills/`)
 
 | Operation | How Scanner Implements It |
 |-----------|--------------------------|
-| Download extensions tarball | Fetch from `{archon_mcp_url}/archon-setup/extensions.tar.gz` |
+| Download extensions tarball | Fetch from `{cortex_mcp_url}/cortex-setup/extensions.tar.gz` |
 | Extract to `.claude/skills/` | Write to project's `.claude/skills/` via mounted volume |
 
 The tarball is downloaded **once** and cached in the scanner's working directory, then extracted into each project. This avoids redundant network requests.
@@ -55,11 +55,11 @@ The tarball is downloaded **once** and cached in the scanner's working directory
 
 These must already be done before the scanner can run:
 - System registration (fingerprint, system name, hostname)
-- Global MCP endpoint configuration (`claude mcp add archon`)
+- Global MCP endpoint configuration (`claude mcp add cortex`)
 - Global hook registration (SessionStart, Stop hooks in `~/.claude/settings.json`)
-- Archon-memory plugin installation (global — shared across projects)
+- Cortex-memory plugin installation (global — shared across projects)
 
-**Prerequisite check**: Before scanning, the scanner verifies the system is already registered by checking for a valid system fingerprint. If not found, it directs the user to run `/archon-setup` in any single project first.
+**Prerequisite check**: Before scanning, the scanner verifies the system is already registered by checking for a valid system fingerprint. If not found, it directs the user to run `/cortex-setup` in any single project first.
 
 ---
 
@@ -69,7 +69,7 @@ These must already be done before the scanner can run:
 
 ```
 ┌──────────────┐    MCP tool call     ┌──────────────────┐
-│  Claude Code │ ──────────────────→  │  Archon MCP      │
+│  Claude Code │ ──────────────────→  │  Cortex MCP      │
 │  (any dir)   │                      │  (Docker)        │
 └──────┬───────┘                      └────────┬─────────┘
        │                                       │
@@ -77,7 +77,7 @@ These must already be done before the scanner can run:
        │                                       ▼
        │                              ┌──────────────────┐
        │                              │  Scanner API     │
-       │                              │  (archon-server) │
+       │                              │  (cortex-server) │
        │                              └────────┬─────────┘
        │                                       │
        │  Returns scan results                 │ Scans mounted volume
@@ -94,7 +94,7 @@ These must already be done before the scanner can run:
        │  Poll progress                         ▼
        │◄──────────────────    ┌────────────────────────────┐
        │                       │  For each selected project: │
-       │                       │  1. Create Archon project   │
+       │                       │  1. Create Cortex project   │
        │                       │  2. Register system         │
        │                       │  3. Write config files      │
        │                       │  4. Update .gitignore       │
@@ -108,7 +108,7 @@ The scanner backend reads AND writes to project directories via a Docker bind mo
 
 **Docker Compose addition:**
 ```yaml
-archon-server:
+cortex-server:
   volumes:
     - ./python/src:/app/src
     # ... existing mounts ...
@@ -127,12 +127,12 @@ The backend always operates on `/projects/` inside the container, which maps to 
 
 ### Where Does the User Run Claude Code?
 
-The user runs Claude Code from **any project that already has Archon MCP configured**, or from **any directory** if Archon MCP is configured globally. The scanner MCP tools are API calls to the Archon backend — Claude Code's working directory is irrelevant for scanning.
+The user runs Claude Code from **any project that already has Cortex MCP configured**, or from **any directory** if Cortex MCP is configured globally. The scanner MCP tools are API calls to the Cortex backend — Claude Code's working directory is irrelevant for scanning.
 
 The user does NOT need to:
 - Be in the projects directory (Claude Code would try to index everything)
 - Create a dedicated repo for scanning
-- Have any special local setup beyond Archon MCP access
+- Have any special local setup beyond Cortex MCP access
 
 ---
 
@@ -173,7 +173,7 @@ Rather than arbitrary configurable depth, the scanner uses a **smart two-pass ap
 
 When a project group is detected:
 - **Template option** `create_group_parents: bool = True`
-- If enabled: Create a parent Archon project for the group (e.g. "RecipeRaiders_Complete") with no `github_repo`, and create child projects with `parent_project_id` set
+- If enabled: Create a parent Cortex project for the group (e.g. "RecipeRaiders_Complete") with no `github_repo`, and create child projects with `parent_project_id` set
 - If disabled: Create all repos as top-level projects, tagged with group name
 
 This integrates with the existing `parent_project_id` single-level hierarchy in the project model.
@@ -247,7 +247,7 @@ Before starting the apply phase, Claude Code should confirm with the user:
 
 ### Why Capture This During Scan
 
-The scanner has **one-time filesystem access** to every project via the Docker volume mount. A future conversational AI interface in Archon will need cross-project context: "which projects use React?", "how do my RecipeRaiders projects relate?", "which projects have Docker deployments?". Capturing dependency and infrastructure data now — while we have filesystem access — avoids expensive re-scanning later.
+The scanner has **one-time filesystem access** to every project via the Docker volume mount. A future conversational AI interface in Cortex will need cross-project context: "which projects use React?", "how do my RecipeRaiders projects relate?", "which projects have Docker deployments?". Capturing dependency and infrastructure data now — while we have filesystem access — avoids expensive re-scanning later.
 
 ### Dependency Extraction
 
@@ -263,7 +263,7 @@ During scan, the git detector reads dependency names (not versions) from manifes
 | `pom.xml` | maven | `<artifactId>` values from `<dependencies>` |
 | `build.gradle` | gradle | `implementation`/`api` dependency strings |
 
-**Storage format** (JSONB on `archon_scan_projects`):
+**Storage format** (JSONB on `cortex_scan_projects`):
 ```json
 {
     "npm": ["react", "next", "tailwindcss", "@tanstack/react-query"],
@@ -299,11 +299,11 @@ INFRA_MARKERS = {
 }
 ```
 
-**Storage**: `infra_markers TEXT[]` on `archon_scan_projects`. Persisted to project `tags` alongside language tags during apply.
+**Storage**: `infra_markers TEXT[]` on `cortex_scan_projects`. Persisted to project `tags` alongside language tags during apply.
 
 ### Persisting to Projects After Apply
 
-When a project is created during apply, the scanner persists captured data to the Archon project record:
+When a project is created during apply, the scanner persists captured data to the Cortex project record:
 - `dependencies` → stored in the project's `metadata` JSONB field under key `"dependencies"`
 - `infra_markers` → merged into the project's `tags` array alongside language tags
 - `group_name` → stored in `metadata` under key `"project_group"` (preserves the relationship even for non-hierarchical setups)
@@ -312,7 +312,7 @@ This ensures the data survives scan expiration and is queryable through the stan
 
 ### Local README as Knowledge Document
 
-In addition to the GitHub README crawl (which may fail for private repos), the scanner **directly stores the local README** content as a document in the Archon knowledge base during apply:
+In addition to the GitHub README crawl (which may fail for private repos), the scanner **directly stores the local README** content as a document in the Cortex knowledge base during apply:
 
 1. Read full `README.md` from the mounted volume (already captured during scan)
 2. Create a document via `DocumentService` with:
@@ -331,17 +331,17 @@ This provides immediate searchable knowledge for every project — no crawl dela
 ### During Scan: Existing Project Detection
 
 Match **only on normalized `github_url`**:
-1. Fetch all existing Archon projects with non-null `github_repo`
+1. Fetch all existing Cortex projects with non-null `github_repo`
 2. Normalize URLs: strip `.git` suffix, normalize to `https://github.com/{owner}/{repo}` format
 3. Compare against each detected project's normalized URL
-4. Mark matches as `already_in_archon: true` with `existing_project_id`
+4. Mark matches as `already_in_cortex: true` with `existing_project_id`
 
-**For repos with no remote**: Never mark as "already in Archon" — let the user decide.
+**For repos with no remote**: Never mark as "already in Cortex" — let the user decide.
 
 ### During Apply: Pre-Creation Check
 
 Before creating each project, check again:
-1. Query Archon for any project with matching normalized `github_url`
+1. Query Cortex for any project with matching normalized `github_url`
 2. If found → skip with status `"duplicate_skipped"` in results
 3. This prevents duplicates from concurrent apply operations or double-click scenarios
 
@@ -368,15 +368,15 @@ def normalize_github_url(url: str | None) -> str | None:
 
 Three new tables:
 
-**`archon_scan_results`** — Stores scan sessions
+**`cortex_scan_results`** — Stores scan sessions
 ```sql
-CREATE TABLE IF NOT EXISTS archon_scan_results (
+CREATE TABLE IF NOT EXISTS cortex_scan_results (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     directory_path TEXT NOT NULL,
-    system_id UUID REFERENCES archon_systems(id),
+    system_id UUID REFERENCES cortex_systems(id),
     total_found INTEGER NOT NULL DEFAULT 0,
     new_projects INTEGER NOT NULL DEFAULT 0,
-    already_in_archon INTEGER NOT NULL DEFAULT 0,
+    already_in_cortex INTEGER NOT NULL DEFAULT 0,
     project_groups INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'pending',  -- pending, applied, partial, expired
     template JSONB,                          -- template used when applied
@@ -386,11 +386,11 @@ CREATE TABLE IF NOT EXISTS archon_scan_results (
 );
 ```
 
-**`archon_scan_projects`** — Individual detected projects within a scan
+**`cortex_scan_projects`** — Individual detected projects within a scan
 ```sql
-CREATE TABLE IF NOT EXISTS archon_scan_projects (
+CREATE TABLE IF NOT EXISTS cortex_scan_projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    scan_id UUID NOT NULL REFERENCES archon_scan_results(id) ON DELETE CASCADE,
+    scan_id UUID NOT NULL REFERENCES cortex_scan_results(id) ON DELETE CASCADE,
     directory_name TEXT NOT NULL,
     absolute_path TEXT NOT NULL,           -- path inside container (/projects/...)
     host_path TEXT NOT NULL,               -- original host path for display
@@ -408,35 +408,35 @@ CREATE TABLE IF NOT EXISTS archon_scan_projects (
     infra_markers TEXT[] DEFAULT '{}',     -- ["docker", "github-actions", "supabase"]
     is_project_group BOOLEAN NOT NULL DEFAULT FALSE,
     group_name TEXT,                       -- parent group directory name, if nested
-    already_in_archon BOOLEAN NOT NULL DEFAULT FALSE,
+    already_in_cortex BOOLEAN NOT NULL DEFAULT FALSE,
     existing_project_id UUID,
     selected BOOLEAN NOT NULL DEFAULT TRUE,
     apply_status TEXT NOT NULL DEFAULT 'pending', -- pending, created, skipped, failed, duplicate_skipped
-    archon_project_id UUID,               -- set after successful creation
+    cortex_project_id UUID,               -- set after successful creation
     error_message TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_scan_projects_scan_id ON archon_scan_projects(scan_id);
-CREATE INDEX idx_scan_projects_github_url ON archon_scan_projects(github_url);
+CREATE INDEX idx_scan_projects_scan_id ON cortex_scan_projects(scan_id);
+CREATE INDEX idx_scan_projects_github_url ON cortex_scan_projects(github_url);
 ```
 
-**`archon_scanner_templates`** — Saved scan templates
+**`cortex_scanner_templates`** — Saved scan templates
 ```sql
-CREATE TABLE IF NOT EXISTS archon_scanner_templates (
+CREATE TABLE IF NOT EXISTS cortex_scanner_templates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     description TEXT,
     template JSONB NOT NULL,
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
-    system_id UUID REFERENCES archon_systems(id),
+    system_id UUID REFERENCES cortex_systems(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Only one default template per system
 CREATE UNIQUE INDEX idx_scanner_templates_default
-    ON archon_scanner_templates(system_id)
+    ON cortex_scanner_templates(system_id)
     WHERE is_default = TRUE;
 ```
 
@@ -491,14 +491,14 @@ class ScanSummary:
 
 ```python
 class ScanTemplate(BaseModel):
-    """Template controlling how scanned projects are set up in Archon"""
+    """Template controlling how scanned projects are set up in Cortex"""
 
-    # Archon connection (user-overridable for non-default ports)
-    archon_api_url: str = "http://localhost:8181"   # Written into each project's archon-config.json
-    archon_mcp_url: str = "http://localhost:8051"   # Written into each project's archon-config.json
+    # Cortex connection (user-overridable for non-default ports)
+    cortex_api_url: str = "http://localhost:8181"   # Written into each project's cortex-config.json
+    cortex_mcp_url: str = "http://localhost:8051"   # Written into each project's cortex-config.json
 
     # Project creation
-    skip_existing: bool = True                  # Skip repos already in Archon
+    skip_existing: bool = True                  # Skip repos already in Cortex
     create_group_parents: bool = True           # Create parent projects for project groups
     set_github_repo: bool = True                # Set github_repo field on project
     auto_tag_languages: bool = True             # Add detected languages as project tags
@@ -508,11 +508,11 @@ class ScanTemplate(BaseModel):
     crawl_github_docs: bool = False             # Crawl /docs folder if present
     knowledge_type: str = "technical"           # "technical" or "business"
 
-    # Setup files (replicating archon-setup)
-    write_config_files: bool = True             # Write .claude/archon-config.json + archon-state.json
+    # Setup files (replicating cortex-setup)
+    write_config_files: bool = True             # Write .claude/cortex-config.json + cortex-state.json
     write_settings_local: bool = True           # Write .claude/settings.local.json with hooks
     install_extensions: bool = True             # Download and extract extensions to .claude/skills/
-    update_gitignore: bool = True               # Add Archon entries to .gitignore
+    update_gitignore: bool = True               # Add Cortex entries to .gitignore
 
     # Filtering
     include_patterns: list[str] = []            # Glob patterns to include (empty = all)
@@ -536,8 +536,8 @@ class ScannerService:
         system_id: str,
     ) -> tuple[bool, dict[str, Any]]:
         """
-        Scan a directory for Git repos, cross-reference with existing Archon projects,
-        and persist results to archon_scan_results + archon_scan_projects tables.
+        Scan a directory for Git repos, cross-reference with existing Cortex projects,
+        and persist results to cortex_scan_results + cortex_scan_projects tables.
 
         Returns (success, {"scan_id": "...", "summary": {...}})
         """
@@ -554,7 +554,7 @@ class ScannerService:
     ) -> tuple[bool, dict[str, Any]]:
         """
         Apply template to selected projects from a scan.
-        Creates Archon projects, writes config files, installs extensions, starts crawls.
+        Creates Cortex projects, writes config files, installs extensions, starts crawls.
         Generates CSV report on completion.
 
         Returns (success, {"operation_id": "...", "created": N, "skipped": N, "failed": N,
@@ -570,13 +570,13 @@ class ScannerService:
         system_name: str,
     ) -> tuple[bool, dict[str, Any]]:
         """
-        Set up a single project — equivalent to running /archon-setup in that directory.
+        Set up a single project — equivalent to running /cortex-setup in that directory.
 
         Steps:
-        1. Create Archon project via ProjectService (with dependencies in metadata, infra in tags)
+        1. Create Cortex project via ProjectService (with dependencies in metadata, infra in tags)
         2. Register system for project via sync endpoint
-        3. Write .claude/archon-config.json (using template.archon_api_url, template.archon_mcp_url)
-        4. Write .claude/archon-state.json
+        3. Write .claude/cortex-config.json (using template.cortex_api_url, template.cortex_mcp_url)
+        4. Write .claude/cortex-state.json
         5. Write .claude/settings.local.json (if template.write_settings_local)
         6. Install extensions to .claude/skills/ (if template.install_extensions)
         7. Update .gitignore (if template.update_gitignore)
@@ -594,16 +594,16 @@ class ScannerService:
         template: ScanTemplate,
     ) -> None:
         """Write .claude/ config files into the project directory via mounted volume.
-        Uses template.archon_api_url and template.archon_mcp_url for the URLs."""
+        Uses template.cortex_api_url and template.cortex_mcp_url for the URLs."""
 
     async def _install_extensions(self, project_path: str, cached_tarball_path: str) -> None:
         """Extract cached extensions tarball into project's .claude/skills/ directory."""
 
     async def _update_gitignore(self, project_path: str) -> None:
-        """Append Archon entries to .gitignore if not already present."""
+        """Append Cortex entries to .gitignore if not already present."""
 
     async def _cache_extensions_tarball(self, template: ScanTemplate) -> str:
-        """Download extensions tarball once from {archon_mcp_url}/archon-setup/extensions.tar.gz.
+        """Download extensions tarball once from {cortex_mcp_url}/cortex-setup/extensions.tar.gz.
         Returns path to cached tarball. Reused for all projects in the scan."""
 
     async def get_scan_results(self, scan_id: str) -> tuple[bool, dict[str, Any]]:
@@ -627,7 +627,7 @@ class ScannerService:
         """
         Generate a post-scan CSV report and summary.
 
-        Returns (success, {"csv_path": "/projects/.archon-scan-report-{scan_id}.csv", "summary": {...}})
+        Returns (success, {"csv_path": "/projects/.cortex-scan-report-{scan_id}.csv", "summary": {...}})
         """
 ```
 
@@ -656,12 +656,12 @@ class ScanResponse(BaseModel):
     directory_path: str                # Host path for display
     total_found: int
     new_projects: int
-    already_in_archon: int
+    already_in_cortex: int
     project_groups: int
     projects: list[ScanProjectResponse]  # Full details per project
 
 class ScanProjectResponse(BaseModel):
-    id: str                            # UUID from archon_scan_projects
+    id: str                            # UUID from cortex_scan_projects
     directory_name: str
     host_path: str
     github_url: str | None
@@ -671,7 +671,7 @@ class ScanProjectResponse(BaseModel):
     readme_excerpt: str | None
     is_project_group: bool
     group_name: str | None
-    already_in_archon: bool
+    already_in_cortex: bool
     existing_project_id: str | None
 
 class ApplyRequest(BaseModel):
@@ -718,10 +718,10 @@ def register_scanner_tools(mcp: FastMCP):
 
         Detects repos, extracts GitHub metadata, reads README content,
         and identifies project groups (directories containing multiple repos).
-        Cross-references with existing Archon projects to flag duplicates.
+        Cross-references with existing Cortex projects to flag duplicates.
 
         Args:
-            system_fingerprint: Your system's fingerprint (from archon-state.json)
+            system_fingerprint: Your system's fingerprint (from cortex-state.json)
             directory_path: Subdirectory within mounted projects root (optional)
 
         Returns: JSON with scan_id, project list, and summary statistics.
@@ -741,10 +741,10 @@ def register_scanner_tools(mcp: FastMCP):
         template: dict | None = None,
     ) -> str:
         """
-        Apply setup to scanned projects — equivalent to running /archon-setup
+        Apply setup to scanned projects — equivalent to running /cortex-setup
         in each project directory.
 
-        Creates Archon projects, writes .claude/ config files, updates .gitignore,
+        Creates Cortex projects, writes .claude/ config files, updates .gitignore,
         and starts knowledge source crawling for each selected project.
 
         Args:
@@ -763,15 +763,15 @@ def register_scanner_tools(mcp: FastMCP):
 
 ### 7. Docker Configuration Changes
 
-**`docker-compose.yml`** — Add volume mount to `archon-server`:
+**`docker-compose.yml`** — Add volume mount to `cortex-server`:
 ```yaml
-archon-server:
+cortex-server:
   volumes:
     - ./python/src:/app/src
     - ./python/tests:/app/tests
     - ./migration:/app/migration
     - ./integrations:/app/integrations
-    - archon-server-data:/app/data
+    - cortex-server-data:/app/data
     - ${PROJECTS_DIRECTORY:-~/projects}:/projects:rw   # Scanner mount
   environment:
     # ... existing env vars ...
@@ -799,14 +799,14 @@ The scanner API returns 503 if `SCANNER_ENABLED` is false, with a message explai
 
 ## Config Files Written Per Project
 
-### `.claude/archon-config.json`
+### `.claude/cortex-config.json`
 
-URLs come from the template's `archon_api_url` and `archon_mcp_url` fields, allowing users on non-default ports to configure once in the template.
+URLs come from the template's `cortex_api_url` and `cortex_mcp_url` fields, allowing users on non-default ports to configure once in the template.
 
 ```json
 {
-    "archon_api_url": "<from template.archon_api_url>",
-    "archon_mcp_url": "<from template.archon_mcp_url>",
+    "cortex_api_url": "<from template.cortex_api_url>",
+    "cortex_mcp_url": "<from template.cortex_mcp_url>",
     "project_id": "uuid-of-created-project",
     "project_title": "RecipeRaiders",
     "machine_id": "md5-first-16-chars",
@@ -816,13 +816,13 @@ URLs come from the template's `archon_api_url` and `archon_mcp_url` fields, allo
 }
 ```
 
-### `.claude/archon-state.json`
+### `.claude/cortex-state.json`
 
 ```json
 {
     "system_fingerprint": "sha256-hash",
     "system_name": "WIN_AI_PC_WSL",
-    "archon_project_id": "uuid-of-created-project"
+    "cortex_project_id": "uuid-of-created-project"
 }
 ```
 
@@ -837,7 +837,7 @@ URLs come from the template's `archon_api_url` and `archon_mcp_url` fields, allo
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "~/.claude/plugins/archon-memory/scripts/observation_hook.sh"
+                        "command": "~/.claude/plugins/cortex-memory/scripts/observation_hook.sh"
                     }
                 ]
             }
@@ -849,14 +849,14 @@ URLs come from the template's `archon_api_url` and `archon_mcp_url` fields, allo
 ### `.gitignore` additions
 
 ```
-# Archon
+# Cortex
 .claude/plugins/
 .claude/skills/
-.claude/archon-config.json
-.claude/archon-state.json
-.claude/archon-memory-buffer.jsonl
+.claude/cortex-config.json
+.claude/cortex-state.json
+.claude/cortex-memory-buffer.jsonl
 .claude/settings.local.json
-.archon/
+.cortex/
 ```
 
 ---
@@ -890,7 +890,7 @@ Progress 40-100%: Crawling knowledge sources (distributed across all crawl compl
 Per-project status updates are logged to the progress tracker:
 ```
 [3/50] Created: RecipeRaiders (crawl queued)
-[4/50] Skipped: reciperaiders-dashboard (already in Archon)
+[4/50] Skipped: reciperaiders-dashboard (already in Cortex)
 [5/50] Failed: private-repo (README crawl failed — project created without knowledge source)
 ```
 
@@ -902,7 +902,7 @@ After the apply phase completes, the scanner generates a comprehensive CSV repor
 
 ### CSV Report File
 
-Written to the mounted projects directory at: `{projects_root}/.archon-scan-report-{scan_id}.csv`
+Written to the mounted projects directory at: `{projects_root}/.cortex-scan-report-{scan_id}.csv`
 
 **CSV Columns:**
 
@@ -914,7 +914,7 @@ Written to the mounted projects directory at: `{projects_root}/.archon-scan-repo
 | `group_name` | Parent project group (or empty) |
 | `detected_languages` | Comma-separated language list |
 | `status` | `created`, `skipped_existing`, `skipped_non_github`, `skipped_no_remote`, `skipped_filtered`, `duplicate_skipped`, `failed` |
-| `archon_project_id` | UUID of created project (or empty) |
+| `cortex_project_id` | UUID of created project (or empty) |
 | `crawl_status` | `queued`, `skipped`, `failed`, `n/a` |
 | `error` | Error message if failed (or empty) |
 | `description` | AI-generated description (or empty) |
@@ -924,7 +924,7 @@ Written to the mounted projects directory at: `{projects_root}/.archon-scan-repo
 Returned by the MCP tool and also appended to the top of the CSV as comment lines:
 
 ```
-# Archon Local Project Scanner Report
+# Cortex Local Project Scanner Report
 # Scan ID: a1b2c3d4-...
 # Directory: ~/projects
 # Date: 2026-03-17T14:30:00Z
@@ -953,10 +953,10 @@ Returned by the MCP tool and also appended to the top of the CSV as comment line
 ### Report Generation Flow
 
 1. After `apply_scan` completes, it calls `generate_scan_report(scan_id)` automatically
-2. The report queries `archon_scan_projects` for all projects in the scan
+2. The report queries `cortex_scan_projects` for all projects in the scan
 3. CSV is written to the mounted volume so the user can access it from their host filesystem
 4. The summary text is returned in the apply response for Claude Code to display
-5. Both the CSV path and summary are stored on the `archon_scan_results` row
+5. Both the CSV path and summary are stored on the `cortex_scan_results` row
 
 ### Report API Endpoint
 
@@ -986,7 +986,7 @@ A **background cleanup task** runs periodically (on server startup and every 6 h
 ```python
 async def cleanup_expired_scans():
     """Delete scan results where expires_at < NOW().
-    CASCADE deletes associated archon_scan_projects rows."""
+    CASCADE deletes associated cortex_scan_projects rows."""
 ```
 
 This prevents unbounded growth of the scan tables without requiring user action.
@@ -995,12 +995,12 @@ This prevents unbounded growth of the scan tables without requiring user action.
 
 ## Extension Version Recording
 
-When extensions are installed per-project, the scanner records a version hash so it's possible to tell what was installed and when. This is written into each project's `archon-config.json`:
+When extensions are installed per-project, the scanner records a version hash so it's possible to tell what was installed and when. This is written into each project's `cortex-config.json`:
 
 ```json
 {
-    "archon_api_url": "...",
-    "archon_mcp_url": "...",
+    "cortex_api_url": "...",
+    "cortex_mcp_url": "...",
     "project_id": "...",
     "project_title": "RecipeRaiders",
     "machine_id": "...",
@@ -1014,7 +1014,7 @@ When extensions are installed per-project, the scanner records a version hash so
 
 **How it works:**
 1. When the scanner caches the extensions tarball, it computes a SHA-256 hash of the file content
-2. The hash is written into every project's `archon-config.json` alongside a timestamp
+2. The hash is written into every project's `cortex-config.json` alongside a timestamp
 3. This creates a record of exactly which version of extensions each project received
 4. A future tool could compare `extensions_hash` against the current tarball hash to detect stale installations
 
@@ -1034,10 +1034,10 @@ Every step in `_setup_single_project` is designed to be **idempotent** — safe 
 
 | Step | Idempotency Strategy |
 |------|---------------------|
-| Create Archon project | Pre-creation duplicate check by normalized `github_url`. If project exists, reuse the `project_id`. |
+| Create Cortex project | Pre-creation duplicate check by normalized `github_url`. If project exists, reuse the `project_id`. |
 | Register system for project | `POST /api/projects/{project_id}/sync` is idempotent — updates `last_seen` if already registered. |
-| Write `.claude/archon-config.json` | Overwrite — always produces correct state. |
-| Write `.claude/archon-state.json` | Overwrite — always produces correct state. |
+| Write `.claude/cortex-config.json` | Overwrite — always produces correct state. |
+| Write `.claude/cortex-state.json` | Overwrite — always produces correct state. |
 | Write `.claude/settings.local.json` | Overwrite — always produces correct state. |
 | Install extensions to `.claude/skills/` | Extract overwrites existing files. |
 | Update `.gitignore` | Checks for existing entries before appending — no duplicates. |
@@ -1048,7 +1048,7 @@ Every step in `_setup_single_project` is designed to be **idempotent** — safe 
 
 When the user calls `apply_scan_template` with the same `scan_id` after a crash:
 
-1. Backend loads `archon_scan_projects` for the scan
+1. Backend loads `cortex_scan_projects` for the scan
 2. For each project, checks `apply_status`:
    - `"created"` → **skip** (already fully set up)
    - `"failed"` → **retry** (re-run all steps; idempotency ensures no damage)
@@ -1058,7 +1058,7 @@ When the user calls `apply_scan_template` with the same `scan_id` after a crash:
 
 ### Per-Project Status Tracking
 
-The `archon_scan_projects.apply_status` column is updated atomically after ALL steps for a project succeed:
+The `cortex_scan_projects.apply_status` column is updated atomically after ALL steps for a project succeed:
 
 ```
 pending → [running all steps] → created  (success)
@@ -1100,8 +1100,8 @@ The MCP tool detects the partial state and communicates it clearly.
 |----------|----------|
 | Duplicate github_url detected at apply time | Skip with `duplicate_skipped` status |
 | Crawl fails (private repo, 404, rate limit) | Project still created; log crawl failure in results |
-| Config file write fails (permissions) | Log error; project still created in Archon DB |
-| `.gitignore` doesn't exist | Create new `.gitignore` with Archon entries |
+| Config file write fails (permissions) | Log error; project still created in Cortex DB |
+| `.gitignore` doesn't exist | Create new `.gitignore` with Cortex entries |
 | `.gitignore` already has entries | Skip those entries, append only new ones |
 | System not registered | Fail fast with error before creating any projects |
 | Scan expired (24h TTL) | Return error: "Scan expired. Please run a new scan." |
@@ -1124,7 +1124,7 @@ The MCP tool detects the partial state and communicates it clearly.
 
 ### Phase 1: Infrastructure (Tasks 1-3)
 
-1. **Database migration** — `018_scanner_tables.sql` with `archon_scan_results`, `archon_scan_projects`, `archon_scanner_templates` tables
+1. **Database migration** — `018_scanner_tables.sql` with `cortex_scan_results`, `cortex_scan_projects`, `cortex_scanner_templates` tables
 2. **Docker configuration** — Volume mount in `docker-compose.yml`, env vars in `.env.example`, scanner config constants
 3. **Git detector module** — `git_detector.py` with smart recurse algorithm, URL normalization, README reading
 
@@ -1179,7 +1179,7 @@ The MCP tool detects the partial state and communicates it clearly.
 
 | File | Change |
 |------|--------|
-| `docker-compose.yml` | Add projects volume mount to archon-server |
+| `docker-compose.yml` | Add projects volume mount to cortex-server |
 | `.env.example` | Add PROJECTS_DIRECTORY and SCANNER_ENABLED |
 | `python/src/server/main.py` | Register scanner_api router |
 | `python/src/server/config/` | Add scanner configuration constants |
@@ -1192,23 +1192,23 @@ The MCP tool detects the partial state and communicates it clearly.
 | # | Decision | Rationale |
 |---|----------|-----------|
 | 1 | Docker volume mount for filesystem access | Simple, no new services needed. User configures once in `.env`. |
-| 2 | CLI-first via MCP tools | Claude Code is the primary Archon interface. Web UI deferred. |
+| 2 | CLI-first via MCP tools | Claude Code is the primary Cortex interface. Web UI deferred. |
 | 3 | Scan results persisted in DB | Survives page refresh, enables resume, provides audit trail. |
-| 4 | Replicate full /archon-setup per project | Users expect identical end state to manual setup. |
+| 4 | Replicate full /cortex-setup per project | Users expect identical end state to manual setup. |
 | 5 | Smart recurse (max depth 2) | Handles project groups (RecipeRaiders) without arbitrary depth complexity. |
 | 6 | Claude Code generates descriptions | No extra AI config needed. Claude Code IS the AI in the CLI flow. |
 | 7 | Match duplicates only on normalized github_url | Title matching is too fragile. No-remote repos: user decides. |
 | 8 | Pre-creation duplicate check | Prevents race conditions from double-click or concurrent apply. |
-| 9 | `archon_scanner_templates` table | DB persistence for templates. One default per system. |
+| 9 | `cortex_scanner_templates` table | DB persistence for templates. One default per system. |
 | 10 | SCANNER_ENABLED flag (default false) | Opt-in feature. Volume mount without this flag has no effect. |
 | 11 | 24-hour scan result TTL with background cleanup | Filesystem snapshots go stale. Background task cleans up every 6 hours. |
 | 12 | README-only default crawl | Single-page crawl is fast. Full docs crawl is opt-in. |
 | 13 | Extensions installed per-project | Projects frequently need different extension customizations. Global installs create conflicts. |
-| 14 | Archon URLs configurable in template | Supports non-default ports. User sets once in template, applies to all projects. |
+| 14 | Cortex URLs configurable in template | Supports non-default ports. User sets once in template, applies to all projects. |
 | 15 | Skip non-GitHub repos by default | v1 only supports GitHub README crawling. Non-GitHub repos logged in scan report for visibility. |
 | 16 | CSV scan report log | Permanent record of scan results written to projects directory. Easy to review in any spreadsheet tool. |
-| 17 | One-time onboarding tool, no re-scan | New projects after initial scan use `/archon-setup`. Scanner is for bulk onboarding only. |
-| 18 | Record extension version hash per project | SHA-256 of tarball in `archon-config.json`. Enables future update detection without ongoing scans. |
+| 17 | One-time onboarding tool, no re-scan | New projects after initial scan use `/cortex-setup`. Scanner is for bulk onboarding only. |
+| 18 | Record extension version hash per project | SHA-256 of tarball in `cortex-config.json`. Enables future update detection without ongoing scans. |
 | 19 | Idempotent apply with crash resume | All setup steps are idempotent. Re-invoking `apply_scan_template` with same `scan_id` safely resumes from where it left off. |
 | 20 | Capture dependencies and infra markers during scan | Scanner has one-time filesystem access. Capture now to enable future conversational AI cross-project queries. |
 | 21 | Store full README + ingest to knowledge base | Local README ingested immediately with embeddings. Works for private repos, no crawl delay. GitHub crawl supplements. |
@@ -1221,8 +1221,8 @@ The MCP tool detects the partial state and communicates it clearly.
 | # | Question | Decision |
 |---|----------|----------|
 | 1 | Non-GitHub repos in future? | Yes — plan to support GitLab/Bitbucket in a future version (URL normalization + crawl strategies). Not v1. |
-| 2 | Record extension version? | Yes — record a version hash in `archon-config.json` per project (see Extension Version Recording). |
-| 3 | Re-scan workflow? | No — this is a **one-time onboarding tool per machine**. New projects after initial scan use the existing `/archon-setup` command. No re-scan mode needed. |
+| 2 | Record extension version? | Yes — record a version hash in `cortex-config.json` per project (see Extension Version Recording). |
+| 3 | Re-scan workflow? | No — this is a **one-time onboarding tool per machine**. New projects after initial scan use the existing `/cortex-setup` command. No re-scan mode needed. |
 
 ## Future Considerations
 

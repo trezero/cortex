@@ -190,7 +190,7 @@ https://github.com/owner/repo/pull/123
 
 **Example output:**
 ```
-https://github.com/coleam00/archon/pull/456
+https://github.com/trezero/cortex/pull/456
 ```
 
 ## Error Handling

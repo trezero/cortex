@@ -2,16 +2,16 @@
 
 ## Overview
 
-The LeaveOff Point feature ensures context continuity across Claude Code sessions for every Archon-managed project. Each project maintains a single, current development state that is automatically updated after coding tasks and automatically loaded at session start.
+The LeaveOff Point feature ensures context continuity across Claude Code sessions for every Cortex-managed project. Each project maintains a single, current development state that is automatically updated after coding tasks and automatically loaded at session start.
 
 ## Design Decisions
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Scope | Per-project, last-writer-wins | One canonical state per project. Any machine can overwrite. Aligns with materialization dedup pattern. |
-| Storage | File + database | `.archon/knowledge/LeaveOffPoint.md` for human readability; `archon_leaveoff_points` table for RAG retrieval. |
+| Storage | File + database | `.cortex/knowledge/LeaveOffPoint.md` for human readability; `cortex_leaveoff_points` table for RAG retrieval. |
 | 90% guardrail | CLAUDE.md instruction + observation count safety net | Prompt-based self-monitoring with PostToolUse hook emitting warnings at threshold. |
-| Session start consumption | Extend existing SessionStart hook | Fetched in parallel with existing context; injected into `<archon-context>` block. |
+| Session start consumption | Extend existing SessionStart hook | Fetched in parallel with existing context; injected into `<cortex-context>` block. |
 | Architecture | Standalone service | Dedicated table, service, API, and MCP tool. Conceptually distinct from materializations. |
 
 ## Database Schema
@@ -19,9 +19,9 @@ The LeaveOff Point feature ensures context continuity across Claude Code session
 Migration: `019_add_leaveoff_points.sql`
 
 ```sql
-CREATE TABLE archon_leaveoff_points (
+CREATE TABLE cortex_leaveoff_points (
     id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    project_id      UUID NOT NULL UNIQUE REFERENCES archon_projects(id) ON DELETE CASCADE,
+    project_id      UUID NOT NULL UNIQUE REFERENCES cortex_projects(id) ON DELETE CASCADE,
     machine_id      TEXT,
     last_session_id UUID,
     content         TEXT NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE archon_leaveoff_points (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_leaveoff_project ON archon_leaveoff_points(project_id);
+CREATE INDEX idx_leaveoff_project ON cortex_leaveoff_points(project_id);
 ```
 
 Key constraints:
@@ -54,8 +54,8 @@ class LeaveOffService:
     async def upsert(self, project_id, content, component, next_steps,
                      references, machine_id, last_session_id, metadata) -> dict:
         """Atomic UPSERT -- creates or replaces the LeaveOff point."""
-        # 1. UPSERT into archon_leaveoff_points (ON CONFLICT project_id DO UPDATE)
-        # 2. Write .archon/knowledge/LeaveOffPoint.md via IndexerService
+        # 1. UPSERT into cortex_leaveoff_points (ON CONFLICT project_id DO UPDATE)
+        # 2. Write .cortex/knowledge/LeaveOffPoint.md via IndexerService
         # 3. Return the upserted record
 
     async def get(self, project_id) -> dict | None:
@@ -120,7 +120,7 @@ Tool description explicitly mentions its role in session termination and context
 
 ## SessionStart Hook Integration
 
-**Modification to:** `integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py`
+**Modification to:** `integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py`
 
 Add a parallel fetch for the LeaveOff Point during the existing context-loading phase:
 
@@ -134,7 +134,7 @@ sessions, tasks, knowledge, leaveoff = await asyncio.gather(
 )
 ```
 
-Inject into the `<archon-context>` block:
+Inject into the `<cortex-context>` block:
 
 ```xml
 ## LeaveOff Point (Last Session State)
@@ -189,7 +189,7 @@ Review the injected context and orient work around the documented next steps.
 
 ## 90% Rule: PostToolUse Observation Counter
 
-**Modification to:** `integrations/claude-code/plugins/archon-memory/scripts/observation_hook.py`
+**Modification to:** `integrations/claude-code/plugins/cortex-memory/scripts/observation_hook.py`
 
 After appending observation to buffer, count total lines in JSONL file. At threshold (default: 80), emit a system reminder to stdout:
 
@@ -215,9 +215,9 @@ Fires once at threshold, then every 10 observations after. Does not force termin
 | `python/src/mcp_server/features/leaveoff/__init__.py` | New |
 | `python/src/mcp_server/features/leaveoff/leaveoff_tools.py` | New |
 | `python/src/mcp_server/mcp_server.py` | Modify (register tools) |
-| `integrations/claude-code/plugins/archon-memory/scripts/observation_hook.py` | Modify |
-| `integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py` | Modify |
-| `integrations/claude-code/plugins/archon-memory/src/archon_client.py` | Modify (add get_leaveoff_point) |
+| `integrations/claude-code/plugins/cortex-memory/scripts/observation_hook.py` | Modify |
+| `integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py` | Modify |
+| `integrations/claude-code/plugins/cortex-memory/src/cortex_client.py` | Modify (add get_leaveoff_point) |
 | `CLAUDE.md` | Modify (add LeaveOff Protocol section) |
 | `python/tests/server/services/leaveoff/test_leaveoff_service.py` | New |
 | `python/tests/server/api_routes/test_leaveoff_api.py` | New |

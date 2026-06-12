@@ -44,52 +44,52 @@ def service(mock_supabase):
 
 class TestComputeSyncReport:
     def test_in_sync_when_hashes_match(self, service):
-        """Extension with matching local and Archon hashes should be in_sync."""
-        local_extensions = [{"name": "archon-memory", "content_hash": "aaa"}]
-        archon_extensions = [{"id": "s1", "name": "archon-memory", "content_hash": "aaa", "content": "..."}]
+        """Extension with matching local and Cortex hashes should be in_sync."""
+        local_extensions = [{"name": "cortex-memory", "content_hash": "aaa"}]
+        cortex_extensions = [{"id": "s1", "name": "cortex-memory", "content_hash": "aaa", "content": "..."}]
         system_extensions = [{"extension_id": "s1", "status": "installed", "installed_content_hash": "aaa"}]
 
-        report = service.compute_sync_report(local_extensions, archon_extensions, system_extensions)
+        report = service.compute_sync_report(local_extensions, cortex_extensions, system_extensions)
 
-        assert "archon-memory" in report["in_sync"]
+        assert "cortex-memory" in report["in_sync"]
         assert len(report["local_changes"]) == 0
         assert len(report["pending_install"]) == 0
         assert len(report["pending_remove"]) == 0
         assert len(report["unknown_local"]) == 0
 
     def test_detects_local_changes(self, service):
-        """Local extension with different hash than Archon should appear in local_changes."""
-        local_extensions = [{"name": "archon-memory", "content_hash": "bbb"}]
-        archon_extensions = [{"id": "s1", "name": "archon-memory", "content_hash": "aaa", "content": "..."}]
+        """Local extension with different hash than Cortex should appear in local_changes."""
+        local_extensions = [{"name": "cortex-memory", "content_hash": "bbb"}]
+        cortex_extensions = [{"id": "s1", "name": "cortex-memory", "content_hash": "aaa", "content": "..."}]
         system_extensions = [{"extension_id": "s1", "status": "installed", "installed_content_hash": "aaa"}]
 
-        report = service.compute_sync_report(local_extensions, archon_extensions, system_extensions)
+        report = service.compute_sync_report(local_extensions, cortex_extensions, system_extensions)
 
         assert len(report["local_changes"]) == 1
-        assert report["local_changes"][0]["name"] == "archon-memory"
+        assert report["local_changes"][0]["name"] == "cortex-memory"
         assert report["local_changes"][0]["local_hash"] == "bbb"
-        assert report["local_changes"][0]["archon_hash"] == "aaa"
+        assert report["local_changes"][0]["cortex_hash"] == "aaa"
         assert len(report["in_sync"]) == 0
 
     def test_detects_unknown_local(self, service):
-        """Local extension not in the Archon registry should appear in unknown_local."""
+        """Local extension not in the Cortex registry should appear in unknown_local."""
         local_extensions = [{"name": "new-extension", "content_hash": "xxx"}]
-        archon_extensions = []
+        cortex_extensions = []
         system_extensions = []
 
-        report = service.compute_sync_report(local_extensions, archon_extensions, system_extensions)
+        report = service.compute_sync_report(local_extensions, cortex_extensions, system_extensions)
 
         assert len(report["unknown_local"]) == 1
         assert report["unknown_local"][0]["name"] == "new-extension"
         assert report["unknown_local"][0]["content_hash"] == "xxx"
 
     def test_detects_pending_installs(self, service):
-        """Archon extension with pending_install status and no local copy should be pending_install."""
+        """Cortex extension with pending_install status and no local copy should be pending_install."""
         local_extensions = []
-        archon_extensions = [{"id": "s1", "name": "code-reviewer", "content_hash": "ccc", "content": "...content..."}]
+        cortex_extensions = [{"id": "s1", "name": "code-reviewer", "content_hash": "ccc", "content": "...content..."}]
         system_extensions = [{"extension_id": "s1", "status": "pending_install"}]
 
-        report = service.compute_sync_report(local_extensions, archon_extensions, system_extensions)
+        report = service.compute_sync_report(local_extensions, cortex_extensions, system_extensions)
 
         assert len(report["pending_install"]) == 1
         assert report["pending_install"][0]["name"] == "code-reviewer"
@@ -99,10 +99,10 @@ class TestComputeSyncReport:
     def test_detects_pending_removals(self, service):
         """Local extension with pending_remove status in system_extensions should be pending_remove."""
         local_extensions = [{"name": "old-extension", "content_hash": "ddd"}]
-        archon_extensions = [{"id": "s2", "name": "old-extension", "content_hash": "ddd", "content": "..."}]
+        cortex_extensions = [{"id": "s2", "name": "old-extension", "content_hash": "ddd", "content": "..."}]
         system_extensions = [{"extension_id": "s2", "status": "pending_remove"}]
 
-        report = service.compute_sync_report(local_extensions, archon_extensions, system_extensions)
+        report = service.compute_sync_report(local_extensions, cortex_extensions, system_extensions)
 
         assert len(report["pending_remove"]) == 1
         assert report["pending_remove"][0]["name"] == "old-extension"
@@ -126,18 +126,18 @@ class TestComputeSyncReport:
             {"name": "extension-b", "content_hash": "bbb_local"},
             {"name": "extension-unknown", "content_hash": "uuu"},
         ]
-        archon_extensions = [
+        cortex_extensions = [
             {"id": "s1", "name": "extension-a", "content_hash": "aaa", "content": "..."},
-            {"id": "s2", "name": "extension-b", "content_hash": "bbb_archon", "content": "..."},
+            {"id": "s2", "name": "extension-b", "content_hash": "bbb_cortex", "content": "..."},
             {"id": "s3", "name": "extension-pending", "content_hash": "ppp", "content": "pending content"},
         ]
         system_extensions = [
             {"extension_id": "s1", "status": "installed", "installed_content_hash": "aaa"},
-            {"extension_id": "s2", "status": "installed", "installed_content_hash": "bbb_archon"},
+            {"extension_id": "s2", "status": "installed", "installed_content_hash": "bbb_cortex"},
             {"extension_id": "s3", "status": "pending_install"},
         ]
 
-        report = service.compute_sync_report(local_extensions, archon_extensions, system_extensions)
+        report = service.compute_sync_report(local_extensions, cortex_extensions, system_extensions)
 
         assert "extension-a" in report["in_sync"]
         assert len(report["local_changes"]) == 1
@@ -150,10 +150,10 @@ class TestComputeSyncReport:
     def test_pending_install_ignored_when_already_local(self, service):
         """If an extension is already local, it should not appear in pending_install even with pending_install status."""
         local_extensions = [{"name": "already-here", "content_hash": "hhh"}]
-        archon_extensions = [{"id": "s1", "name": "already-here", "content_hash": "hhh", "content": "..."}]
+        cortex_extensions = [{"id": "s1", "name": "already-here", "content_hash": "hhh", "content": "..."}]
         system_extensions = [{"extension_id": "s1", "status": "pending_install"}]
 
-        report = service.compute_sync_report(local_extensions, archon_extensions, system_extensions)
+        report = service.compute_sync_report(local_extensions, cortex_extensions, system_extensions)
 
         # It should be in_sync (hashes match), not pending_install
         assert "already-here" in report["in_sync"]
@@ -174,47 +174,47 @@ class TestComputeDirection:
 
     def test_local_newer_when_local_mtime_is_later(self):
         base = datetime(2025, 1, 1, 12, 0, 0)
-        archon = datetime(2025, 1, 1, 11, 0, 0)  # 1 hour earlier
-        assert _compute_direction(self._ts(base), self._iso(archon)) == "local_newer"
+        cortex = datetime(2025, 1, 1, 11, 0, 0)  # 1 hour earlier
+        assert _compute_direction(self._ts(base), self._iso(cortex)) == "local_newer"
 
-    def test_archon_newer_when_archon_updated_at_is_later(self):
+    def test_cortex_newer_when_cortex_updated_at_is_later(self):
         local = datetime(2025, 1, 1, 11, 0, 0)
-        archon = datetime(2025, 1, 1, 12, 0, 0)  # 1 hour later
-        assert _compute_direction(self._ts(local), self._iso(archon)) == "archon_newer"
+        cortex = datetime(2025, 1, 1, 12, 0, 0)  # 1 hour later
+        assert _compute_direction(self._ts(local), self._iso(cortex)) == "cortex_newer"
 
     def test_conflict_when_within_clock_skew_threshold(self):
         base = datetime(2025, 1, 1, 12, 0, 0)
         # 3 seconds apart — within 5-second threshold
-        archon = datetime(2025, 1, 1, 12, 0, 3)
-        assert _compute_direction(self._ts(base), self._iso(archon)) == "conflict"
+        cortex = datetime(2025, 1, 1, 12, 0, 3)
+        assert _compute_direction(self._ts(base), self._iso(cortex)) == "conflict"
 
     def test_conflict_when_timestamps_are_equal(self):
         dt = datetime(2025, 1, 1, 12, 0, 0)
         assert _compute_direction(self._ts(dt), self._iso(dt)) == "conflict"
 
     def test_unknown_when_local_mtime_is_none(self):
-        archon = datetime(2025, 1, 1, 12, 0, 0)
-        assert _compute_direction(None, self._iso(archon)) == "unknown"
+        cortex = datetime(2025, 1, 1, 12, 0, 0)
+        assert _compute_direction(None, self._iso(cortex)) == "unknown"
 
-    def test_unknown_when_archon_updated_at_is_none(self):
+    def test_unknown_when_cortex_updated_at_is_none(self):
         local = datetime(2025, 1, 1, 12, 0, 0)
         assert _compute_direction(self._ts(local), None) == "unknown"
 
     def test_unknown_when_both_missing(self):
         assert _compute_direction(None, None) == "unknown"
 
-    def test_unknown_when_archon_timestamp_is_unparseable(self):
+    def test_unknown_when_cortex_timestamp_is_unparseable(self):
         assert _compute_direction(1700000000.0, "not-a-timestamp") == "unknown"
 
     def test_accepts_integer_local_mtime(self):
         base = datetime(2025, 1, 1, 12, 0, 0)
-        archon = datetime(2025, 1, 1, 11, 0, 0)
-        assert _compute_direction(int(self._ts(base)), self._iso(archon)) == "local_newer"
+        cortex = datetime(2025, 1, 1, 11, 0, 0)
+        assert _compute_direction(int(self._ts(base)), self._iso(cortex)) == "local_newer"
 
     def test_accepts_z_suffix_iso_timestamp(self):
         local = datetime(2025, 1, 1, 11, 0, 0)
-        archon_iso = "2025-01-01T12:00:00Z"
-        assert _compute_direction(self._ts(local), archon_iso) == "archon_newer"
+        cortex_iso = "2025-01-01T12:00:00Z"
+        assert _compute_direction(self._ts(local), cortex_iso) == "cortex_newer"
 
 
 class TestComputeSyncReportWithTimestamps:
@@ -222,53 +222,53 @@ class TestComputeSyncReportWithTimestamps:
 
     def test_local_changes_include_direction_local_newer(self, service):
         local_ts = datetime(2025, 6, 1, 12, 0, 0, tzinfo=timezone.utc).timestamp()
-        archon_updated = "2025-06-01T11:00:00+00:00"
+        cortex_updated = "2025-06-01T11:00:00+00:00"
         local_extensions = [{"name": "my-skill", "content_hash": "bbb", "local_mtime": local_ts}]
-        archon_extensions = [{"id": "s1", "name": "my-skill", "content_hash": "aaa", "updated_at": archon_updated}]
+        cortex_extensions = [{"id": "s1", "name": "my-skill", "content_hash": "aaa", "updated_at": cortex_updated}]
 
-        report = service.compute_sync_report(local_extensions, archon_extensions, [])
+        report = service.compute_sync_report(local_extensions, cortex_extensions, [])
 
         assert len(report["local_changes"]) == 1
         change = report["local_changes"][0]
         assert change["direction"] == "local_newer"
         assert change["local_mtime"] == local_ts
-        assert change["archon_updated_at"] == archon_updated
+        assert change["cortex_updated_at"] == cortex_updated
 
-    def test_local_changes_include_direction_archon_newer(self, service):
+    def test_local_changes_include_direction_cortex_newer(self, service):
         local_ts = datetime(2025, 6, 1, 11, 0, 0, tzinfo=timezone.utc).timestamp()
-        archon_updated = "2025-06-01T12:00:00+00:00"
+        cortex_updated = "2025-06-01T12:00:00+00:00"
         local_extensions = [{"name": "my-skill", "content_hash": "bbb", "local_mtime": local_ts}]
-        archon_extensions = [{"id": "s1", "name": "my-skill", "content_hash": "aaa", "updated_at": archon_updated}]
+        cortex_extensions = [{"id": "s1", "name": "my-skill", "content_hash": "aaa", "updated_at": cortex_updated}]
 
-        report = service.compute_sync_report(local_extensions, archon_extensions, [])
+        report = service.compute_sync_report(local_extensions, cortex_extensions, [])
 
-        assert report["local_changes"][0]["direction"] == "archon_newer"
+        assert report["local_changes"][0]["direction"] == "cortex_newer"
 
     def test_local_changes_direction_unknown_when_no_mtime(self, service):
         local_extensions = [{"name": "my-skill", "content_hash": "bbb"}]
-        archon_extensions = [{"id": "s1", "name": "my-skill", "content_hash": "aaa", "updated_at": "2025-06-01T12:00:00Z"}]
+        cortex_extensions = [{"id": "s1", "name": "my-skill", "content_hash": "aaa", "updated_at": "2025-06-01T12:00:00Z"}]
 
-        report = service.compute_sync_report(local_extensions, archon_extensions, [])
+        report = service.compute_sync_report(local_extensions, cortex_extensions, [])
 
         assert report["local_changes"][0]["direction"] == "unknown"
         assert report["local_changes"][0]["local_mtime"] is None
 
-    def test_local_changes_direction_unknown_when_no_archon_timestamp(self, service):
+    def test_local_changes_direction_unknown_when_no_cortex_timestamp(self, service):
         local_ts = datetime(2025, 6, 1, 12, 0, 0, tzinfo=timezone.utc).timestamp()
         local_extensions = [{"name": "my-skill", "content_hash": "bbb", "local_mtime": local_ts}]
-        archon_extensions = [{"id": "s1", "name": "my-skill", "content_hash": "aaa"}]
+        cortex_extensions = [{"id": "s1", "name": "my-skill", "content_hash": "aaa"}]
 
-        report = service.compute_sync_report(local_extensions, archon_extensions, [])
+        report = service.compute_sync_report(local_extensions, cortex_extensions, [])
 
         assert report["local_changes"][0]["direction"] == "unknown"
-        assert report["local_changes"][0]["archon_updated_at"] is None
+        assert report["local_changes"][0]["cortex_updated_at"] is None
 
     def test_in_sync_extensions_not_affected_by_timestamps(self, service):
         local_ts = datetime(2025, 6, 1, 12, 0, 0, tzinfo=timezone.utc).timestamp()
         local_extensions = [{"name": "my-skill", "content_hash": "aaa", "local_mtime": local_ts}]
-        archon_extensions = [{"id": "s1", "name": "my-skill", "content_hash": "aaa", "updated_at": "2025-01-01T00:00:00Z"}]
+        cortex_extensions = [{"id": "s1", "name": "my-skill", "content_hash": "aaa", "updated_at": "2025-01-01T00:00:00Z"}]
 
-        report = service.compute_sync_report(local_extensions, archon_extensions, [])
+        report = service.compute_sync_report(local_extensions, cortex_extensions, [])
 
         assert "my-skill" in report["in_sync"]
         assert len(report["local_changes"]) == 0
@@ -279,7 +279,7 @@ class TestComputeSyncReportWithTimestamps:
 
 class TestGetSystemExtensions:
     def test_returns_matching_records(self, service, mock_supabase):
-        """Should query archon_system_extensions with system_id and project_id filters."""
+        """Should query cortex_system_extensions with system_id and project_id filters."""
         system_extensions_data = [
             {"system_id": "sys-1", "project_id": "proj-1", "extension_id": "s1", "status": "installed"},
             {"system_id": "sys-1", "project_id": "proj-1", "extension_id": "s2", "status": "pending_install"},
@@ -295,7 +295,7 @@ class TestGetSystemExtensions:
         result = service.get_system_extensions("sys-1", "proj-1")
 
         assert len(result) == 2
-        mock_supabase.table.assert_called_with("archon_system_extensions")
+        mock_supabase.table.assert_called_with("cortex_system_extensions")
 
     def test_returns_empty_list_when_no_records(self, service, mock_supabase):
         """Should return empty list when no system extensions match."""
@@ -316,7 +316,7 @@ class TestGetSystemExtensions:
 
 class TestSetInstallStatus:
     def test_upserts_install_record(self, service, mock_supabase):
-        """Should upsert into archon_system_extensions with correct data."""
+        """Should upsert into cortex_system_extensions with correct data."""
         install_row = {
             "system_id": "sys-1",
             "extension_id": "s1",
@@ -345,7 +345,7 @@ class TestSetInstallStatus:
         assert result["status"] == "installed"
         assert result["installed_content_hash"] == "aaa"
 
-        mock_supabase.table.assert_called_with("archon_system_extensions")
+        mock_supabase.table.assert_called_with("cortex_system_extensions")
         builder.upsert.assert_called_once()
         upsert_data = builder.upsert.call_args[0][0]
         assert upsert_data["system_id"] == "sys-1"
@@ -415,8 +415,8 @@ class TestGetProjectSystems:
     def test_returns_registered_systems(self, service, mock_supabase):
         """Should return systems from the registrations table."""
         query_data = [
-            {"system_id": "sys-1", "archon_systems": {"id": "sys-1", "name": "Dev Machine"}},
-            {"system_id": "sys-2", "archon_systems": {"id": "sys-2", "name": "CI Server"}},
+            {"system_id": "sys-1", "cortex_systems": {"id": "sys-1", "name": "Dev Machine"}},
+            {"system_id": "sys-2", "cortex_systems": {"id": "sys-2", "name": "CI Server"}},
         ]
 
         builder = MagicMock()
@@ -446,10 +446,10 @@ class TestGetProjectSystems:
         assert result == []
 
     def test_skips_rows_without_system_record(self, service, mock_supabase):
-        """Should skip rows where the joined archon_systems data is null."""
+        """Should skip rows where the joined cortex_systems data is null."""
         query_data = [
-            {"system_id": "sys-1", "archon_systems": {"id": "sys-1", "name": "Dev Machine"}},
-            {"system_id": "sys-2", "archon_systems": None},
+            {"system_id": "sys-1", "cortex_systems": {"id": "sys-1", "name": "Dev Machine"}},
+            {"system_id": "sys-2", "cortex_systems": None},
         ]
 
         builder = MagicMock()
@@ -470,13 +470,13 @@ class TestGetProjectSystems:
 
 class TestGetSystemProjectExtensions:
     def test_returns_extensions_with_joined_data(self, service, mock_supabase):
-        """Should return system extensions with joined archon_extensions metadata."""
+        """Should return system extensions with joined cortex_extensions metadata."""
         query_data = [
             {
                 "system_id": "sys-1",
                 "extension_id": "s1",
                 "status": "installed",
-                "archon_extensions": {"id": "s1", "name": "archon-memory", "display_name": "Archon Memory"},
+                "cortex_extensions": {"id": "s1", "name": "cortex-memory", "display_name": "Cortex Memory"},
             },
         ]
 
@@ -490,8 +490,8 @@ class TestGetSystemProjectExtensions:
         result = service.get_system_project_extensions("sys-1", "proj-1")
 
         assert len(result) == 1
-        assert result[0]["archon_extensions"]["name"] == "archon-memory"
-        mock_supabase.table.assert_called_with("archon_system_extensions")
+        assert result[0]["cortex_extensions"]["name"] == "cortex-memory"
+        mock_supabase.table.assert_called_with("cortex_system_extensions")
 
     def test_returns_empty_list_when_no_data(self, service, mock_supabase):
         """Should return empty list when no system project extensions exist."""
@@ -512,7 +512,7 @@ class TestGetSystemProjectExtensions:
 
 class TestUnlinkSystemFromProject:
     def test_deletes_registration_record(self, service, mock_supabase):
-        """Should delete from archon_project_system_registrations and return True when found."""
+        """Should delete from cortex_project_system_registrations and return True when found."""
         builder = MagicMock()
         builder.delete.return_value = builder
         builder.eq.return_value = builder
@@ -523,7 +523,7 @@ class TestUnlinkSystemFromProject:
         result = service.unlink_system_from_project("sys-1", "proj-1")
 
         assert result is True
-        mock_supabase.table.assert_called_with("archon_project_system_registrations")
+        mock_supabase.table.assert_called_with("cortex_project_system_registrations")
         builder.delete.assert_called_once()
 
     def test_returns_false_when_not_found(self, service, mock_supabase):

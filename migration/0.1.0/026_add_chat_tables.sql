@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS chat_conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT,
-  project_id UUID REFERENCES archon_projects(id) ON DELETE SET NULL,
+  project_id UUID REFERENCES cortex_projects(id) ON DELETE SET NULL,
   conversation_type TEXT NOT NULL DEFAULT 'global',
   model_config JSONB DEFAULT '{}',
   action_mode BOOLEAN NOT NULL DEFAULT false,

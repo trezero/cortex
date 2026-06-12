@@ -2,7 +2,7 @@
 
 ## Overview
 
-Archon implements HTTP ETag caching to optimize bandwidth usage by reducing redundant data transfers. The implementation leverages browser-native HTTP caching combined with backend ETag generation for efficient cache validation.
+Cortex implements HTTP ETag caching to optimize bandwidth usage by reducing redundant data transfers. The implementation leverages browser-native HTTP caching combined with backend ETag generation for efficient cache validation.
 
 ## How It Works
 
@@ -17,7 +17,7 @@ The backend generates ETags for API responses:
 - Returns `304 Not Modified` when ETags match
 
 ### Frontend Handling
-**Location**: `archon-ui-main/src/features/shared/api/apiClient.ts`
+**Location**: `cortex-ui/src/features/shared/api/apiClient.ts`
 
 The frontend relies on browser-native HTTP caching:
 - Browser automatically sends `If-None-Match` headers with cached ETags
@@ -81,8 +81,8 @@ Unlike previous implementations, the current approach:
 
 ### Configuration
 Cache behavior is controlled through TanStack Query's `staleTime`:
-- See `archon-ui-main/src/features/shared/config/queryPatterns.ts` for standard times
-- See `archon-ui-main/src/features/shared/config/queryClient.ts` for global configuration
+- See `cortex-ui/src/features/shared/config/queryPatterns.ts` for standard times
+- See `cortex-ui/src/features/shared/config/queryClient.ts` for global configuration
 
 ## Performance Benefits
 
@@ -100,7 +100,7 @@ Cache behavior is controlled through TanStack Query's `staleTime`:
 
 ### Core Implementation
 - **Backend Utilities**: `python/src/server/utils/etag_utils.py`
-- **Frontend Client**: `archon-ui-main/src/features/shared/api/apiClient.ts`
+- **Frontend Client**: `cortex-ui/src/features/shared/api/apiClient.ts`
 - **Tests**: `python/tests/server/utils/test_etag_utils.py`
 
 ### Usage Examples

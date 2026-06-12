@@ -1,10 +1,10 @@
 # Scan Local Projects
 
-Scan a local projects directory for Git repositories and bulk-onboard them into Archon. Downloads a scanner script, detects repos, creates Archon projects via MCP, and writes config files — all from the current machine.
+Scan a local projects directory for Git repositories and bulk-onboard them into Cortex. Downloads a scanner script, detects repos, creates Cortex projects via MCP, and writes config files — all from the current machine.
 
 ## Prerequisites
-- System must be registered with Archon (run `/archon-setup` in any project first)
-- Archon stack must be running
+- System must be registered with Cortex (run `/cortex-setup` in any project first)
+- Cortex stack must be running
 
 ## Procedure
 
@@ -12,9 +12,9 @@ Follow these steps exactly in order. Do not skip steps.
 
 ### Step 1 — Preflight Checks
 
-1. Look for `archon-state.json` in `~/.claude/` or the current project's `.claude/` directory. Read it.
-2. Extract `system_fingerprint` and `system_name`. If the file is not found, tell the user: "System not registered. Run /archon-setup in any project first." and STOP.
-3. Look for `archon-config.json` in the same locations. Extract `archon_api_url` (default: `http://localhost:8181`) and `archon_mcp_url` (default: `http://localhost:8051`).
+1. Look for `cortex-state.json` in `~/.claude/` or the current project's `.claude/` directory. Read it.
+2. Extract `system_fingerprint` and `system_name`. If the file is not found, tell the user: "System not registered. Run /cortex-setup in any project first." and STOP.
+3. Look for `cortex-config.json` in the same locations. Extract `cortex_api_url` (default: `http://localhost:8181`) and `cortex_mcp_url` (default: `http://localhost:8051`).
 4. Detect the Python executable:
    - Try both `python3` and `python` — for each, run `<cmd> -c "import sys; print(sys.version_info[:2])"` and pick the first one that is Python 3.x
    - On conda/miniforge systems, `python` is often the correct command (not `python3`)
@@ -30,15 +30,15 @@ Follow these steps exactly in order. Do not skip steps.
 
 ### Step 2 — Download Scanner Script
 
-1. Run: `curl -s <archon_api_url>/api/scanner/script -o <TEMP_DIR>/archon-scanner.py`
-2. If the download fails (curl error or empty file), tell the user: "Can't reach Archon at <url>. Is the Archon stack running?" and STOP.
+1. Run: `curl -s <cortex_api_url>/api/scanner/script -o <TEMP_DIR>/cortex-scanner.py`
+2. If the download fails (curl error or empty file), tell the user: "Can't reach Cortex at <url>. Is the Cortex stack running?" and STOP.
 
 ### Error Recovery — MCP Connection Issues
 
 If at any point MCP tool calls fail with "session" errors, "connection refused", or
 timeout errors:
 
-1. Tell the user: "The Archon MCP connection was lost (server may have restarted).
+1. Tell the user: "The Cortex MCP connection was lost (server may have restarted).
    Please restart Claude Code to re-establish the MCP session, then re-run /scan-projects."
 2. STOP. Do not attempt to fall back to REST API calls — the MCP tools have different
    behavior (deterministic IDs, project linking) that REST endpoints may not replicate.
@@ -48,21 +48,21 @@ timeout errors:
 ### Step 3 — Run Scan
 
 1. Ask the user: "What directory should I scan? (default: ~/projects)"
-2. Run: `<PYTHON_CMD> <TEMP_DIR>/archon-scanner.py --scan <directory>`
+2. Run: `<PYTHON_CMD> <TEMP_DIR>/cortex-scanner.py --scan <directory>`
 3. Parse the JSON output. If the output contains an `error` key, display the error and STOP.
 4. Store the full scan result for use in later steps.
 
-### Step 4 — Deduplicate Against Existing Archon Projects
+### Step 4 — Deduplicate Against Existing Cortex Projects
 
-1. Call the `find_projects` MCP tool to get all existing Archon projects.
+1. Call the `find_projects` MCP tool to get all existing Cortex projects.
 2. For each project in the scan results, compare its `github_url` (normalized, lowercase)
-   against the `github_repo` field of existing Archon projects.
+   against the `github_repo` field of existing Cortex projects.
 3. **Fallback matching:** If no `github_url` match is found, also compare by case-insensitive
    `directory_name` against existing project `title` fields. This catches projects that were
    created without a `github_repo` value (e.g., projects created manually via the UI).
-4. Mark matches by setting `already_in_archon: true` and storing the `existing_project_id`.
+4. Mark matches by setting `already_in_cortex: true` and storing the `existing_project_id`.
    **CRITICAL**: Always preserve the LOCAL scan result's `absolute_path` for matched projects.
-   The path stored in Archon may be from a different machine (e.g., a WSL path). The local
+   The path stored in Cortex may be from a different machine (e.g., a WSL path). The local
    `absolute_path` from the scan is the path on THIS machine and must be used in Steps 7 and 9.
 5. **Intra-scan dedup:** Check for multiple scan results sharing the same non-null `github_url`.
    If found:
@@ -77,8 +77,8 @@ Display a summary like:
 ```
 Scan complete!
 - Total repositories found: <N>
-- New (not in Archon): <N>
-- Already in Archon: <N> (<names>)
+- New (not in Cortex): <N>
+- Already in Cortex: <N> (<names>)
 - Project groups: <N>
 ```
 
@@ -93,7 +93,7 @@ New projects to set up:
 2. <name> — [no README, detected: python, docker]
 ...
 
-Already in Archon (will link to this system): <names>
+Already in Cortex (will link to this system): <names>
 ```
 
 If intra-scan duplicates were found, show:
@@ -111,12 +111,12 @@ Proceed with setting up these <N> projects? You can exclude any by number.
 
 Wait for user confirmation. If they exclude projects, remove them from the list. If they cancel, STOP.
 
-**Note**: "Already in Archon" projects are NOT skipped — they still go through Steps 7 and 9
+**Note**: "Already in Cortex" projects are NOT skipped — they still go through Steps 7 and 9
 to register this system and write config files. The user confirmation above only applies to
 creating NEW projects in Step 6. Existing projects always proceed through system registration
 and config writes.
 
-### Step 6 — Create Projects in Archon
+### Step 6 — Create Projects in Cortex
 
 For each confirmed new project:
 1. If the project belongs to a group and the group parent hasn't been created yet:
@@ -138,7 +138,7 @@ The `manage_project` tool returns `{"success": true, "project": {...}, "project_
 
 This step must run for **every project** — both newly created AND already-existing projects
 that the user did not exclude. The goal is to link this machine to all local projects so
-Archon knows which systems have which projects and which extensions are installed.
+Cortex knows which systems have which projects and which extensions are installed.
 
 For each project, call the `manage_extensions` MCP tool with:
 - `action: "bootstrap"`
@@ -149,7 +149,7 @@ For each project, call the `manage_extensions` MCP tool with:
 - `os`: OS_NAME from Step 1
 
 The bootstrap action registers the system in the database, links it to the project,
-and records all Archon extensions as installed for this system+project combination.
+and records all Cortex extensions as installed for this system+project combination.
 
 Store the returned `system.id` from each response — you will need it in Step 9.
 All calls should return the same `system.id` (one system, many projects).
@@ -158,7 +158,7 @@ If a bootstrap call fails, warn the user but continue with the remaining project
 
 ### Step 8 — Download Extensions Tarball
 
-Run: `curl -s <archon_mcp_url>/archon-setup/extensions.tar.gz -o <TEMP_DIR>/archon-extensions.tar.gz`
+Run: `curl -s <cortex_mcp_url>/cortex-setup/extensions.tar.gz -o <TEMP_DIR>/cortex-extensions.tar.gz`
 
 If the download fails, warn the user: "Extensions tarball download failed. Projects will be created without extensions." Continue to Step 9.
 
@@ -167,11 +167,11 @@ If the download fails, warn the user: "Extensions tarball download failed. Proje
 1. Build a JSON payload with **all projects** (newly created AND existing).
 
    **CRITICAL**: For `absolute_path`, ALWAYS use the path from the Step 3 scan results — this
-   is the local path on THIS machine. NEVER use a path stored in an existing Archon project,
+   is the local path on THIS machine. NEVER use a path stored in an existing Cortex project,
    as that path may be from a different system (e.g., a WSL path like `/home/user/projects/Foo`
    vs a macOS path like `/Users/user/Projects/Foo`). Every project that was discovered locally
    in Step 3 MUST appear in this payload — do NOT skip config writes for projects that already
-   exist in Archon. The entire purpose of this step is to configure THIS machine for ALL
+   exist in Cortex. The entire purpose of this step is to configure THIS machine for ALL
    locally-found projects.
 
 ```json
@@ -181,8 +181,8 @@ If the download fails, warn the user: "Extensions tarball download failed. Proje
       "absolute_path": "<absolute_path FROM STEP 3 SCAN RESULTS — the local path on this machine>",
       "project_id": "<id from Step 6 or existing_project_id from Step 4>",
       "project_title": "<directory_name>",
-      "archon_api_url": "<from Step 1>",
-      "archon_mcp_url": "<from Step 1>",
+      "cortex_api_url": "<from Step 1>",
+      "cortex_mcp_url": "<from Step 1>",
       "system_fingerprint": "<from Step 1>",
       "system_name": "<from Step 1>",
       "system_id": "<from Step 7 bootstrap response>"
@@ -190,11 +190,11 @@ If the download fails, warn the user: "Extensions tarball download failed. Proje
   ]
 }
 ```
-2. Write the payload to `<TEMP_DIR>/archon-apply-payload.json` using the Write tool.
-3. Run: `<PYTHON_CMD> <TEMP_DIR>/archon-scanner.py --apply --payload-file <TEMP_DIR>/archon-apply-payload.json --extensions-tarball <TEMP_DIR>/archon-extensions.tar.gz`
+2. Write the payload to `<TEMP_DIR>/cortex-apply-payload.json` using the Write tool.
+3. Run: `<PYTHON_CMD> <TEMP_DIR>/cortex-scanner.py --apply --payload-file <TEMP_DIR>/cortex-apply-payload.json --extensions-tarball <TEMP_DIR>/cortex-extensions.tar.gz`
 4. Parse the JSON output for success/failure counts.
 
-The scanner writes to each project: `archon-config.json`, `archon-state.json` (with system_id),
+The scanner writes to each project: `cortex-config.json`, `cortex-state.json` (with system_id),
 `settings.local.json` (hooks), `.mcp.json` (MCP server config), `.gitignore` updates,
 and extensions.
 
@@ -232,6 +232,6 @@ Setup complete!
 
 <If any failures, list them with error messages>
 
-You can now open Claude Code in any of these projects — Archon MCP,
+You can now open Claude Code in any of these projects — Cortex MCP,
 extensions, and context will be available automatically.
 ```

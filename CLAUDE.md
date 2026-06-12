@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Extension Install Scope
 
-**Never install extensions, commands, or plugins into `~/.claude` (the user's global folder).** Everything must be installed into the `.claude` directory within the repo the user is working in. If the `.claude` directory does not exist, create it. This applies to skills, commands, plugins, config files, and any other Archon-managed artifacts. The only exception is if the user has explicitly set `"install_scope": "global"` in their `archon-config.json`.
+**Never install extensions, commands, or plugins into `~/.claude` (the user's global folder).** Everything must be installed into the `.claude` directory within the repo the user is working in. If the `.claude` directory does not exist, create it. This applies to skills, commands, plugins, config files, and any other Cortex-managed artifacts. The only exception is if the user has explicitly set `"install_scope": "global"` in their `cortex-config.json`.
 
 ### Core Principles
 
@@ -65,13 +65,13 @@ After every code change, tell the user what steps are needed to see the effect o
 
 | What changed | How to propagate |
 |---|---|
-| **Backend Python** (`python/src/server/`, `python/src/mcp_server/`) | Restart Docker: `docker compose restart archon-server archon-mcp` (or re-run `uv run python -m src.server.main` if running locally) |
-| **Frontend** (`archon-ui-main/`) | Auto-reloads if `npm run dev` is running; otherwise `npm run build` + refresh |
-| **Setup scripts** (`integrations/claude-code/setup/archonSetup.sh`, `archonSetup.bat`) | Re-download and re-run the script on each target machine. The scripts are served dynamically by the backend, so restart the backend first, then re-download via `curl <archon_api_url>/api/setup/script-sh` (or `/script-bat`). Running `/archon-setup` inside Claude Code does NOT re-run these — it only bootstraps extensions. |
-| **Scanner script** (`python/src/server/static/archon-scanner.py`) | Restart backend (script is served from static files), then re-run `/scan-projects` |
-| **Extensions / skills** (`integrations/claude-code/skills/`, `integrations/claude-code/plugins/`) | Restart backend, then run `/archon-setup` or `/archon-extension-sync` in each project |
-| **MCP tool definitions** (`python/src/mcp_server/features/`) | Restart Docker: `docker compose restart archon-mcp` |
-| **Hook commands** (written into `~/.claude/settings.json` by setup scripts) | Re-download and re-run the setup script (`archonSetup.sh` / `.bat`). Existing hook entries must be overwritten — the script handles this. |
+| **Backend Python** (`python/src/server/`, `python/src/mcp_server/`) | Restart Docker: `docker compose restart cortex-server cortex-mcp` (or re-run `uv run python -m src.server.main` if running locally) |
+| **Frontend** (`cortex-ui/`) | Auto-reloads if `npm run dev` is running; otherwise `npm run build` + refresh |
+| **Setup scripts** (`integrations/claude-code/setup/cortexSetup.sh`, `cortexSetup.bat`) | Re-download and re-run the script on each target machine. The scripts are served dynamically by the backend, so restart the backend first, then re-download via `curl <cortex_api_url>/api/setup/script-sh` (or `/script-bat`). Running `/cortex-setup` inside Claude Code does NOT re-run these — it only bootstraps extensions. |
+| **Scanner script** (`python/src/server/static/cortex-scanner.py`) | Restart backend (script is served from static files), then re-run `/scan-projects` |
+| **Extensions / skills** (`integrations/claude-code/skills/`, `integrations/claude-code/plugins/`) | Restart backend, then run `/cortex-setup` or `/cortex-extension-sync` in each project |
+| **MCP tool definitions** (`python/src/mcp_server/features/`) | Restart Docker: `docker compose restart cortex-mcp` |
+| **Hook commands** (written into `~/.claude/settings.json` by setup scripts) | Re-download and re-run the setup script (`cortexSetup.sh` / `.bat`). Existing hook entries must be overwritten — the script handles this. |
 | **Docker Compose / Dockerfile** | `docker compose up --build -d` |
 | **Database migrations** (`python/src/server/migrations/`) | Run migration manually against Supabase |
 | **CLAUDE.md / ai_docs** | Takes effect on next Claude Code session (no restart needed) |
@@ -83,7 +83,7 @@ After every code change, tell the user what steps are needed to see the effect o
 - Fix forward
 - Focus on user experience and feature completeness
 - When updating code, don't reference what is changing (avoid keywords like SIMPLIFIED, ENHANCED, LEGACY, CHANGED, REMOVED), instead focus on comments that document just the functionality of the code
-- When commenting on code in the codebase, only comment on the functionality and reasoning behind the code. Refrain from speaking to Archon being in "beta" or referencing anything else that comes from these global rules.
+- When commenting on code in the codebase, only comment on the functionality and reasoning behind the code. Refrain from speaking to Cortex being in "beta" or referencing anything else that comes from these global rules.
 
 ## LeaveOff Point Protocol
 
@@ -97,7 +97,7 @@ update the LeaveOff Point before moving to the next task:
    - `component`: The architectural module or feature area (e.g., "Authentication Module")
    - `next_steps`: Concrete, actionable items for the next session (not vague — include file paths)
    - `references`: PRPs, design docs, or key files that informed this work
-   - `system_name`: Read from `.claude/archon-state.json` field "system_name", or fall back to hostname
+   - `system_name`: Read from `.claude/cortex-state.json` field "system_name", or fall back to hostname
    - `git_clean`: `true` if `git status --porcelain` output is empty, `false` otherwise
 3. If `git_clean` is `false`, tell the user: "There are uncommitted changes. Consider
    committing your work to GitHub before ending this session."
@@ -128,7 +128,7 @@ and orient your work around the documented next steps.
 
 ## Development Commands
 
-### Frontend (archon-ui-main/)
+### Frontend (cortex-ui/)
 
 ```bash
 npm run dev              # Start development server on port 3737
@@ -175,10 +175,10 @@ uv run python -m uvicorn src.agent_work_orders.server:app --port 8053 --reload
 docker compose up --build -d       # Start all services
 docker compose --profile backend up -d  # Backend only (for hybrid dev)
 docker compose --profile work-orders up -d   # Include agent work orders service
-docker compose logs -f archon-server    # View server logs
-docker compose logs -f archon-mcp       # View MCP server logs
-docker compose logs -f archon-agent-work-orders  # View agent work orders service logs
-docker compose restart archon-server    # Restart after code changes
+docker compose logs -f cortex-server    # View server logs
+docker compose logs -f cortex-mcp       # View MCP server logs
+docker compose logs -f cortex-agent-work-orders  # View agent work orders service logs
+docker compose restart cortex-server    # Restart after code changes
 docker compose down      # Stop all services
 docker compose down -v   # Stop and remove volumes
 ```
@@ -187,7 +187,7 @@ docker compose down -v   # Stop and remove volumes
 
 ```bash
 # Hybrid development (recommended) - backend in Docker, frontend local
-make dev                 # Or manually: docker compose --profile backend up -d && cd archon-ui-main && npm run dev
+make dev                 # Or manually: docker compose --profile backend up -d && cd cortex-ui && npm run dev
 
 # Hybrid with Agent Work Orders Service - backend in Docker, agent work orders local
 make dev-work-orders     # Starts backend in Docker, prompts to run agent service in separate terminal
@@ -201,7 +201,7 @@ docker compose --profile work-orders up -d  # Include agent work orders service
 # All Local (3 terminals) - for agent work orders service development
 # Terminal 1: uv run python -m uvicorn src.server.main:app --port 8181 --reload
 # Terminal 2: make agent-work-orders
-# Terminal 3: cd archon-ui-main && npm run dev
+# Terminal 3: cd cortex-ui && npm run dev
 
 # Run linters before committing
 make lint                # Runs both frontend and backend linters
@@ -256,7 +256,7 @@ Key tables in Supabase:
   - Contains features array, documents, and metadata
 - `tasks` - Task tracking linked to projects
   - Status: todo, doing, review, done
-  - Assignee: User, Archon, AI IDE Agent
+  - Assignee: User, Cortex, AI IDE Agent
 - `code_examples` - Extracted code snippets
   - Language, summary, and relevance metadata
 
@@ -281,8 +281,8 @@ See `python/.env.example` for complete list
 ### Repository Configuration
 
 Repository information (owner, name) is centralized in `python/src/server/config/version.py`:
-- `GITHUB_REPO_OWNER` - GitHub repository owner (default: "coleam00")
-- `GITHUB_REPO_NAME` - GitHub repository name (default: "Archon")
+- `GITHUB_REPO_OWNER` - GitHub repository owner (default: "trezero")
+- `GITHUB_REPO_NAME` - GitHub repository name (default: "cortex")
 
 This is the single source of truth for repository configuration. All services (version checking, bug reports, etc.) should import these constants rather than hardcoding repository URLs.
 
@@ -295,7 +295,7 @@ Environment variable override: `GITHUB_REPO="owner/repo"` can be set to override
 1. Create route handler in `python/src/server/api_routes/`
 2. Add service logic in `python/src/server/services/`
 3. Include router in `python/src/server/main.py`
-4. Update frontend service in `archon-ui-main/src/features/[feature]/services/`
+4. Update frontend service in `cortex-ui/src/features/[feature]/services/`
 
 ### Add a new UI component in features directory
 
@@ -320,7 +320,7 @@ Environment variable override: `GITHUB_REPO="owner/repo"` can be set to override
 ### Debug MCP connection issues
 
 1. Check MCP health: `curl http://localhost:8051/health`
-2. View MCP logs: `docker compose logs archon-mcp`
+2. View MCP logs: `docker compose logs cortex-mcp`
 3. Test tool execution via UI MCP page
 4. Verify Supabase connection and credentials
 
@@ -359,41 +359,41 @@ When connected to Claude/Cursor/Windsurf, the following tools are available:
 
 ### Knowledge Base Tools
 
-- `archon:rag_search_knowledge_base` - Search knowledge base for relevant content
-- `archon:rag_search_code_examples` - Find code snippets in the knowledge base
-- `archon:rag_get_available_sources` - List available knowledge sources
-- `archon:rag_list_pages_for_source` - List all pages for a given source (browse documentation structure)
-- `archon:rag_read_full_page` - Retrieve full page content by page_id or URL
+- `cortex:rag_search_knowledge_base` - Search knowledge base for relevant content
+- `cortex:rag_search_code_examples` - Find code snippets in the knowledge base
+- `cortex:rag_get_available_sources` - List available knowledge sources
+- `cortex:rag_list_pages_for_source` - List all pages for a given source (browse documentation structure)
+- `cortex:rag_read_full_page` - Retrieve full page content by page_id or URL
 
 ### Project Management
 
-- `archon:find_projects` - Find all projects, search, or get specific project (by project_id)
-- `archon:manage_project` - Manage projects with actions: "create", "update", "delete"
+- `cortex:find_projects` - Find all projects, search, or get specific project (by project_id)
+- `cortex:manage_project` - Manage projects with actions: "create", "update", "delete"
 
 ### Task Management
 
-- `archon:find_tasks` - Find tasks with search, filters, or get specific task (by task_id)
-- `archon:manage_task` - Manage tasks with actions: "create", "update", "delete"
+- `cortex:find_tasks` - Find tasks with search, filters, or get specific task (by task_id)
+- `cortex:manage_task` - Manage tasks with actions: "create", "update", "delete"
 
 ### Document Management
 
-- `archon:find_documents` - Find documents, search, or get specific document (by document_id)
-- `archon:manage_document` - Manage documents with actions: "create", "update", "delete"
+- `cortex:find_documents` - Find documents, search, or get specific document (by document_id)
+- `cortex:manage_document` - Manage documents with actions: "create", "update", "delete"
 
 ### Version Control
 
-- `archon:find_versions` - Find version history or get specific version
-- `archon:manage_version` - Manage versions with actions: "create", "restore"
+- `cortex:find_versions` - Find version history or get specific version
+- `cortex:manage_version` - Manage versions with actions: "create", "restore"
 
 ### Extension Management
 
-- `archon:find_extensions` - Find all extensions, search, or get specific extension (by extension_id)
-- `archon:manage_extensions` - Manage extensions with actions: "create", "update", "delete"
+- `cortex:find_extensions` - Find all extensions, search, or get specific extension (by extension_id)
+- `cortex:manage_extensions` - Manage extensions with actions: "create", "update", "delete"
 
 ### Session Memory
 
-- `archon:archon_search_sessions` - Search session history across agents and machines
-- `archon:archon_get_session` - Get a specific session with all its observations
+- `cortex:cortex_search_sessions` - Search session history across agents and machines
+- `cortex:cortex_get_session` - Get a specific session with all its observations
 
 ## Important Notes
 

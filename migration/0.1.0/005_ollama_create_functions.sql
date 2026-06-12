@@ -29,7 +29,7 @@ END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
 -- Multi-dimensional search for crawled pages
-CREATE OR REPLACE FUNCTION match_archon_crawled_pages_multi (
+CREATE OR REPLACE FUNCTION match_cortex_crawled_pages_multi (
   query_embedding VECTOR,
   embedding_dimension INTEGER,
   match_count INT DEFAULT 10,
@@ -63,7 +63,7 @@ BEGIN
   sql_query := format('
     SELECT id, url, chunk_number, content, metadata, source_id,
            1 - (%I <=> $1) AS similarity
-    FROM archon_crawled_pages
+    FROM cortex_crawled_pages
     WHERE (%I IS NOT NULL)
       AND metadata @> $3
       AND ($4 IS NULL OR source_id = $4)
@@ -76,7 +76,7 @@ END;
 $$;
 
 -- Multi-dimensional search for code examples
-CREATE OR REPLACE FUNCTION match_archon_code_examples_multi (
+CREATE OR REPLACE FUNCTION match_cortex_code_examples_multi (
   query_embedding VECTOR,
   embedding_dimension INTEGER,
   match_count INT DEFAULT 10,
@@ -111,7 +111,7 @@ BEGIN
   sql_query := format('
     SELECT id, url, chunk_number, content, summary, metadata, source_id,
            1 - (%I <=> $1) AS similarity
-    FROM archon_code_examples
+    FROM cortex_code_examples
     WHERE (%I IS NOT NULL)
       AND metadata @> $3
       AND ($4 IS NULL OR source_id = $4)
@@ -124,7 +124,7 @@ END;
 $$;
 
 -- Legacy compatibility (defaults to 1536D)
-CREATE OR REPLACE FUNCTION match_archon_crawled_pages (
+CREATE OR REPLACE FUNCTION match_cortex_crawled_pages (
   query_embedding VECTOR(1536),
   match_count INT DEFAULT 10,
   filter JSONB DEFAULT '{}'::jsonb,
@@ -141,11 +141,11 @@ CREATE OR REPLACE FUNCTION match_archon_crawled_pages (
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  RETURN QUERY SELECT * FROM match_archon_crawled_pages_multi(query_embedding, 1536, match_count, filter, source_filter);
+  RETURN QUERY SELECT * FROM match_cortex_crawled_pages_multi(query_embedding, 1536, match_count, filter, source_filter);
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION match_archon_code_examples (
+CREATE OR REPLACE FUNCTION match_cortex_code_examples (
   query_embedding VECTOR(1536),
   match_count INT DEFAULT 10,
   filter JSONB DEFAULT '{}'::jsonb,
@@ -163,7 +163,7 @@ CREATE OR REPLACE FUNCTION match_archon_code_examples (
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  RETURN QUERY SELECT * FROM match_archon_code_examples_multi(query_embedding, 1536, match_count, filter, source_filter);
+  RETURN QUERY SELECT * FROM match_cortex_code_examples_multi(query_embedding, 1536, match_count, filter, source_filter);
 END;
 $$;
 

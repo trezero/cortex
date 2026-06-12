@@ -2,7 +2,7 @@
 
 **Date**: 2026-03-24
 **Status**: Draft (Revised — Control Plane Architecture)
-**Scope**: Transition Archon from a linear CLI-wrapper into a Control Plane that dispatches DAG-based workflows to the remote-coding-agent for execution, with omnichannel HITL approvals, UI-driven workflow authoring, and proactive pattern discovery.
+**Scope**: Transition Cortex from a linear CLI-wrapper into a Control Plane that dispatches DAG-based workflows to the remote-coding-agent for execution, with omnichannel HITL approvals, UI-driven workflow authoring, and proactive pattern discovery.
 
 ---
 
@@ -26,9 +26,9 @@
 
 ### Current State
 
-Archon's Agent Work Orders service (`python/src/agent_work_orders/`, ~6,100 LOC) automates development workflows using a linear, hardcoded sequence of steps (`create-branch` → `planning` → `execute` → `commit` → `create-pr` → `prp-review`). It wraps the Claude Code CLI in subprocess calls, uses static Markdown prompt files, stores state in memory only, and has no human-in-the-loop capabilities.
+Cortex's Agent Work Orders service (`python/src/agent_work_orders/`, ~6,100 LOC) automates development workflows using a linear, hardcoded sequence of steps (`create-branch` → `planning` → `execute` → `commit` → `create-pr` → `prp-review`). It wraps the Claude Code CLI in subprocess calls, uses static Markdown prompt files, stores state in memory only, and has no human-in-the-loop capabilities.
 
-Separately, Archon serves as the MCP brain for a `remote-coding-agent` system that runs headless Claude Code instances connected to per-project Telegram bots. The remote-agent already has a battle-tested DAG workflow executor (TypeScript) with topological layering, in-memory concurrency via `Promise.allSettled`, shell escaping, condition evaluation (`evaluateCondition`), the Claude Agent SDK, session management with resumption, and YAML workflow definitions with conditional branching.
+Separately, Cortex serves as the MCP brain for a `remote-coding-agent` system that runs headless Claude Code instances connected to per-project Telegram bots. The remote-agent already has a battle-tested DAG workflow executor (TypeScript) with topological layering, in-memory concurrency via `Promise.allSettled`, shell escaping, condition evaluation (`evaluateCondition`), the Claude Agent SDK, session management with resumption, and YAML workflow definitions with conditional branching.
 
 ### Problem
 
@@ -36,21 +36,21 @@ Separately, Archon serves as the MCP brain for a `remote-coding-agent` system th
 2. **No HITL**: Users cannot review plans or approve PRs before the agent proceeds.
 3. **Brittle CLI wrapper**: Subprocess-based Claude CLI execution lacks structured outputs and tool calling.
 4. **Static commands**: Markdown prompt files are not editable from the UI and have no versioning.
-5. **Two disconnected systems**: Archon and the remote-agent share no orchestration protocol despite serving the same user.
+5. **Two disconnected systems**: Cortex and the remote-agent share no orchestration protocol despite serving the same user.
 6. **Duplicated execution logic**: Building a new DAG engine in Python would duplicate thousands of lines of battle-tested TypeScript execution code in the remote-agent.
 7. **No cross-repo intelligence**: Neither system analyzes activity patterns to suggest workflow automation.
 
 ### Goal
 
-Transform Archon into a **Control Plane** that:
+Transform Cortex into a **Control Plane** that:
 - Stores canonical workflow definitions (YAML) and serves as the workflow registry
 - Dispatches workflows to remote-agent instances for native DAG execution
 - Tracks execution state as a mirror of the remote-agent's progress
-- Handles HITL approval gates via the Archon UI and a direct Archon Telegram bot
+- Handles HITL approval gates via the Cortex UI and a direct Cortex Telegram bot
 - Provides a UI-driven workflow editor with YAML-native storage
 - Proactively discovers and suggests workflow automation patterns from cross-repo activity
 
-Archon does **not** implement DAG evaluation, topological sorting, condition evaluation, or node scheduling. Those responsibilities belong to the remote-coding-agent's existing TypeScript engine.
+Cortex does **not** implement DAG evaluation, topological sorting, condition evaluation, or node scheduling. Those responsibilities belong to the remote-coding-agent's existing TypeScript engine.
 
 ---
 
@@ -58,13 +58,13 @@ Archon does **not** implement DAG evaluation, topological sorting, condition eva
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| **Architecture model** | Control Plane — Archon stores definitions, dispatches YAML, tracks state, handles HITL. Remote-agent executes the DAG natively in TypeScript. | Avoids duplicating the remote-agent's battle-tested DAG executor (~3,000 LOC). Keeps Archon focused on orchestration-level concerns (state, approvals, UI) while the remote-agent handles execution-level concerns (processes, concurrency, isolation). |
-| **HITL channel priority** | UI-first — rich A2UI approvals in Archon UI; Telegram gets summary + approve/reject buttons + link | Rich diffs and plan rendering require the UI; Telegram's formatting constraints make it secondary |
-| **Telegram bot strategy** | Direct Archon bot — a single, lightweight, global Telegram bot owned by Archon for system notifications and HITL approvals | Eliminates the remote-agent as a single point of failure for approval delivery. Archon owns the notification path end-to-end. |
-| **AI execution strategy** | Fully delegated — the remote-agent uses the Claude Agent SDK natively for all execution. Archon makes no LLM calls for workflow execution. | By delegating to the remote-agent, we get native SDK integration without building a separate executor in Python. |
+| **Architecture model** | Control Plane — Cortex stores definitions, dispatches YAML, tracks state, handles HITL. Remote-agent executes the DAG natively in TypeScript. | Avoids duplicating the remote-agent's battle-tested DAG executor (~3,000 LOC). Keeps Cortex focused on orchestration-level concerns (state, approvals, UI) while the remote-agent handles execution-level concerns (processes, concurrency, isolation). |
+| **HITL channel priority** | UI-first — rich A2UI approvals in Cortex UI; Telegram gets summary + approve/reject buttons + link | Rich diffs and plan rendering require the UI; Telegram's formatting constraints make it secondary |
+| **Telegram bot strategy** | Direct Cortex bot — a single, lightweight, global Telegram bot owned by Cortex for system notifications and HITL approvals | Eliminates the remote-agent as a single point of failure for approval delivery. Cortex owns the notification path end-to-end. |
+| **AI execution strategy** | Fully delegated — the remote-agent uses the Claude Agent SDK natively for all execution. Cortex makes no LLM calls for workflow execution. | By delegating to the remote-agent, we get native SDK integration without building a separate executor in Python. |
 | **Command/workflow storage** | YAML-native with UI editor, stored in Supabase, compatible with remote-agent format | Avoids n8n-level visual builder complexity; maintains compatibility with existing YAML workflows |
 | **Pattern discovery trigger** | Scheduled batch (nightly) + on-demand analysis | Multi-day patterns don't need real-time detection; nightly batch + on-demand gives 90% value at 30% complexity |
-| **Communication protocol** | REST-only between Archon and remote-agent; SSE from Archon to UI clients | Remote-agent pushes state to Archon via REST callbacks. Archon relays to UI via SSE. Simple, reliable, no bidirectional SSE complexity. |
+| **Communication protocol** | REST-only between Cortex and remote-agent; SSE from Cortex to UI clients | Remote-agent pushes state to Cortex via REST callbacks. Cortex relays to UI via SSE. Simple, reliable, no bidirectional SSE complexity. |
 | **HITL payload format** | A2UI components — deterministic templates for standard approval types; LLM generation only for custom types | Keeps HITL hot-path latency near zero for standard gates. Companion spec covers full A2UI integration. |
 | **Execution backend abstraction** | Routing table — `execution_backends` table stores connection info for remote-agent instances, no capability negotiation | YAGNI. Keep the table for routing (multiple remote-agents for multiple projects) but drop generic multi-backend abstraction. Generalize later if needed. |
 
@@ -76,11 +76,11 @@ Archon does **not** implement DAG evaluation, topological sorting, condition eva
 
 ```
 ┌─────────────────────┐    ┌──────────────────────────────┐    ┌──────────────────────┐
-│    CLIENTS           │    │     ARCHON (Control Plane)    │    │  REMOTE-CODING-AGENT │
+│    CLIENTS           │    │     CORTEX (Control Plane)    │    │  REMOTE-CODING-AGENT │
 │                      │    │                              │    │  (Execution Engine)  │
-│  Archon Web UI  ◄────SSE──┤  Workflow Registry           │    │                      │
+│  Cortex Web UI  ◄────SSE──┤  Workflow Registry           │    │                      │
 │                      │    │  State Mirror                ├─REST─►  DAG Executor (TS)  │
-│  Archon Telegram ◄───Bot──┤  HITL Router                 │    │  Claude Agent SDK    │
+│  Cortex Telegram ◄───Bot──┤  HITL Router                 │    │  Claude Agent SDK    │
 │  Bot (global)        │    │  Pattern Discovery           ◄─REST──  State Callbacks    │
 │                      │    │  Generative UI (A2UI)        │    │  Worktree Isolation   │
 │  MCP Clients         │    │                              │    │                      │
@@ -96,44 +96,44 @@ Archon does **not** implement DAG evaluation, topological sorting, condition eva
 ### Data Flow
 
 ```
-1. User triggers workflow         → REST POST to Archon
-2. Archon dispatches YAML         → REST POST to remote-agent
+1. User triggers workflow         → REST POST to Cortex
+2. Cortex dispatches YAML         → REST POST to remote-agent
 3. Remote-agent executes DAG      → native TS engine
-4. Node state changes             → REST callback to Archon
-5. Archon updates DB + fires SSE  → UI receives live updates
-6. Approval gate hit              → REST webhook to Archon
-7. Archon renders A2UI + notifies → SSE to UI, message to Telegram bot
-8. User approves                  → REST to Archon
-9. Archon sends resume signal     → REST POST to remote-agent
-10. Workflow completes            → final REST callback to Archon
+4. Node state changes             → REST callback to Cortex
+5. Cortex updates DB + fires SSE  → UI receives live updates
+6. Approval gate hit              → REST webhook to Cortex
+7. Cortex renders A2UI + notifies → SSE to UI, message to Telegram bot
+8. User approves                  → REST to Cortex
+9. Cortex sends resume signal     → REST POST to remote-agent
+10. Workflow completes            → final REST callback to Cortex
 ```
 
 ### Communication Summary
 
 | Path | Protocol | Purpose |
 |------|----------|---------|
-| Client → Archon | REST | Start workflow, approve/reject, cancel, CRUD definitions |
-| Archon → UI Client | SSE | Live state updates, approval notifications |
-| Archon → Remote-Agent | REST | Dispatch workflow, resume after approval, cancel |
-| Remote-Agent → Archon | REST | Report node state changes, request approvals |
-| Archon → Telegram | Bot API | Send approval summaries with inline buttons |
-| Telegram → Archon | Webhook | Receive approval button callbacks |
+| Client → Cortex | REST | Start workflow, approve/reject, cancel, CRUD definitions |
+| Cortex → UI Client | SSE | Live state updates, approval notifications |
+| Cortex → Remote-Agent | REST | Dispatch workflow, resume after approval, cancel |
+| Remote-Agent → Cortex | REST | Report node state changes, request approvals |
+| Cortex → Telegram | Bot API | Send approval summaries with inline buttons |
+| Telegram → Cortex | Webhook | Receive approval button callbacks |
 
 ### Architectural Note: SSE as a New Pattern
 
-Archon's main server (`python/src/server/`) currently uses HTTP polling with smart intervals and has no SSE endpoints. This design introduces SSE to the main Archon server for workflow events to the UI.
+Cortex's main server (`python/src/server/`) currently uses HTTP polling with smart intervals and has no SSE endpoints. This design introduces SSE to the main Cortex server for workflow events to the UI.
 
-SSE is used **only** for Archon → UI client communication. The Archon ↔ remote-agent channel is pure REST (callbacks + dispatch).
+SSE is used **only** for Cortex → UI client communication. The Cortex ↔ remote-agent channel is pure REST (callbacks + dispatch).
 
-**Fallback behavior**: SSE is a latency optimization, not a correctness requirement. If the SSE connection drops, the UI falls back to polling `GET /api/workflows/{run_id}` on a 5-second interval (same smart polling pattern used elsewhere in Archon).
+**Fallback behavior**: SSE is a latency optimization, not a correctness requirement. If the SSE connection drops, the UI falls back to polling `GET /api/workflows/{run_id}` on a 5-second interval (same smart polling pattern used elsewhere in Cortex).
 
 ---
 
 ## 4. Workflow Dispatch & State Tracking
 
-### Archon's Role
+### Cortex's Role
 
-Archon does **not** evaluate DAGs, sort nodes topologically, or schedule execution. It:
+Cortex does **not** evaluate DAGs, sort nodes topologically, or schedule execution. It:
 
 1. **Stores** workflow definitions (YAML) in Supabase
 2. **Dispatches** the full YAML payload to a remote-agent instance
@@ -144,7 +144,7 @@ Archon does **not** evaluate DAGs, sort nodes topologically, or schedule executi
 
 ### Node State Machine
 
-Archon tracks node states as a mirror of the remote-agent's execution progress:
+Cortex tracks node states as a mirror of the remote-agent's execution progress:
 
 ```
 pending → running → completed
@@ -159,11 +159,11 @@ pending → running → completed
 |-------|---------|
 | `pending` | Node not yet reached by the remote-agent's DAG executor |
 | `running` | Remote-agent is actively executing this node |
-| `waiting_approval` | Remote-agent paused; waiting for HITL resolution from Archon |
+| `waiting_approval` | Remote-agent paused; waiting for HITL resolution from Cortex |
 | `completed` | Node finished successfully |
 | `failed` | Node finished with error, or approval was rejected |
 | `skipped` | Node's `when:` condition evaluated false (by remote-agent) |
-| `cancelled` | User cancelled the workflow from Archon |
+| `cancelled` | User cancelled the workflow from Cortex |
 
 ### Workflow Run Status
 
@@ -181,12 +181,12 @@ pending → running → completed
 
 ```
 1. User creates workflow run (via UI, MCP, or chat)
-2. Archon:
+2. Cortex:
    a. Creates workflow_run record (status: pending)
    b. Creates workflow_nodes records for all YAML nodes (state: pending)
    c. Resolves target backend from execution_backends table
    d. POSTs dispatch payload to remote-agent:
-      POST {backend_url}/api/archon/workflows/execute
+      POST {backend_url}/api/cortex/workflows/execute
       {
         "workflow_run_id": "wr_abc123",
         "yaml_content": "...",
@@ -195,25 +195,25 @@ pending → running → completed
           "project_id": "proj_xyz"
         },
         "node_id_map": {
-          "create-branch": "uuid-1",   // YAML node ID → Archon DB UUID
+          "create-branch": "uuid-1",   // YAML node ID → Cortex DB UUID
           "planning": "uuid-2",
           ...
         },
-        "callback_url": "http://archon:8181/api/workflows"
+        "callback_url": "http://cortex:8181/api/workflows"
       }
    e. Updates workflow_run status to dispatched
 3. Remote-agent receives YAML, begins native DAG execution
-4. Remote-agent fires REST callbacks to Archon as nodes progress
-5. Archon updates workflow_nodes + workflow_run states, fires SSE to UI
+4. Remote-agent fires REST callbacks to Cortex as nodes progress
+5. Cortex updates workflow_nodes + workflow_run states, fires SSE to UI
 ```
 
 ### Node ID Mapping
 
-The `node_id_map` bridges Archon's database UUIDs with the YAML's string node IDs. When the remote-agent reports a node result, it includes the Archon UUID so Archon can update the correct database record without ambiguity.
+The `node_id_map` bridges Cortex's database UUIDs with the YAML's string node IDs. When the remote-agent reports a node result, it includes the Cortex UUID so Cortex can update the correct database record without ambiguity.
 
 ### Backend Routing
 
-When dispatching a workflow, Archon resolves the target backend:
+When dispatching a workflow, Cortex resolves the target backend:
 
 1. If the `workflow_run` specifies a `backend_id`, use that backend
 2. Otherwise, find a backend registered for the run's `project_id`
@@ -238,7 +238,7 @@ python/src/server/services/workflow/
 **Phase 1 — Pause** (triggered by remote-agent webhook):
 1. Remote-agent's DAG executor encounters a node with `approval.required: true`
 2. Remote-agent pauses its execution loop
-3. Remote-agent fires webhook to Archon:
+3. Remote-agent fires webhook to Cortex:
    ```
    POST {callback_url}/approvals/request
    {
@@ -250,24 +250,24 @@ python/src/server/services/workflow/
      "channels": ["ui", "telegram"]
    }
    ```
-4. Archon updates node state to `waiting_approval`, run status to `paused`
-5. Archon generates A2UI payload:
+4. Cortex updates node state to `waiting_approval`, run status to `paused`
+5. Cortex generates A2UI payload:
    - Standard types (`plan_review`, `pr_review`, `deploy_gate`): deterministic JSON templates
    - Custom type: calls Second Brain's A2UI generation service (see companion spec)
-6. Archon creates `approval_request` record with A2UI payload
+6. Cortex creates `approval_request` record with A2UI payload
 7. HITL Router dispatches to configured channels
 
 **Phase 2 — Wait**:
 8. Remote-agent's DAG loop is suspended, waiting for resume signal
 9. Configurable TTL (default: 24 hours)
-10. If TTL expires → Archon auto-rejects, sends resume with `decision: "rejected"` to remote-agent
+10. If TTL expires → Cortex auto-rejects, sends resume with `decision: "rejected"` to remote-agent
 
 **Phase 3 — Resume**:
 11. User approves via UI or Telegram → `POST /api/workflows/approvals/{id}/resolve`
-12. Archon updates approval status, node state, and run status
-13. Archon sends resume signal to remote-agent:
+12. Cortex updates approval status, node state, and run status
+13. Cortex sends resume signal to remote-agent:
     ```
-    POST {backend_url}/api/archon/workflows/{run_id}/resume
+    POST {backend_url}/api/cortex/workflows/{run_id}/resume
     {
       "yaml_node_id": "plan-review",
       "decision": "approved",
@@ -308,9 +308,9 @@ class ApprovalChannel(Protocol):
 
 Channels only implement the **send** side. All resolution converges on a single REST endpoint (`POST /api/workflows/approvals/{id}/resolve`). Adding a new channel (Slack, Discord) = implement the two methods above.
 
-### Direct Archon Telegram Bot
+### Direct Cortex Telegram Bot
 
-Archon runs a lightweight, global Telegram bot for system notifications and HITL approvals. This bot is independent of the remote-agent's per-project Telegram adapter.
+Cortex runs a lightweight, global Telegram bot for system notifications and HITL approvals. This bot is independent of the remote-agent's per-project Telegram adapter.
 
 **Responsibilities**:
 - Send approval request summaries with inline keyboard buttons (Approve / Reject)
@@ -319,9 +319,9 @@ Archon runs a lightweight, global Telegram bot for system notifications and HITL
 - Route callback data to `POST /api/workflows/approvals/{id}/resolve`
 
 **Configuration**:
-- `ARCHON_TELEGRAM_BOT_TOKEN` environment variable
-- `ARCHON_TELEGRAM_CHAT_IDS` — comma-separated list of authorized chat IDs (security: only respond to known chats)
-- Bot runs as an async background task within the Archon server process (using `python-telegram-bot` library)
+- `CORTEX_TELEGRAM_BOT_TOKEN` environment variable
+- `CORTEX_TELEGRAM_CHAT_IDS` — comma-separated list of authorized chat IDs (security: only respond to known chats)
+- Bot runs as an async background task within the Cortex server process (using `python-telegram-bot` library)
 
 **Inline Keyboard Format**:
 ```python
@@ -331,16 +331,16 @@ InlineKeyboardMarkup([
         InlineKeyboardButton("Reject", callback_data=f"reject:{approval_id}"),
     ],
     [
-        InlineKeyboardButton("View in Archon", url=f"{archon_url}/workflows/{run_id}/approvals/{approval_id}"),
+        InlineKeyboardButton("View in Cortex", url=f"{cortex_url}/workflows/{run_id}/approvals/{approval_id}"),
     ]
 ])
 ```
 
-**Fallback**: If the Telegram bot is not configured (`ARCHON_TELEGRAM_BOT_TOKEN` not set), the Telegram channel is silently disabled. Approvals are still available via the UI. No errors surfaced.
+**Fallback**: If the Telegram bot is not configured (`CORTEX_TELEGRAM_BOT_TOKEN` not set), the Telegram channel is silently disabled. Approvals are still available via the UI. No errors surfaced.
 
 ### A2UI Integration
 
-Approval payloads use the A2UI (Agent-to-UI) component format — a JSON specification where each element maps to a registered React component in the Archon frontend. The A2UI component library, renderer, and generation service are defined in a companion spec: `docs/superpowers/specs/2026-03-24-generative-ui-integration-design.md`.
+Approval payloads use the A2UI (Agent-to-UI) component format — a JSON specification where each element maps to a registered React component in the Cortex frontend. The A2UI component library, renderer, and generation service are defined in a companion spec: `docs/superpowers/specs/2026-03-24-generative-ui-integration-design.md`.
 
 **Standard approval types use deterministic templates** — no LLM call required. The `a2ui_service` maps the `approval_type` and `node_output` to a fixed component layout:
 
@@ -373,7 +373,7 @@ python/src/server/services/workflow/
 ├── hitl_router.py             # HITLRouter, channel dispatch
 ├── hitl_channels/
 │   ├── ui_channel.py          # SSE-based UI notifications
-│   └── telegram_channel.py    # Direct Archon Telegram bot
+│   └── telegram_channel.py    # Direct Cortex Telegram bot
 ├── hitl_models.py             # ApprovalRequest, ApprovalType, channel types
 └── approval_templates.py      # Deterministic A2UI templates for standard types
 ```
@@ -384,11 +384,11 @@ python/src/server/services/workflow/
 
 ### Overview
 
-The protocol between Archon and the remote-agent is a simple REST-based callback pattern. Archon dispatches workflows and sends control signals (resume, cancel). The remote-agent reports execution state back to Archon via REST callbacks. There is no SSE between Archon and the remote-agent.
+The protocol between Cortex and the remote-agent is a simple REST-based callback pattern. Cortex dispatches workflows and sends control signals (resume, cancel). The remote-agent reports execution state back to Cortex via REST callbacks. There is no SSE between Cortex and the remote-agent.
 
 ### Backend Registration
 
-Remote-agent instances register with Archon to enable workflow dispatch:
+Remote-agent instances register with Cortex to enable workflow dispatch:
 
 ```
 POST /api/workflows/backends/register
@@ -403,7 +403,7 @@ Response: {
 }
 ```
 
-The `auth_token` is returned once at registration. Archon stores `auth_token_hash` (bcrypt). The remote-agent includes it in all callback requests as `Authorization: Bearer {token}`.
+The `auth_token` is returned once at registration. Cortex stores `auth_token_hash` (bcrypt). The remote-agent includes it in all callback requests as `Authorization: Bearer {token}`.
 
 ### Heartbeat
 
@@ -412,19 +412,19 @@ The `auth_token` is returned once at registration. Archon stores `auth_token_has
 - Running workflow nodes on an unhealthy backend are marked `failed` with `error: "backend_timeout"`
 - When the backend recovers and sends a heartbeat, it is marked `healthy` again
 
-### Archon → Remote-Agent Endpoints
+### Cortex → Remote-Agent Endpoints
 
 These are endpoints the remote-agent must implement:
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/api/archon/workflows/execute` | POST | Dispatch a workflow for execution |
-| `/api/archon/workflows/{run_id}/resume` | POST | Resume after HITL approval |
-| `/api/archon/workflows/{run_id}/cancel` | POST | Cancel a running workflow |
+| `/api/cortex/workflows/execute` | POST | Dispatch a workflow for execution |
+| `/api/cortex/workflows/{run_id}/resume` | POST | Resume after HITL approval |
+| `/api/cortex/workflows/{run_id}/cancel` | POST | Cancel a running workflow |
 
-### Remote-Agent → Archon Callbacks
+### Remote-Agent → Cortex Callbacks
 
-These are Archon endpoints the remote-agent calls during execution:
+These are Cortex endpoints the remote-agent calls during execution:
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
@@ -471,16 +471,16 @@ These are Archon endpoints the remote-agent calls during execution:
 
 ### Authentication
 
-- **UI-facing endpoints** (`/api/workflows`, `/api/workflows/approvals`): Same authentication as all other Archon API endpoints (no additional auth for single-user beta)
+- **UI-facing endpoints** (`/api/workflows`, `/api/workflows/approvals`): Same authentication as all other Cortex API endpoints (no additional auth for single-user beta)
 - **Callback endpoints** (`/api/workflows/nodes/*`, `/api/workflows/runs/*`, `/api/workflows/approvals/request`): Authenticated via `Authorization: Bearer {token}` header using the token issued during backend registration
 
 ### Error Handling
 
-All workflow API endpoints follow Archon's existing error handling patterns — custom exceptions in `python/src/server/exceptions.py` processed by exception handlers in `main.py`.
+All workflow API endpoints follow Cortex's existing error handling patterns — custom exceptions in `python/src/server/exceptions.py` processed by exception handlers in `main.py`.
 
 **Dispatch failures**: If the remote-agent is unreachable, the workflow run is marked `failed` with a clear error message. No retries — the user re-triggers when the backend is available.
 
-**Callback failures**: If a callback from the remote-agent fails (Archon is temporarily down), the remote-agent should retry with exponential backoff (3 attempts, 1s/2s/4s delays). After 3 failures, the remote-agent logs the error and continues execution — Archon's state will be stale but the work completes. On the next successful callback, Archon reconciles by querying the remote-agent for the full run state.
+**Callback failures**: If a callback from the remote-agent fails (Cortex is temporarily down), the remote-agent should retry with exponential backoff (3 attempts, 1s/2s/4s delays). After 3 failures, the remote-agent logs the error and continues execution — Cortex's state will be stale but the work completes. On the next successful callback, Cortex reconciles by querying the remote-agent for the full run state.
 
 ### REST API Surface
 
@@ -509,7 +509,7 @@ All workflow API endpoints follow Archon's existing error handling patterns — 
 - `GET /api/workflows/backends` — List registered backends
 - `DELETE /api/workflows/backends/{id}` — Deregister backend
 
-**Callback Endpoints** (remote-agent → Archon):
+**Callback Endpoints** (remote-agent → Cortex):
 - `POST /api/workflows/nodes/{id}/state` — Node state change
 - `POST /api/workflows/nodes/{id}/progress` — Execution progress
 - `POST /api/workflows/approvals/request` — HITL approval request
@@ -552,7 +552,7 @@ python/src/server/services/workflow/
 
 ### Unified YAML Schema
 
-Extends the remote-agent's existing format with Archon-specific fields:
+Extends the remote-agent's existing format with Cortex-specific fields:
 
 ```yaml
 name: implement-feature
@@ -572,7 +572,7 @@ nodes:
   - id: plan-review                    # HITL gate node
     prompt: "Summarize the plan for approval"
     depends_on: [planning]
-    approval:                          # Archon extension
+    approval:                          # Cortex extension
       required: true
       type: plan_review
       ttl_hours: 24
@@ -605,19 +605,19 @@ nodes:
     depends_on: [classify-issue]
     when: "$classify-issue.output.type == 'FEATURE'"
 
-# Archon-only metadata (ignored by remote-agent)
-archon:
+# Cortex-only metadata (ignored by remote-agent)
+cortex:
   project_id: proj_xyz
   tags: [feature, full-pipeline]
   icon: rocket
   suggested_by: pattern_discovery
 ```
 
-**Compatibility strategy**: The `approval:` block and `archon:` metadata are Archon extensions. The remote-agent's YAML parser ignores unknown fields, so the same file works in both systems. The `approval:` block is the signal to the remote-agent's Archon bridge to pause execution and fire a webhook — if no bridge is active, the field is ignored and the node executes normally.
+**Compatibility strategy**: The `approval:` block and `cortex:` metadata are Cortex extensions. The remote-agent's YAML parser ignores unknown fields, so the same file works in both systems. The `approval:` block is the signal to the remote-agent's Cortex bridge to pause execution and fire a webhook — if no bridge is active, the field is ignored and the node executes normally.
 
 ### DAG Evaluation Ownership
 
-All DAG evaluation logic — topological sorting, `when:` condition evaluation, `trigger_rule` processing, parallel fan-out via `Promise.allSettled` — is handled by the remote-agent's existing TypeScript engine. Archon validates YAML structure (node IDs, `depends_on` references, required fields) but does not interpret execution semantics.
+All DAG evaluation logic — topological sorting, `when:` condition evaluation, `trigger_rule` processing, parallel fan-out via `Promise.allSettled` — is handled by the remote-agent's existing TypeScript engine. Cortex validates YAML structure (node IDs, `depends_on` references, required fields) but does not interpret execution semantics.
 
 ### Storage
 
@@ -629,13 +629,13 @@ Split-pane design:
 - **Left**: Form panel — sortable node list, metadata fields, approval gate toggles, dependency multi-selects, condition input with syntax help
 - **Right**: Live YAML preview — editable, bidirectional sync with form
 
-Import/export: Upload YAML from `.archon/workflows/` → parsed into form. Export generates clean YAML (strips `archon:` metadata) compatible with standalone remote-agent use.
+Import/export: Upload YAML from `.cortex/workflows/` → parsed into form. Export generates clean YAML (strips `cortex:` metadata) compatible with standalone remote-agent use.
 
 ### Command Library
 
-Commands referenced by workflow nodes are resolved by the **remote-agent** at execution time using its own `CommandRouter`. Archon stores command templates in the `workflow_commands` table for UI editing and versioning, but the canonical resolution at execution time is the remote-agent's responsibility.
+Commands referenced by workflow nodes are resolved by the **remote-agent** at execution time using its own `CommandRouter`. Cortex stores command templates in the `workflow_commands` table for UI editing and versioning, but the canonical resolution at execution time is the remote-agent's responsibility.
 
-When Archon dispatches a workflow, it can optionally include resolved command templates in the dispatch payload if the remote-agent requests them. This enables a UI-authored command to override a filesystem `.md` file without requiring the remote-agent to have direct Supabase access.
+When Cortex dispatches a workflow, it can optionally include resolved command templates in the dispatch payload if the remote-agent requests them. This enables a UI-authored command to override a filesystem `.md` file without requiring the remote-agent to have direct Supabase access.
 
 UI provides a markdown editor with preview, variable placeholder hints, version history, and "fork from built-in" to customize defaults.
 
@@ -647,7 +647,7 @@ python/src/server/services/workflow/
 ├── command_service.py          # Command storage, versioning
 └── yaml_schema.py              # YAML validation (structure only, not execution semantics)
 
-archon-ui-main/src/features/workflows/
+cortex-ui/src/features/workflows/
 ├── components/
 │   ├── WorkflowEditor.tsx      # Split-pane editor
 │   ├── NodeForm.tsx            # Individual node editing
@@ -671,7 +671,7 @@ archon-ui-main/src/features/workflows/
 
 ### Overview
 
-The Pattern Discovery Engine analyzes activity across all Archon-connected repositories to proactively suggest reusable workflow automations. It uses a two-stage pipeline: first normalizing heterogeneous events (git commits, agent conversations, workflow runs) into structured tuples, then mining those tuples for repeated patterns.
+The Pattern Discovery Engine analyzes activity across all Cortex-connected repositories to proactively suggest reusable workflow automations. It uses a two-stage pipeline: first normalizing heterogeneous events (git commits, agent conversations, workflow runs) into structured tuples, then mining those tuples for repeated patterns.
 
 ### Two-Stage Pipeline Architecture
 
@@ -704,7 +704,7 @@ Three input streams converge into a unified `activity_events` table:
 | Stream | Source | Captured Data | Frequency |
 |--------|--------|---------------|-----------|
 | **Git Activity** | Post-commit hooks + periodic git log polling | Commit message, diff stats, file paths, branch patterns, time of day | Real-time via hook or 15min poll |
-| **Agent Conversations** | Remote-agent messages + Archon chat sessions | User request text, repo context, tools used, workflow invocations, outcomes | On conversation end |
+| **Agent Conversations** | Remote-agent messages + Cortex chat sessions | User request text, repo context, tools used, workflow invocations, outcomes | On conversation end |
 | **Workflow Runs** | `workflow_runs` + `workflow_nodes` tables | Which workflow, node execution patterns, HITL approval behavior, repo context | On workflow completion |
 
 ### Stage 1: Intent Normalization
@@ -787,8 +787,8 @@ User responses to suggested patterns feed back into the scoring model:
 
 ### Suggestion Surfacing
 
-- **Archon UI**: Suggestions panel on Workflows page with Accept / Customize / Dismiss actions
-- **Chat/MCP**: `archon:suggest_workflows` MCP tool for conversational discovery
+- **Cortex UI**: Suggestions panel on Workflows page with Accept / Customize / Dismiss actions
+- **Chat/MCP**: `cortex:suggest_workflows` MCP tool for conversational discovery
 - Accept saves to `workflow_definitions` with `origin: pattern_discovery`
 - Dismiss marks pattern `dismissed`, won't suggest again
 
@@ -819,7 +819,7 @@ python/src/server/services/pattern_discovery/
 > **Note**: Migration numbering starts at 027 based on the current state of `migration/0.1.0/` (last migration is 026). If other feature branches land migrations before this one, adjust numbering accordingly. Verify against the actual migration directory at implementation time.
 
 **027: workflow_definitions**
-- id (uuid PK), name, description, project_id (FK → archon_projects, nullable), yaml_content (text), parsed_definition (jsonb), version (int), is_latest (bool), tags (text[]), origin (text — 'user' | 'pattern_discovery' | 'import'), created_at, deleted_at
+- id (uuid PK), name, description, project_id (FK → cortex_projects, nullable), yaml_content (text), parsed_definition (jsonb), version (int), is_latest (bool), tags (text[]), origin (text — 'user' | 'pattern_discovery' | 'import'), created_at, deleted_at
 - UNIQUE(name, project_id, version)
 
 **028: workflow_commands**
@@ -827,7 +827,7 @@ python/src/server/services/pattern_discovery/
 - UNIQUE(name, project_id, version)
 
 **029: workflow_runs**
-- id (uuid PK), definition_id (FK → workflow_definitions), project_id (FK → archon_projects), backend_id (FK → execution_backends), status (pending|dispatched|running|paused|completed|failed|cancelled), triggered_by (text), trigger_context (jsonb), started_at, completed_at, created_at
+- id (uuid PK), definition_id (FK → workflow_definitions), project_id (FK → cortex_projects), backend_id (FK → execution_backends), status (pending|dispatched|running|paused|completed|failed|cancelled), triggered_by (text), trigger_context (jsonb), started_at, completed_at, created_at
 - INDEX on (status), (project_id, status)
 
 **030: workflow_nodes**
@@ -840,11 +840,11 @@ python/src/server/services/pattern_discovery/
 - INDEX on (status), (workflow_run_id)
 
 **032: execution_backends**
-- id (uuid PK), name (UNIQUE), base_url (text), auth_token_hash (text), project_id (FK → archon_projects, nullable — null means default backend), status (healthy|unhealthy|disconnected), last_heartbeat_at, registered_at
+- id (uuid PK), name (UNIQUE), base_url (text), auth_token_hash (text), project_id (FK → cortex_projects, nullable — null means default backend), status (healthy|unhealthy|disconnected), last_heartbeat_at, registered_at
 - INDEX on (project_id)
 
 **033: activity_events**
-- id (uuid PK), event_type (commit|conversation|workflow_run), project_id (FK nullable), repo_url (text), raw_content (text — original commit message, conversation excerpt, etc.), action_verb (text nullable — extracted by normalization), target_object (text nullable — extracted by normalization), trigger_context (text nullable — extracted by normalization), intent_embedding (vector nullable — dimension matches Archon's configured embedding model; use same dimension as `documents.embedding` column for consistency), metadata (jsonb — diff stats, file paths, tools used, etc.), normalized_at (timestamp nullable — null means pending normalization), created_at
+- id (uuid PK), event_type (commit|conversation|workflow_run), project_id (FK nullable), repo_url (text), raw_content (text — original commit message, conversation excerpt, etc.), action_verb (text nullable — extracted by normalization), target_object (text nullable — extracted by normalization), trigger_context (text nullable — extracted by normalization), intent_embedding (vector nullable — dimension matches Cortex's configured embedding model; use same dimension as `documents.embedding` column for consistency), metadata (jsonb — diff stats, file paths, tools used, etc.), normalized_at (timestamp nullable — null means pending normalization), created_at
 - INDEX on (event_type, created_at)
 - INDEX on (normalized_at) WHERE normalized_at IS NULL — for batch processing queue
 - ivfflat INDEX on intent_embedding
@@ -856,7 +856,7 @@ python/src/server/services/pattern_discovery/
 ### Entity Relationships
 
 ```
-archon_projects
+cortex_projects
   ├─← workflow_definitions.project_id
   ├─← workflow_commands.project_id
   ├─← workflow_runs.project_id
@@ -885,15 +885,15 @@ activity_events
 
 ### Phase 1: The Control Plane & Remote-Agent Bridge (Foundation)
 
-**Goal**: Archon can dispatch a YAML workflow to the remote-agent, and the remote-agent executes it natively.
+**Goal**: Cortex can dispatch a YAML workflow to the remote-agent, and the remote-agent executes it natively.
 
 - Run database migrations 027–032 (definitions, commands, runs, nodes, approvals, backends)
 - Implement backend registration (`POST /api/workflows/backends/register`) and heartbeat
 - Implement workflow dispatch service (create run, create nodes, POST to remote-agent)
 - Implement callback endpoints (node state, progress, completion)
 - Implement SSE stream for UI clients
-- Create the `archon-bridge` module in the remote-coding-agent repo
-- Bridge receives YAML, passes to `executeDagWorkflow()`, fires callbacks to Archon
+- Create the `cortex-bridge` module in the remote-coding-agent repo
+- Bridge receives YAML, passes to `executeDagWorkflow()`, fires callbacks to Cortex
 - Convert the 6 hardcoded agent work order steps into a YAML workflow definition
 - Agent work orders service continues running unchanged alongside new system
 
@@ -901,12 +901,12 @@ activity_events
 
 **Goal**: Workflows pause for human review with rich A2UI rendering.
 
-- Port A2UI renderer and component library from Second Brain into Archon UI
-- Implement approval gate handling: remote-agent pauses, fires webhook, Archon creates approval
+- Port A2UI renderer and component library from Second Brain into Cortex UI
+- Implement approval gate handling: remote-agent pauses, fires webhook, Cortex creates approval
 - Implement deterministic A2UI templates for standard approval types
 - Implement the HITL Router with UI channel (SSE) and Telegram channel (direct bot)
-- Implement approval resolution flow: user approves → Archon sends resume to remote-agent
-- Build approval UI in Archon frontend (ApprovalList, ApprovalDetail with A2UI rendering)
+- Implement approval resolution flow: user approves → Cortex sends resume to remote-agent
+- Build approval UI in Cortex frontend (ApprovalList, ApprovalDetail with A2UI rendering)
 
 ### Phase 3: Pattern Discovery Engine (Intelligence)
 
@@ -923,7 +923,7 @@ activity_events
 
 ### Phase 4: Workflow Editor & UI Polish
 
-**Goal**: Users can view, edit, and discover workflows in the Archon UI.
+**Goal**: Users can view, edit, and discover workflows in the Cortex UI.
 
 - Build the split-pane YAML workflow editor (visual node config + live YAML preview)
 - Build the command library editor (markdown with preview, versioning)
@@ -942,7 +942,7 @@ After Phase 4 is complete:
 
 **Preserved**: Structured logging patterns, GitHub integration (gh CLI operations).
 
-**Replaced**: Linear WorkflowOrchestrator → Control Plane dispatch, in-memory state → Supabase persistence, hardcoded command_map → YAML definitions, separate microservice → integrated into Archon server, `/api/agent-work-orders/` → `/api/workflows/`, CLI subprocess wrapper → remote-agent's native Claude Agent SDK.
+**Replaced**: Linear WorkflowOrchestrator → Control Plane dispatch, in-memory state → Supabase persistence, hardcoded command_map → YAML definitions, separate microservice → integrated into Cortex server, `/api/agent-work-orders/` → `/api/workflows/`, CLI subprocess wrapper → remote-agent's native Claude Agent SDK.
 
 ---
 
@@ -950,35 +950,35 @@ After Phase 4 is complete:
 
 ### New Module
 
-Location: `packages/core/src/archon-bridge/` in the remote-coding-agent repo.
+Location: `packages/core/src/cortex-bridge/` in the remote-coding-agent repo.
 
 ### Responsibilities
 
-1. **Register** with Archon on startup (`POST /api/workflows/backends/register`)
-2. **Receive** workflow dispatch (`POST /api/archon/workflows/execute`)
+1. **Register** with Cortex on startup (`POST /api/workflows/backends/register`)
+2. **Receive** workflow dispatch (`POST /api/cortex/workflows/execute`)
 3. **Execute** the YAML by passing it to the existing `executeDagWorkflow()` engine
-4. **Report** node state changes to Archon via REST callbacks
-5. **Pause** at approval gates and fire approval webhook to Archon
-6. **Resume** when Archon sends the resume signal
-7. **Cancel** gracefully when Archon sends cancel signal
+4. **Report** node state changes to Cortex via REST callbacks
+5. **Pause** at approval gates and fire approval webhook to Cortex
+6. **Resume** when Cortex sends the resume signal
+7. **Cancel** gracefully when Cortex sends cancel signal
 8. **Heartbeat** every 30 seconds to maintain healthy status
 
 ### Execution Flow
 
 ```
-1. Bridge receives POST /api/archon/workflows/execute
+1. Bridge receives POST /api/cortex/workflows/execute
    - Extracts yaml_content, trigger_context, node_id_map, callback_url
 2. Bridge parses YAML (already handled by remote-agent's parser)
 3. Bridge hooks into the DAG executor's event system:
-   - onNodeStart(nodeId) → POST {callback_url}/nodes/{archon_id}/state {state: "running"}
-   - onNodeComplete(nodeId, output) → POST {callback_url}/nodes/{archon_id}/state {state: "completed", output}
-   - onNodeFailed(nodeId, error) → POST {callback_url}/nodes/{archon_id}/state {state: "failed", error}
-   - onNodeSkipped(nodeId) → POST {callback_url}/nodes/{archon_id}/state {state: "skipped"}
+   - onNodeStart(nodeId) → POST {callback_url}/nodes/{cortex_id}/state {state: "running"}
+   - onNodeComplete(nodeId, output) → POST {callback_url}/nodes/{cortex_id}/state {state: "completed", output}
+   - onNodeFailed(nodeId, error) → POST {callback_url}/nodes/{cortex_id}/state {state: "failed", error}
+   - onNodeSkipped(nodeId) → POST {callback_url}/nodes/{cortex_id}/state {state: "skipped"}
 4. Bridge intercepts approval gates:
    - When DAG executor encounters approval.required: true
    - Bridge pauses executor (stores continuation)
    - Fires POST {callback_url}/approvals/request
-   - Awaits POST /api/archon/workflows/{run_id}/resume
+   - Awaits POST /api/cortex/workflows/{run_id}/resume
    - On resume: passes decision to continuation, executor resumes
 5. On workflow completion:
    - Bridge fires POST {callback_url}/runs/{run_id}/complete
@@ -986,23 +986,23 @@ Location: `packages/core/src/archon-bridge/` in the remote-coding-agent repo.
 
 ### Node ID Translation
 
-The bridge maintains an in-memory map from YAML node IDs to Archon UUIDs (received in `node_id_map`). All callbacks to Archon use the Archon UUID. All internal DAG execution uses the YAML node ID. The bridge translates at the boundary.
+The bridge maintains an in-memory map from YAML node IDs to Cortex UUIDs (received in `node_id_map`). All callbacks to Cortex use the Cortex UUID. All internal DAG execution uses the YAML node ID. The bridge translates at the boundary.
 
 ### Session Continuity
 
-Node results include `session_id` from the Claude Agent SDK. The bridge includes this in callbacks to Archon. Archon stores it in `workflow_nodes.session_id`. If a node needs to continue a previous session (e.g., `execute` continuing from `planning`), the bridge passes the upstream node's `session_id` through the DAG context.
+Node results include `session_id` from the Claude Agent SDK. The bridge includes this in callbacks to Cortex. Cortex stores it in `workflow_nodes.session_id`. If a node needs to continue a previous session (e.g., `execute` continuing from `planning`), the bridge passes the upstream node's `session_id` through the DAG context.
 
 ### Isolation
 
-The bridge reuses the remote-agent's existing `IsolationResolver` for git worktree lifecycle. Archon does not need to know about isolation details — the working directory is managed entirely by the remote-agent.
+The bridge reuses the remote-agent's existing `IsolationResolver` for git worktree lifecycle. Cortex does not need to know about isolation details — the working directory is managed entirely by the remote-agent.
 
 ### Key Principle
 
-The bridge is an **additive** module. The remote-agent's existing orchestrator, adapters, and workflow engine remain untouched. Users can still use the remote-agent standalone without Archon. The bridge activates only when `ARCHON_URL` is configured in the remote-agent's environment.
+The bridge is an **additive** module. The remote-agent's existing orchestrator, adapters, and workflow engine remain untouched. Users can still use the remote-agent standalone without Cortex. The bridge activates only when `CORTEX_URL` is configured in the remote-agent's environment.
 
 ### Cancellation
 
-When Archon sends `POST /api/archon/workflows/{run_id}/cancel`:
+When Cortex sends `POST /api/cortex/workflows/{run_id}/cancel`:
 
 1. Bridge signals the DAG executor to abort
 2. Executor sends SIGTERM to any running Claude Code subprocess
@@ -1015,9 +1015,9 @@ When Archon sends `POST /api/archon/workflows/{run_id}/cancel`:
 
 | Task | Description |
 |------|-------------|
-| **Archon bridge module** | New `packages/core/src/archon-bridge/` with registration, dispatch handler, callback client, resume handler |
+| **Cortex bridge module** | New `packages/core/src/cortex-bridge/` with registration, dispatch handler, callback client, resume handler |
 | **DAG executor hooks** | Extend `executeDagWorkflow()` with event callbacks (onNodeStart, onNodeComplete, onNodeFailed, onNodeSkipped) |
 | **Approval gate interception** | When `approval.required: true` is present, pause execution and await external resume signal instead of continuing |
-| **New REST endpoints** | `/api/archon/workflows/execute`, `/api/archon/workflows/{run_id}/resume`, `/api/archon/workflows/{run_id}/cancel` |
+| **New REST endpoints** | `/api/cortex/workflows/execute`, `/api/cortex/workflows/{run_id}/resume`, `/api/cortex/workflows/{run_id}/cancel` |
 
-This is scoped as a separate workstream within the remote-agent repo, independent of the Archon-side implementation.
+This is scoped as a separate workstream within the remote-agent repo, independent of the Cortex-side implementation.

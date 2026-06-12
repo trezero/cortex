@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS execution_backends (
   name TEXT NOT NULL UNIQUE,
   base_url TEXT NOT NULL,
   auth_token_hash TEXT NOT NULL,
-  project_id UUID REFERENCES archon_projects(id) ON DELETE SET NULL,
+  project_id UUID REFERENCES cortex_projects(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'healthy',
   last_heartbeat_at TIMESTAMPTZ,
   registered_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

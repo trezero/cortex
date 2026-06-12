@@ -2,7 +2,7 @@
 
 ## Purpose
 
-A looping interactive shell script at the repo root that manages all Archon Docker services, with automatic Docker credential store remediation to prevent WSL2 credential helper failures.
+A looping interactive shell script at the repo root that manages all Cortex Docker services, with automatic Docker credential store remediation to prevent WSL2 credential helper failures.
 
 ## Problem Solved
 
@@ -16,10 +16,10 @@ Running `docker compose up --build` from WSL2 fails with `error getting credenti
 
 All four core services as a group (no individual selection):
 
-- `archon-server` (FastAPI backend, port 8181)
-- `archon-mcp` (MCP server, port 8051)
-- `archon-agents` (AI agents service, port 8052)
-- `archon-frontend` (Vite/React UI, port 3737)
+- `cortex-server` (FastAPI backend, port 8181)
+- `cortex-mcp` (MCP server, port 8051)
+- `cortex-agents` (AI agents service, port 8052)
+- `cortex-frontend` (Vite/React UI, port 3737)
 
 The optional `trinity-a2ui` service (profile: `trinity`) is out of scope.
 
@@ -38,7 +38,7 @@ This ensures the credential error cannot occur from any operation this script pe
 Uses bash's built-in `select` loop. Loops back to the menu after every operation.
 
 ```
-Archon Manager
+Cortex Manager
 ==============
 1) Start
 2) Stop

@@ -1,4 +1,4 @@
-"""Postman integration services for Archon."""
+"""Postman integration services for Cortex."""
 
 from .postman_service import PostmanService
 

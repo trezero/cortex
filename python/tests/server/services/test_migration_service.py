@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
-from src.server.config.version import ARCHON_VERSION
+from src.server.config.version import CORTEX_VERSION
 from src.server.services.migration_service import (
     MigrationRecord,
     MigrationService,
@@ -220,7 +220,7 @@ async def test_get_migration_status_all_applied(migration_service, mock_supabase
             with patch.object(migration_service, 'check_migrations_table_exists', return_value=True):
                 result = await migration_service.get_migration_status()
 
-                assert result["current_version"] == ARCHON_VERSION
+                assert result["current_version"] == CORTEX_VERSION
                 assert result["has_pending"] is False
                 assert result["bootstrap_required"] is False
                 assert result["pending_count"] == 0

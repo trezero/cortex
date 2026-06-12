@@ -213,7 +213,7 @@ Sitemap: https://example.com/sitemap-news.xml"""
         assert len(result) == 2
         assert "https://example.com/sitemap.xml" in result
         assert "https://example.com/sitemap-news.xml" in result
-        mock_get.assert_called_once_with("https://example.com/robots.txt", timeout=30, stream=True, verify=True, headers={'User-Agent': 'Archon-Discovery/1.0 (SSRF-Protected)'})
+        mock_get.assert_called_once_with("https://example.com/robots.txt", timeout=30, stream=True, verify=True, headers={'User-Agent': 'Cortex-Discovery/1.0 (SSRF-Protected)'})
 
     @patch('socket.getaddrinfo', return_value=create_mock_dns_response())
     @patch('requests.Session')
@@ -231,7 +231,7 @@ Allow: /public/"""
         result = service._parse_robots_txt("https://example.com")
 
         assert len(result) == 0
-        mock_get.assert_called_once_with("https://example.com/robots.txt", timeout=30, stream=True, verify=True, headers={'User-Agent': 'Archon-Discovery/1.0 (SSRF-Protected)'})
+        mock_get.assert_called_once_with("https://example.com/robots.txt", timeout=30, stream=True, verify=True, headers={'User-Agent': 'Cortex-Discovery/1.0 (SSRF-Protected)'})
 
     @patch('socket.getaddrinfo', return_value=create_mock_dns_response())
     @patch('requests.Session')
@@ -257,7 +257,7 @@ Allow: /public/"""
         # Should find sitemaps from both link and meta tags
         assert len(result) >= 1
         assert any('sitemap' in url.lower() for url in result)
-        mock_get.assert_called_once_with("https://example.com", timeout=30, stream=True, verify=True, headers={'User-Agent': 'Archon-Discovery/1.0 (SSRF-Protected)'})
+        mock_get.assert_called_once_with("https://example.com", timeout=30, stream=True, verify=True, headers={'User-Agent': 'Cortex-Discovery/1.0 (SSRF-Protected)'})
 
     @patch('socket.getaddrinfo', return_value=create_mock_dns_response())
     @patch('requests.Session')

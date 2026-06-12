@@ -2,38 +2,38 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Enable any machine with the Archon MCP server connected to bootstrap all skills automatically, auto-seed the registry on server startup, and provide remove/unlink actions in the Skills tab UI.
+**Goal:** Enable any machine with the Cortex MCP server connected to bootstrap all skills automatically, auto-seed the registry on server startup, and provide remove/unlink actions in the Skills tab UI.
 
-**Architecture:** A new `archon-bootstrap` skill triggers `manage_skills(action="bootstrap")` via MCP, which fetches all skills with full content and registers the system. On server startup a `SkillSeedingService` scans `integrations/claude-code/skills/*/SKILL.md` and upserts any new or changed skills into `archon_skills`. The UI gains two new destructive actions: Remove skill (for a system) and Unlink system (from a project).
+**Architecture:** A new `cortex-bootstrap` skill triggers `manage_skills(action="bootstrap")` via MCP, which fetches all skills with full content and registers the system. On server startup a `SkillSeedingService` scans `integrations/claude-code/skills/*/SKILL.md` and upserts any new or changed skills into `cortex_skills`. The UI gains two new destructive actions: Remove skill (for a system) and Unlink system (from a project).
 
 **Tech Stack:** Python 3.12, FastAPI, Supabase (via postgrest-py), httpx, React 18, TypeScript, TanStack Query v5, Tailwind, Biome
 
 ---
 
-## Task 1: Write `archon-bootstrap` SKILL.md
+## Task 1: Write `cortex-bootstrap` SKILL.md
 
 **Files:**
-- Create: `integrations/claude-code/skills/archon-bootstrap/SKILL.md`
+- Create: `integrations/claude-code/skills/cortex-bootstrap/SKILL.md`
 
 **Step 1: Create the directory and file**
 
 ```bash
-mkdir -p integrations/claude-code/skills/archon-bootstrap
+mkdir -p integrations/claude-code/skills/cortex-bootstrap
 ```
 
-Write `integrations/claude-code/skills/archon-bootstrap/SKILL.md`:
+Write `integrations/claude-code/skills/cortex-bootstrap/SKILL.md`:
 
 ```markdown
 ---
-name: archon-bootstrap
-description: Bootstrap Archon skills onto this machine. Fetches all skills from the Archon registry and installs them to ~/.claude/skills/, registers this system, and links it to the current project. Run once on any new machine to set up Archon integration. Use when the user says "bootstrap archon", "install archon skills", "set up archon", or "run archon bootstrap".
+name: cortex-bootstrap
+description: Bootstrap Cortex skills onto this machine. Fetches all skills from the Cortex registry and installs them to ~/.claude/skills/, registers this system, and links it to the current project. Run once on any new machine to set up Cortex integration. Use when the user says "bootstrap cortex", "install cortex skills", "set up cortex", or "run cortex bootstrap".
 ---
 
-# Archon Bootstrap — Skills Installer
+# Cortex Bootstrap — Skills Installer
 
-Fetches all Archon skills from the registry and installs them to `~/.claude/skills/`. Registers this machine as a system and links it to the current project.
+Fetches all Cortex skills from the registry and installs them to `~/.claude/skills/`. Registers this machine as a system and links it to the current project.
 
-**Invocation:** `/archon-bootstrap`
+**Invocation:** `/cortex-bootstrap`
 
 ---
 
@@ -43,8 +43,8 @@ Fetches all Archon skills from the registry and installs them to `~/.claude/skil
 health_check()
 ```
 
-If Archon is unreachable:
-> "Archon server is not reachable. Ensure Archon is running and configured in .mcp.json or ~/.claude/mcp.json. Cannot bootstrap."
+If Cortex is unreachable:
+> "Cortex server is not reachable. Ensure Cortex is running and configured in .mcp.json or ~/.claude/mcp.json. Cannot bootstrap."
 
 Stop here if unhealthy.
 
@@ -81,7 +81,7 @@ Store the confirmed name as `<system_name>`.
 
 ## Phase 3: Read Project Context
 
-Read `.claude/archon-state.json` if it exists. Extract `archon_project_id` if present.
+Read `.claude/cortex-state.json` if it exists. Extract `cortex_project_id` if present.
 Store as `<project_id>` (may be omitted if not found).
 
 ---
@@ -117,7 +117,7 @@ Use the Write tool to write each file. Do not use heredoc — pass the exact con
 
 ## Phase 6: Update State
 
-Read `.claude/archon-state.json` (or start with `{}`). Merge in:
+Read `.claude/cortex-state.json` (or start with `{}`). Merge in:
 
 ```json
 {
@@ -127,14 +127,14 @@ Read `.claude/archon-state.json` (or start with `{}`). Merge in:
 }
 ```
 
-Write back to `.claude/archon-state.json`.
+Write back to `.claude/cortex-state.json`.
 
 ---
 
 ## Phase 7: Report
 
 ```
-## Archon Bootstrap Complete
+## Cortex Bootstrap Complete
 
 **System:** <system_name> (<system_id from response.system.id>)
 **Skills installed:** <N> → ~/.claude/skills/
@@ -145,18 +145,18 @@ Restart Claude Code for the new skills to take effect.
 ```
 
 If `response.system.is_new` is true, add:
-> "This system has been registered with Archon for the first time."
+> "This system has been registered with Cortex for the first time."
 ```
 
 **Step 2: Verify the frontmatter parses correctly**
 
-Manually check: the file must start with `---`, have `name: archon-bootstrap` and `description:` fields, and end the frontmatter with `---`.
+Manually check: the file must start with `---`, have `name: cortex-bootstrap` and `description:` fields, and end the frontmatter with `---`.
 
 **Step 3: Commit**
 
 ```bash
-git add integrations/claude-code/skills/archon-bootstrap/SKILL.md
-git commit -m "feat: add archon-bootstrap skill for first-time skill installation"
+git add integrations/claude-code/skills/cortex-bootstrap/SKILL.md
+git commit -m "feat: add cortex-bootstrap skill for first-time skill installation"
 ```
 
 ---
@@ -189,7 +189,7 @@ def test_list_skills_without_content(client):
     with patch("src.server.api_routes.skills_api.SkillService") as MockService:
         instance = MockService.return_value
         instance.list_skills.return_value = [
-            {"id": "s1", "name": "archon-memory", "content_hash": "abc"}
+            {"id": "s1", "name": "cortex-memory", "content_hash": "abc"}
         ]
         response = client.get("/api/skills")
         assert response.status_code == 200
@@ -202,7 +202,7 @@ def test_list_skills_with_content(client):
     with patch("src.server.api_routes.skills_api.SkillService") as MockService:
         instance = MockService.return_value
         instance.list_skills_full.return_value = [
-            {"id": "s1", "name": "archon-memory", "content": "---\nname: archon-memory\n---\n# Content"}
+            {"id": "s1", "name": "cortex-memory", "content": "---\nname: cortex-memory\n---\n# Content"}
         ]
         response = client.get("/api/skills?include_content=true")
         assert response.status_code == 200
@@ -294,8 +294,8 @@ async def test_manage_skills_bootstrap_basic(registered_tools, mock_context):
     mock_skills_response.status_code = 200
     mock_skills_response.json.return_value = {
         "skills": [
-            {"name": "archon-memory", "content": "---\nname: archon-memory\n---\n# Content", "display_name": "Archon Memory"},
-            {"name": "archon-bootstrap", "content": "---\nname: archon-bootstrap\n---\n# Bootstrap", "display_name": "Archon Bootstrap"},
+            {"name": "cortex-memory", "content": "---\nname: cortex-memory\n---\n# Content", "display_name": "Cortex Memory"},
+            {"name": "cortex-bootstrap", "content": "---\nname: cortex-bootstrap\n---\n# Bootstrap", "display_name": "Cortex Bootstrap"},
         ]
     }
 
@@ -325,7 +325,7 @@ async def test_manage_skills_bootstrap_basic(registered_tools, mock_context):
         data = json.loads(result)
         assert data["success"] is True
         assert len(data["skills"]) == 2
-        assert data["skills"][0]["name"] == "archon-memory"
+        assert data["skills"][0]["name"] == "cortex-memory"
         assert data["system"]["id"] == "sys-1"
         assert data["system"]["is_new"] is True
         assert "install_path" in data
@@ -340,7 +340,7 @@ async def test_manage_skills_bootstrap_no_project(registered_tools, mock_context
     mock_skills_response = MagicMock()
     mock_skills_response.status_code = 200
     mock_skills_response.json.return_value = {
-        "skills": [{"name": "archon-memory", "content": "---\nname: archon-memory\n---\n# Content", "display_name": "Archon Memory"}]
+        "skills": [{"name": "cortex-memory", "content": "---\nname: cortex-memory\n---\n# Content", "display_name": "Cortex Memory"}]
     }
 
     with patch("src.mcp_server.features.skills.skill_tools.httpx.AsyncClient") as mock_client:
@@ -533,11 +533,11 @@ from src.server.services.skills.skill_seeding_service import SkillSeedingService
 
 SAMPLE_SKILL_MD = textwrap.dedent("""\
     ---
-    name: archon-memory
-    description: Manage long-term knowledge memory via Archon RAG.
+    name: cortex-memory
+    description: Manage long-term knowledge memory via Cortex RAG.
     ---
 
-    # Archon Memory
+    # Cortex Memory
 
     Some content here.
 """)
@@ -547,7 +547,7 @@ SAMPLE_SKILL_MD = textwrap.dedent("""\
 def mock_skill_service():
     svc = MagicMock()
     svc.find_by_name.return_value = None  # skill does not exist yet
-    svc.create_skill.return_value = {"id": "s1", "name": "archon-memory", "current_version": 1}
+    svc.create_skill.return_value = {"id": "s1", "name": "cortex-memory", "current_version": 1}
     return svc
 
 
@@ -559,17 +559,17 @@ def seeder(mock_skill_service):
 class TestSeedSkills:
     def test_creates_new_skill_when_not_in_registry(self, seeder, mock_skill_service, tmp_path):
         """A skill file not in the registry should be inserted with version 1."""
-        skill_dir = tmp_path / "archon-memory"
+        skill_dir = tmp_path / "cortex-memory"
         skill_dir.mkdir()
         (skill_dir / "SKILL.md").write_text(SAMPLE_SKILL_MD)
 
         seeder.seed_skills(skills_dir=tmp_path)
 
-        mock_skill_service.find_by_name.assert_called_once_with("archon-memory")
+        mock_skill_service.find_by_name.assert_called_once_with("cortex-memory")
         mock_skill_service.create_skill.assert_called_once()
         call_kwargs = mock_skill_service.create_skill.call_args.kwargs
-        assert call_kwargs["name"] == "archon-memory"
-        assert call_kwargs["created_by"] == "archon-seeder"
+        assert call_kwargs["name"] == "cortex-memory"
+        assert call_kwargs["created_by"] == "cortex-seeder"
 
     def test_skips_skill_when_hash_unchanged(self, seeder, mock_skill_service, tmp_path):
         """If skill exists and hash matches, skip without update."""
@@ -577,12 +577,12 @@ class TestSeedSkills:
         content_hash = hashlib.sha256(SAMPLE_SKILL_MD.encode()).hexdigest()
         mock_skill_service.find_by_name.return_value = {
             "id": "s1",
-            "name": "archon-memory",
+            "name": "cortex-memory",
             "content_hash": content_hash,
             "current_version": 1,
         }
 
-        skill_dir = tmp_path / "archon-memory"
+        skill_dir = tmp_path / "cortex-memory"
         skill_dir.mkdir()
         (skill_dir / "SKILL.md").write_text(SAMPLE_SKILL_MD)
 
@@ -595,17 +595,17 @@ class TestSeedSkills:
         """If skill exists and hash differs, update content and bump version."""
         mock_skill_service.find_by_name.return_value = {
             "id": "s1",
-            "name": "archon-memory",
+            "name": "cortex-memory",
             "content_hash": "old-hash-that-does-not-match",
             "current_version": 2,
         }
         mock_skill_service.update_skill.return_value = {
             "id": "s1",
-            "name": "archon-memory",
+            "name": "cortex-memory",
             "current_version": 3,
         }
 
-        skill_dir = tmp_path / "archon-memory"
+        skill_dir = tmp_path / "cortex-memory"
         skill_dir.mkdir()
         (skill_dir / "SKILL.md").write_text(SAMPLE_SKILL_MD)
 
@@ -614,7 +614,7 @@ class TestSeedSkills:
         mock_skill_service.update_skill.assert_called_once()
         call_kwargs = mock_skill_service.update_skill.call_args.kwargs
         assert call_kwargs["new_version"] == 3
-        assert call_kwargs["updated_by"] == "archon-seeder"
+        assert call_kwargs["updated_by"] == "cortex-seeder"
 
     def test_skips_directory_without_skill_md(self, seeder, mock_skill_service, tmp_path):
         """Directories without SKILL.md are silently ignored."""
@@ -694,7 +694,7 @@ Create `python/src/server/services/skills/skill_seeding_service.py`:
 """Startup seeding service that syncs SKILL.md files from the repo into the DB registry.
 
 On server startup, scans integrations/claude-code/skills/*/SKILL.md and upserts
-each skill into archon_skills:
+each skill into cortex_skills:
   - If not in registry → create (version 1)
   - If in registry and hash matches → skip
   - If in registry and hash differs → update content, bump version
@@ -727,7 +727,7 @@ def _parse_frontmatter(content: str) -> dict[str, str]:
 
 
 class SkillSeedingService:
-    """Seeds the archon_skills table from SKILL.md files bundled in the repo."""
+    """Seeds the cortex_skills table from SKILL.md files bundled in the repo."""
 
     def __init__(self, skill_service: SkillService | None = None):
         self.skill_service = skill_service or SkillService()
@@ -803,7 +803,7 @@ class SkillSeedingService:
                 name=name,
                 description=description,
                 content=content,
-                created_by="archon-seeder",
+                created_by="cortex-seeder",
             )
             logger.info(f"Seeded new skill: {name}")
             counts["created"] += 1
@@ -818,7 +818,7 @@ class SkillSeedingService:
                 skill_id=existing["id"],
                 content=content,
                 new_version=new_version,
-                updated_by="archon-seeder",
+                updated_by="cortex-seeder",
                 description=description or None,
             )
             logger.info(f"Updated skill '{name}' to v{new_version}")
@@ -918,7 +918,7 @@ Add to `python/tests/server/services/skills/test_skill_sync_service.py`:
 ```python
 class TestUnlinkSystemFromProject:
     def test_deletes_registration_record(self, service, mock_supabase):
-        """Should delete from archon_project_system_registrations."""
+        """Should delete from cortex_project_system_registrations."""
         builder = MagicMock()
         builder.delete.return_value = builder
         builder.eq.return_value = builder
@@ -928,7 +928,7 @@ class TestUnlinkSystemFromProject:
 
         service.unlink_system_from_project("sys-1", "proj-1")
 
-        mock_supabase.table.assert_called_with("archon_project_system_registrations")
+        mock_supabase.table.assert_called_with("cortex_project_system_registrations")
         builder.delete.assert_called_once()
 ```
 
@@ -948,8 +948,8 @@ In `python/src/server/services/skills/skill_sync_service.py`, add after `registe
     def unlink_system_from_project(self, system_id: str, project_id: str) -> None:
         """Remove a system's association with a project.
 
-        Deletes from archon_project_system_registrations. The system remains
-        globally in archon_systems — only the project link is removed.
+        Deletes from cortex_project_system_registrations. The system remains
+        globally in cortex_systems — only the project link is removed.
         """
         (
             self.supabase_client.table(REGISTRATIONS_TABLE)
@@ -977,8 +977,8 @@ In `python/src/server/api_routes/skills_api.py`, add after the `get_project_syst
 async def unlink_system_from_project(project_id: str, system_id: str):
     """Remove a system's association with a project.
 
-    The system remains in the global archon_systems table — only the
-    project-level link in archon_project_system_registrations is removed.
+    The system remains in the global cortex_systems table — only the
+    project-level link in cortex_project_system_registrations is removed.
     """
     try:
         logfire.info(f"Unlinking system | project_id={project_id} | system_id={system_id}")
@@ -1023,12 +1023,12 @@ git commit -m "feat: add DELETE /api/projects/{project_id}/systems/{system_id} e
 ## Task 7: Add Remove Skill Button to `SystemSkillList.tsx`
 
 **Files:**
-- Modify: `archon-ui-main/src/features/projects/skills/components/SystemSkillList.tsx`
-- Modify: `archon-ui-main/src/features/projects/skills/SkillsTab.tsx`
+- Modify: `cortex-ui/src/features/projects/skills/components/SystemSkillList.tsx`
+- Modify: `cortex-ui/src/features/projects/skills/SkillsTab.tsx`
 
 **Step 1: Update `SystemSkillList` props and add Remove button**
 
-Replace `archon-ui-main/src/features/projects/skills/components/SystemSkillList.tsx` with:
+Replace `cortex-ui/src/features/projects/skills/components/SystemSkillList.tsx` with:
 
 ```typescript
 import { SkillStatusBadge } from "./SkillStatusBadge";
@@ -1056,7 +1056,7 @@ export function SystemSkillList({ systemSkills, allSkills, onInstall, onRemove }
 						{systemSkills.map((ss) => (
 							<div key={ss.id} className="flex items-center justify-between p-2 rounded-md bg-white/5">
 								<span className="text-sm text-white">
-									{ss.archon_skills?.display_name || ss.archon_skills?.name || ss.skill_id}
+									{ss.cortex_skills?.display_name || ss.cortex_skills?.name || ss.skill_id}
 								</span>
 								<div className="flex items-center gap-2">
 									<SkillStatusBadge status={ss.status} hasLocalChanges={ss.has_local_changes} />
@@ -1114,7 +1114,7 @@ export function SystemSkillList({ systemSkills, allSkills, onInstall, onRemove }
 
 **Step 2: Update `SkillsTab.tsx` to wire the `onRemove` handler**
 
-In `archon-ui-main/src/features/projects/skills/SkillsTab.tsx`, add `useRemoveSkill` to the imports:
+In `cortex-ui/src/features/projects/skills/SkillsTab.tsx`, add `useRemoveSkill` to the imports:
 
 ```typescript
 import { useState } from "react";
@@ -1157,7 +1157,7 @@ Pass `onRemove` to `SystemSkillList`:
 **Step 3: Check for TypeScript errors**
 
 ```bash
-cd archon-ui-main && npx tsc --noEmit 2>&1 | grep "src/features/projects/skills"
+cd cortex-ui && npx tsc --noEmit 2>&1 | grep "src/features/projects/skills"
 ```
 
 Expected: No errors.
@@ -1165,14 +1165,14 @@ Expected: No errors.
 **Step 4: Run Biome on the changed files**
 
 ```bash
-cd archon-ui-main && npm run biome:fix -- src/features/projects/skills/
+cd cortex-ui && npm run biome:fix -- src/features/projects/skills/
 ```
 
 **Step 5: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/skills/components/SystemSkillList.tsx \
-        archon-ui-main/src/features/projects/skills/SkillsTab.tsx
+git add cortex-ui/src/features/projects/skills/components/SystemSkillList.tsx \
+        cortex-ui/src/features/projects/skills/SkillsTab.tsx
 git commit -m "feat: add Remove skill button to SystemSkillList"
 ```
 
@@ -1181,14 +1181,14 @@ git commit -m "feat: add Remove skill button to SystemSkillList"
 ## Task 8: Add Unlink System to `SystemCard.tsx`, Service, and Hook
 
 **Files:**
-- Modify: `archon-ui-main/src/features/projects/skills/services/skillService.ts`
-- Modify: `archon-ui-main/src/features/projects/skills/hooks/useSkillQueries.ts`
-- Modify: `archon-ui-main/src/features/projects/skills/components/SystemCard.tsx`
-- Modify: `archon-ui-main/src/features/projects/skills/SkillsTab.tsx`
+- Modify: `cortex-ui/src/features/projects/skills/services/skillService.ts`
+- Modify: `cortex-ui/src/features/projects/skills/hooks/useSkillQueries.ts`
+- Modify: `cortex-ui/src/features/projects/skills/components/SystemCard.tsx`
+- Modify: `cortex-ui/src/features/projects/skills/SkillsTab.tsx`
 
 **Step 1: Add `unlinkSystem` to `skillService.ts`**
 
-In `archon-ui-main/src/features/projects/skills/services/skillService.ts`, add after `removeSkill`:
+In `cortex-ui/src/features/projects/skills/services/skillService.ts`, add after `removeSkill`:
 
 ```typescript
 	async unlinkSystem(projectId: string, systemId: string): Promise<void> {
@@ -1201,7 +1201,7 @@ In `archon-ui-main/src/features/projects/skills/services/skillService.ts`, add a
 
 **Step 2: Add `useUnlinkSystem` hook to `useSkillQueries.ts`**
 
-In `archon-ui-main/src/features/projects/skills/hooks/useSkillQueries.ts`, add after `useRemoveSkill`:
+In `cortex-ui/src/features/projects/skills/hooks/useSkillQueries.ts`, add after `useRemoveSkill`:
 
 ```typescript
 export function useUnlinkSystem() {
@@ -1219,7 +1219,7 @@ export function useUnlinkSystem() {
 
 **Step 3: Update `SystemCard.tsx` to accept and show unlink button**
 
-Replace `archon-ui-main/src/features/projects/skills/components/SystemCard.tsx` with:
+Replace `cortex-ui/src/features/projects/skills/components/SystemCard.tsx` with:
 
 ```typescript
 import type { SystemWithSkills } from "../types";
@@ -1317,7 +1317,7 @@ Pass `onUnlink` to `SystemCard`:
 **Step 5: Check TypeScript**
 
 ```bash
-cd archon-ui-main && npx tsc --noEmit 2>&1 | grep "src/features/projects/skills"
+cd cortex-ui && npx tsc --noEmit 2>&1 | grep "src/features/projects/skills"
 ```
 
 Expected: No errors.
@@ -1325,16 +1325,16 @@ Expected: No errors.
 **Step 6: Run Biome**
 
 ```bash
-cd archon-ui-main && npm run biome:fix -- src/features/projects/skills/
+cd cortex-ui && npm run biome:fix -- src/features/projects/skills/
 ```
 
 **Step 7: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/skills/services/skillService.ts \
-        archon-ui-main/src/features/projects/skills/hooks/useSkillQueries.ts \
-        archon-ui-main/src/features/projects/skills/components/SystemCard.tsx \
-        archon-ui-main/src/features/projects/skills/SkillsTab.tsx
+git add cortex-ui/src/features/projects/skills/services/skillService.ts \
+        cortex-ui/src/features/projects/skills/hooks/useSkillQueries.ts \
+        cortex-ui/src/features/projects/skills/components/SystemCard.tsx \
+        cortex-ui/src/features/projects/skills/SkillsTab.tsx
 git commit -m "feat: add Unlink system action to SystemCard in Skills tab"
 ```
 
@@ -1345,33 +1345,33 @@ git commit -m "feat: add Unlink system action to SystemCard in Skills tab"
 **Step 1: Apply DB migration 015 if not already applied**
 
 ```bash
-docker cp migration/0.1.0/015_add_project_system_registrations.sql archon-supabase-db:/tmp/015.sql
-docker exec archon-supabase-db psql -U postgres -d postgres -f /tmp/015.sql
+docker cp migration/0.1.0/015_add_project_system_registrations.sql cortex-supabase-db:/tmp/015.sql
+docker exec cortex-supabase-db psql -U postgres -d postgres -f /tmp/015.sql
 ```
 
 Expected: `CREATE TABLE` or `already exists` — no errors.
 
-**Step 2: Restart the Archon backend**
+**Step 2: Restart the Cortex backend**
 
 ```bash
-docker compose restart archon-server
+docker compose restart cortex-server
 ```
 
 Wait ~10 seconds, then check logs:
 
 ```bash
-docker compose logs archon-server 2>&1 | grep -E "(Skills seeded|Seeded|seed)" | head -10
+docker compose logs cortex-server 2>&1 | grep -E "(Skills seeded|Seeded|seed)" | head -10
 ```
 
 Expected: Log lines like `Skills seeded: 3 created, 0 updated, 0 unchanged`.
 
 **Step 3: Verify skills appear in UI**
 
-Open the Archon UI → Settings → Skills (or any project → Skills tab). Confirm `archon-memory`, `archon-skill-sync`, and `archon-bootstrap` appear in the registry.
+Open the Cortex UI → Settings → Skills (or any project → Skills tab). Confirm `cortex-memory`, `cortex-skill-sync`, and `cortex-bootstrap` appear in the registry.
 
 **Step 4: Test bootstrap MCP action manually**
 
-In a Claude Code session with the Archon MCP connected, run:
+In a Claude Code session with the Cortex MCP connected, run:
 
 ```
 manage_skills(action="bootstrap")
@@ -1381,18 +1381,18 @@ Expected JSON response:
 ```json
 {
   "success": true,
-  "skills": [{"name": "archon-memory", "content": "---\n...", "display_name": "..."}],
+  "skills": [{"name": "cortex-memory", "content": "---\n...", "display_name": "..."}],
   "system": null,
   "install_path": "~/.claude/skills",
   "message": "Bootstrap complete: 3 skills ready to install"
 }
 ```
 
-**Step 5: Run `/archon-bootstrap` via the skill**
+**Step 5: Run `/cortex-bootstrap` via the skill**
 
-If the `archon-bootstrap` SKILL.md is already installed (or copy it manually), run `/archon-bootstrap` in a Claude Code session for any project. Verify:
-- Skills written to `~/.claude/skills/archon-memory/SKILL.md`, etc.
-- `.claude/archon-state.json` updated with `system_fingerprint`, `system_name`, `last_bootstrap`
+If the `cortex-bootstrap` SKILL.md is already installed (or copy it manually), run `/cortex-bootstrap` in a Claude Code session for any project. Verify:
+- Skills written to `~/.claude/skills/cortex-memory/SKILL.md`, etc.
+- `.claude/cortex-state.json` updated with `system_fingerprint`, `system_name`, `last_bootstrap`
 - System appears in project Skills tab within 30 seconds (or after a manual page refresh)
 
 **Step 6: Test Remove and Unlink in UI**

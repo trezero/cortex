@@ -6,14 +6,14 @@
 
 ## Overview
 
-Enable Archon agents to autonomously identify gaps in local repository context, query the global Vector DB/RAG archive, and materialize relevant information into permanent, version-controlled Markdown documentation within the project's `.archon/` directory.
+Enable Cortex agents to autonomously identify gaps in local repository context, query the global Vector DB/RAG archive, and materialize relevant information into permanent, version-controlled Markdown documentation within the project's `.cortex/` directory.
 
 ## Key Decisions
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Trigger model | Agent-initiated (autonomous) | Agents detect gaps during natural workflow |
-| File location | Per-project repo (`.archon/knowledge/`) | Immediate local benefit, version-controlled |
+| File location | Per-project repo (`.cortex/knowledge/`) | Immediate local benefit, version-controlled |
 | Agent scope | Protocol in codebase-analyst + MCP tool for all agents | Hard-coded escalation + opportunistic use |
 | Synthesis | PydanticAI SynthesizerAgent | Consistent with existing agent architecture |
 | Promotion threshold | Agent judgment (no numeric cutoff) | Leverages LLM reasoning over arbitrary scores |
@@ -23,10 +23,10 @@ Enable Archon agents to autonomously identify gaps in local repository context, 
 
 ## 1. Database Schema
 
-### New table: `archon_materialization_history`
+### New table: `cortex_materialization_history`
 
 ```sql
-CREATE TABLE archon_materialization_history (
+CREATE TABLE cortex_materialization_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id TEXT NOT NULL,
     project_path TEXT NOT NULL,
@@ -45,9 +45,9 @@ CREATE TABLE archon_materialization_history (
     metadata JSONB DEFAULT '{}'
 );
 
-CREATE INDEX idx_mat_history_project ON archon_materialization_history(project_id);
-CREATE INDEX idx_mat_history_status ON archon_materialization_history(status);
-CREATE INDEX idx_mat_history_topic ON archon_materialization_history(topic);
+CREATE INDEX idx_mat_history_project ON cortex_materialization_history(project_id);
+CREATE INDEX idx_mat_history_status ON cortex_materialization_history(status);
+CREATE INDEX idx_mat_history_topic ON cortex_materialization_history(topic);
 ```
 
 Migration: `018_add_materialization_history.sql`
@@ -64,7 +64,7 @@ Orchestrator coordinating the full pipeline:
 4. Passes chunks to `SynthesizerAgent`
 5. Calls `IndexerService` to write file and update index
 6. Logs to `materialization_history` table
-7. Creates progress entry in `archon_progress`
+7. Creates progress entry in `cortex_progress`
 8. Returns `{success, file_path, filename, word_count}`
 
 Key methods:
@@ -96,7 +96,7 @@ File writer and index maintainer:
 - `async update_index(project_path) -> None`
 - `async remove_file(project_path, filename) -> None`
 
-Writes to `{project_path}/.archon/knowledge/{filename}`, creates directories if needed. Regenerates `.archon/index.md` on every write/remove.
+Writes to `{project_path}/.cortex/knowledge/{filename}`, creates directories if needed. Regenerates `.cortex/index.md` on every write/remove.
 
 ## 3. API Endpoints
 
@@ -109,7 +109,7 @@ GET    /api/materialization/{id}              — Single record
 PUT    /api/materialization/{id}/access       — Bump access_count and last_accessed_at
 PUT    /api/materialization/{id}/status       — Update status (active/stale/archived)
 DELETE /api/materialization/{id}              — Remove record, delete file, update index
-GET    /api/materialization/progress/{id}     — Reuses archon_progress polling
+GET    /api/materialization/progress/{id}     — Reuses cortex_progress polling
 ```
 
 ### MCP Tools (`python/src/mcp_server/features/materialization/materialization_tools.py`)
@@ -139,7 +139,7 @@ Added to `.claude/agents/codebase-analyst.md`:
 ## Context Escalation Protocol
 
 Before analyzing a topic:
-1. Check .archon/index.md and local project files for existing context
+1. Check .cortex/index.md and local project files for existing context
 2. If the topic is missing or the local docs are insufficient:
    - Call materialize_knowledge with the topic and project details
    - Wait for materialization to complete
@@ -160,12 +160,12 @@ Before analyzing a topic:
 ### ExecutionLogs — KNOWLEDGE_PROMOTION log type
 
 - New log event type for materialization operations
-- Progress entries appear in active operations list via `archon_progress`
-- Log entries: "Materializing: {topic} -> {project}/.archon/knowledge/{filename}"
+- Progress entries appear in active operations list via `cortex_progress`
+- Log entries: "Materializing: {topic} -> {project}/.cortex/knowledge/{filename}"
 
 ### Toast notifications
 
-- On complete: "Archon materialized '{topic}' to {project}/.archon/knowledge/{filename}"
+- On complete: "Cortex materialized '{topic}' to {project}/.cortex/knowledge/{filename}"
 - On failure: "Failed to materialize '{topic}': {error}"
 - Triggered by polling progress state transitions
 
@@ -186,7 +186,7 @@ useMaterializationQueries.ts
 
 ```markdown
 ---
-archon_source: vector_archive
+cortex_source: vector_archive
 materialized_at: 2026-03-08T14:30:00Z
 topic: "Auth Middleware Logic"
 source_urls:
@@ -214,7 +214,7 @@ Slugified from topic: "Auth Middleware Logic" -> `auth-middleware-logic.md`. Col
 
 ```
 project-repo/
-└── .archon/
+└── .cortex/
     ├── index.md
     └── knowledge/
         ├── auth-middleware-logic.md
@@ -226,13 +226,13 @@ Both `index.md` and knowledge files are version-controlled.
 ## 7. End-to-End Flow
 
 ```
-1. Agent reads .archon/index.md -> topic not listed
+1. Agent reads .cortex/index.md -> topic not listed
 2. Agent calls materialize_knowledge(topic, project_id, project_path)
 3. MCP tool -> POST /api/materialization/execute
 4. MaterializationService:
    a. Checks materialization_history -> no existing or pending record
    b. Creates pending record as concurrency claim
-   c. Creates archon_progress entry
+   c. Creates cortex_progress entry
    d. Calls RAGService.search_documents(topic)
    e. Filters chunks (min 50 chars to skip navigation fragments)
    f. Passes chunks to SynthesizerAgent

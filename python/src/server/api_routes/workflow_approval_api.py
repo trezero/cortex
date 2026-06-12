@@ -97,7 +97,7 @@ async def resolve_approval(approval_id: str, request: ResolveApprovalRequest):
                 try:
                     async with httpx.AsyncClient(timeout=10.0) as http_client:
                         await http_client.post(
-                            f"{base_url}/api/archon/workflows/{run_id}/resume",
+                            f"{base_url}/api/cortex/workflows/{run_id}/resume",
                             json={"approval_id": approval_id, "decision": request.decision},
                         )
                 except httpx.HTTPError as http_err:

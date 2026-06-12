@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the actual naming conventions used throughout Archon's codebase based on current implementation patterns. All examples reference real files where these patterns are implemented.
+This document describes the actual naming conventions used throughout Cortex's codebase based on current implementation patterns. All examples reference real files where these patterns are implemented.
 
 ## Backend API Endpoints
 
@@ -49,7 +49,7 @@ From `python/src/server/api_routes/`:
 ## Frontend Service Methods
 
 ### Service Object Pattern
-**Reference**: `archon-ui-main/src/features/projects/services/projectService.ts`
+**Reference**: `cortex-ui/src/features/projects/services/projectService.ts`
 
 Services are exported as objects with async methods:
 ```typescript
@@ -84,15 +84,15 @@ Actual patterns from service files:
 - `deleteTask(id)` - Soft delete pattern
 
 ### Service File Locations
-- **Projects**: `archon-ui-main/src/features/projects/services/projectService.ts`
-- **Tasks**: `archon-ui-main/src/features/projects/tasks/services/taskService.ts`
-- **Knowledge**: `archon-ui-main/src/features/knowledge/services/knowledgeService.ts`
-- **Progress**: `archon-ui-main/src/features/progress/services/progressService.ts`
+- **Projects**: `cortex-ui/src/features/projects/services/projectService.ts`
+- **Tasks**: `cortex-ui/src/features/projects/tasks/services/taskService.ts`
+- **Knowledge**: `cortex-ui/src/features/knowledge/services/knowledgeService.ts`
+- **Progress**: `cortex-ui/src/features/progress/services/progressService.ts`
 
 ## React Hook Naming
 
 ### Query Hooks
-**Reference**: `archon-ui-main/src/features/projects/tasks/hooks/useTaskQueries.ts`
+**Reference**: `cortex-ui/src/features/projects/tasks/hooks/useTaskQueries.ts`
 
 Standard patterns:
 - `use[Resource]()` - List query (e.g., `useProjects`)
@@ -105,7 +105,7 @@ Standard patterns:
 - `useDelete[Resource]()` - Deletion mutation
 
 ### Utility Hooks
-**Reference**: `archon-ui-main/src/features/ui/hooks/`
+**Reference**: `cortex-ui/src/features/ui/hooks/`
 - `useSmartPolling()` - Visibility-aware polling
 - `useToast()` - Toast notifications
 - `useDebounce()` - Debounced values
@@ -113,7 +113,7 @@ Standard patterns:
 ## Type Naming Conventions
 
 ### Type Definition Patterns
-**Reference**: `archon-ui-main/src/features/projects/types/`
+**Reference**: `cortex-ui/src/features/projects/types/`
 
 **Entity Types**:
 - `Project` - Core entity type
@@ -127,7 +127,7 @@ Standard patterns:
 
 **Database Types**:
 - `DatabaseTaskStatus` - Exact database values
-**Location**: `archon-ui-main/src/features/projects/tasks/types/task.ts`
+**Location**: `cortex-ui/src/features/projects/tasks/types/task.ts`
 Values: `"todo" | "doing" | "review" | "done"`
 
 ### Type File Organization
@@ -156,12 +156,12 @@ Examples:
 ## Component Naming
 
 ### Page Components
-**Location**: `archon-ui-main/src/pages/`
+**Location**: `cortex-ui/src/pages/`
 - `[Feature]Page.tsx` - Top-level pages
 - `[Feature]View.tsx` - Main view components
 
 ### Feature Components
-**Location**: `archon-ui-main/src/features/{feature}/components/`
+**Location**: `cortex-ui/src/features/{feature}/components/`
 - `[Entity]Card.tsx` - Card displays
 - `[Entity]List.tsx` - List containers
 - `[Entity]Form.tsx` - Form components
@@ -169,14 +169,14 @@ Examples:
 - `Edit[Entity]Modal.tsx` - Edit modals
 
 ### Shared Components
-**Location**: `archon-ui-main/src/features/ui/primitives/`
+**Location**: `cortex-ui/src/features/ui/primitives/`
 - Radix UI-based primitives
 - Generic, reusable components
 
 ## State Variable Naming
 
 ### Loading States
-**Examples from**: `archon-ui-main/src/features/projects/views/ProjectsView.tsx`
+**Examples from**: `cortex-ui/src/features/projects/views/ProjectsView.tsx`
 - `isLoading` - Generic loading
 - `is[Action]ing` - Specific operations (e.g., `isSwitchingProject`)
 - `[action]ingIds` - Sets of items being processed
@@ -192,13 +192,13 @@ Examples:
 ## Constants and Enums
 
 ### Status Values
-**Location**: `archon-ui-main/src/features/projects/tasks/types/task.ts`
+**Location**: `cortex-ui/src/features/projects/tasks/types/task.ts`
 Database values used directly - no mapping layers:
 - Task statuses: `"todo"`, `"doing"`, `"review"`, `"done"`
 - Operation statuses: `"pending"`, `"processing"`, `"completed"`, `"failed"`
 
 ### Time Constants
-**Location**: `archon-ui-main/src/features/shared/config/queryPatterns.ts`
+**Location**: `cortex-ui/src/features/shared/config/queryPatterns.ts`
 - `STALE_TIMES.instant` - 0ms
 - `STALE_TIMES.realtime` - 3 seconds
 - `STALE_TIMES.frequent` - 5 seconds

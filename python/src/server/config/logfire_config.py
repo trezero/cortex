@@ -1,5 +1,5 @@
 """
-Unified Logging Configuration for Archon (2025 Best Practices)
+Unified Logging Configuration for Cortex (2025 Best Practices)
 
 This module provides a clean, unified logging setup with optional Pydantic Logfire integration.
 Simple toggle: LOGFIRE_ENABLED=true/false controls all logging behavior.
@@ -51,7 +51,7 @@ def is_logfire_enabled() -> bool:
 
 
 def setup_logfire(
-    token: str | None = None, environment: str = "development", service_name: str = "archon-server"
+    token: str | None = None, environment: str = "development", service_name: str = "cortex-server"
 ) -> None:
     """
     Configure logging with optional Logfire integration.

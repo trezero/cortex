@@ -36,7 +36,7 @@ class HybridSearchStrategy:
         filter_metadata: dict | None = None,
     ) -> list[dict[str, Any]]:
         """
-        Perform hybrid search on archon_crawled_pages table using the PostgreSQL
+        Perform hybrid search on cortex_crawled_pages table using the PostgreSQL
         hybrid search function that combines vector and full-text search.
 
         Args:
@@ -62,7 +62,7 @@ class HybridSearchStrategy:
 
                 # Call the hybrid search PostgreSQL function
                 response = self.supabase_client.rpc(
-                    "hybrid_search_archon_crawled_pages",
+                    "hybrid_search_cortex_crawled_pages",
                     {
                         "query_embedding": query_embedding,
                         "query_text": query,
@@ -127,7 +127,7 @@ class HybridSearchStrategy:
         source_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """
-        Perform hybrid search on archon_code_examples table using the PostgreSQL
+        Perform hybrid search on cortex_code_examples table using the PostgreSQL
         hybrid search function that combines vector and full-text search.
 
         Args:
@@ -164,7 +164,7 @@ class HybridSearchStrategy:
 
                 # Call the hybrid search PostgreSQL function
                 response = self.supabase_client.rpc(
-                    "hybrid_search_archon_code_examples",
+                    "hybrid_search_cortex_code_examples",
                     {
                         "query_embedding": query_embedding,
                         "query_text": query,

@@ -1,8 +1,8 @@
 """
-Configuration module for Archon
+Configuration module for Cortex
 
 This module provides configuration management and service discovery
-for the Archon microservices architecture.
+for the Cortex microservices architecture.
 """
 
 from .service_discovery import (

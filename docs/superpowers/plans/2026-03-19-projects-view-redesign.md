@@ -17,46 +17,46 @@
 ### New Files (Frontend)
 | File | Responsibility |
 |------|---------------|
-| `archon-ui-main/src/features/projects/components/ProjectFilterBar.tsx` | Filter bar: Active toggle, System dropdown, Tags, Group, Search, View toggle, +New |
-| `archon-ui-main/src/features/projects/components/ProjectGrid.tsx` | CSS Grid container rendering ProjectGridCards |
-| `archon-ui-main/src/features/projects/components/ProjectGridCard.tsx` | Compact card: title, system badge, task pills, dirty dot, activity |
-| `archon-ui-main/src/features/projects/components/ProjectTable.tsx` | Sortable table with sticky header |
-| `archon-ui-main/src/features/projects/components/ProjectTableRow.tsx` | Individual table row |
-| `archon-ui-main/src/features/projects/components/SystemBadge.tsx` | Reusable OS-colored system badge |
-| `archon-ui-main/src/features/projects/hooks/useSystemQueries.ts` | Query hook + key factory for global systems list |
-| `archon-ui-main/src/features/projects/hooks/useProjectFilters.ts` | Filter state hook (Active toggle, system, tags, group, search, view mode) with localStorage persistence |
-| `archon-ui-main/src/features/projects/services/systemService.ts` | API client for `GET /api/systems` |
+| `cortex-ui/src/features/projects/components/ProjectFilterBar.tsx` | Filter bar: Active toggle, System dropdown, Tags, Group, Search, View toggle, +New |
+| `cortex-ui/src/features/projects/components/ProjectGrid.tsx` | CSS Grid container rendering ProjectGridCards |
+| `cortex-ui/src/features/projects/components/ProjectGridCard.tsx` | Compact card: title, system badge, task pills, dirty dot, activity |
+| `cortex-ui/src/features/projects/components/ProjectTable.tsx` | Sortable table with sticky header |
+| `cortex-ui/src/features/projects/components/ProjectTableRow.tsx` | Individual table row |
+| `cortex-ui/src/features/projects/components/SystemBadge.tsx` | Reusable OS-colored system badge |
+| `cortex-ui/src/features/projects/hooks/useSystemQueries.ts` | Query hook + key factory for global systems list |
+| `cortex-ui/src/features/projects/hooks/useProjectFilters.ts` | Filter state hook (Active toggle, system, tags, group, search, view mode) with localStorage persistence |
+| `cortex-ui/src/features/projects/services/systemService.ts` | API client for `GET /api/systems` |
 
 ### New Files (Backend / Plugin)
 | File | Responsibility |
 |------|---------------|
 | `migration/0.1.0/023_add_git_dirty_to_registrations.sql` | Add `git_dirty`, `git_dirty_checked_at` columns |
-| `integrations/claude-code/plugins/archon-memory/src/git_utils.py` | Shared `check_git_dirty()` and `load_system_id()` helpers for hooks |
+| `integrations/claude-code/plugins/cortex-memory/src/git_utils.py` | Shared `check_git_dirty()` and `load_system_id()` helpers for hooks |
 
 ### Modified Files (Frontend)
 | File | Change |
 |------|--------|
-| `archon-ui-main/src/features/projects/types/project.ts` | Add `tags`, `parent_project_id`, `system_registrations`, `has_uncommitted_changes` to Project interface |
-| `archon-ui-main/src/features/projects/views/ProjectsView.tsx` | Replace horizontal list + sidebar mode with filter bar + grid/table + detail area |
-| `archon-ui-main/src/features/projects/hooks/useProjectQueries.ts` | Remove single-pin enforcement from useUpdateProject optimistic update |
-| `archon-ui-main/src/features/projects/services/projectService.ts` | No change needed — response shape handled by type update |
+| `cortex-ui/src/features/projects/types/project.ts` | Add `tags`, `parent_project_id`, `system_registrations`, `has_uncommitted_changes` to Project interface |
+| `cortex-ui/src/features/projects/views/ProjectsView.tsx` | Replace horizontal list + sidebar mode with filter bar + grid/table + detail area |
+| `cortex-ui/src/features/projects/hooks/useProjectQueries.ts` | Remove single-pin enforcement from useUpdateProject optimistic update |
+| `cortex-ui/src/features/projects/services/projectService.ts` | No change needed — response shape handled by type update |
 
 ### Modified Files (Backend)
 | File | Change |
 |------|--------|
 | `python/src/server/services/projects/project_service.py` | Add batch query for system registrations in `list_projects`; remove single-pin enforcement from `update_project` |
 | `python/src/server/api_routes/projects_api.py` | Include system registration data in list response; add `PUT .../git-status` endpoint |
-| `integrations/claude-code/plugins/archon-memory/src/archon_client.py` | Add `report_git_status()` method |
-| `integrations/claude-code/plugins/archon-memory/scripts/session_end_hook.py` | Add git status capture and report |
-| `integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py` | Add git status capture and report |
+| `integrations/claude-code/plugins/cortex-memory/src/cortex_client.py` | Add `report_git_status()` method |
+| `integrations/claude-code/plugins/cortex-memory/scripts/session_end_hook.py` | Add git status capture and report |
+| `integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py` | Add git status capture and report |
 
 ### Removed Files
 | File | Reason |
 |------|--------|
-| `archon-ui-main/src/features/projects/components/ProjectList.tsx` | Replaced by ProjectGrid |
-| `archon-ui-main/src/features/projects/components/ProjectCard.tsx` | Replaced by ProjectGridCard |
-| `archon-ui-main/src/features/projects/components/ProjectCardActions.tsx` | Integrated into ProjectGridCard |
-| `archon-ui-main/src/features/projects/components/ProjectHeader.tsx` | Replaced by ProjectFilterBar |
+| `cortex-ui/src/features/projects/components/ProjectList.tsx` | Replaced by ProjectGrid |
+| `cortex-ui/src/features/projects/components/ProjectCard.tsx` | Replaced by ProjectGridCard |
+| `cortex-ui/src/features/projects/components/ProjectCardActions.tsx` | Integrated into ProjectGridCard |
+| `cortex-ui/src/features/projects/components/ProjectHeader.tsx` | Replaced by ProjectFilterBar |
 
 ---
 
@@ -72,7 +72,7 @@
 -- Adds git dirty tracking to project-system registrations for the Projects view
 -- uncommitted changes indicator.
 
-ALTER TABLE archon_project_system_registrations
+ALTER TABLE cortex_project_system_registrations
   ADD COLUMN IF NOT EXISTS git_dirty boolean DEFAULT false,
   ADD COLUMN IF NOT EXISTS git_dirty_checked_at timestamptz;
 ```
@@ -84,7 +84,7 @@ Expected: ALTER TABLE (no errors)
 
 - [ ] **Step 3: Verify columns exist**
 
-Run: `psql $SUPABASE_DB_URL -c "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'archon_project_system_registrations' AND column_name IN ('git_dirty', 'git_dirty_checked_at');"`
+Run: `psql $SUPABASE_DB_URL -c "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'cortex_project_system_registrations' AND column_name IN ('git_dirty', 'git_dirty_checked_at');"`
 Expected: 2 rows returned
 
 - [ ] **Step 4: Commit**
@@ -116,15 +116,15 @@ async def get_system_registrations_for_projects(self, project_ids: list[str]) ->
     if not project_ids:
         return {}
 
-    result = self.supabase_client.table("archon_project_system_registrations") \
-        .select("project_id, system_id, git_dirty, git_dirty_checked_at, archon_systems(id, name, os)") \
+    result = self.supabase_client.table("cortex_project_system_registrations") \
+        .select("project_id, system_id, git_dirty, git_dirty_checked_at, cortex_systems(id, name, os)") \
         .in_("project_id", project_ids) \
         .execute()
 
     registrations: dict[str, list[dict]] = {}
     for row in result.data or []:
         pid = row["project_id"]
-        system = row.get("archon_systems") or {}
+        system = row.get("cortex_systems") or {}
         entry = {
             "system_id": row["system_id"],
             "system_name": system.get("name", ""),
@@ -184,7 +184,7 @@ async def update_git_status(project_id: str, system_id: str, request: Request):
     git_dirty = body.get("git_dirty", False)
 
     supabase = get_supabase_client()
-    result = supabase.from_("archon_project_system_registrations") \
+    result = supabase.from_("cortex_project_system_registrations") \
         .update({
             "git_dirty": git_dirty,
             "git_dirty_checked_at": datetime.now(timezone.utc).isoformat(),
@@ -215,14 +215,14 @@ git commit -m "feat: add git status reporting endpoint for project-system regist
 
 ---
 
-## Task 4: Plugin — Add git status reporting to ArchonClient
+## Task 4: Plugin — Add git status reporting to CortexClient
 
 **Files:**
-- Modify: `integrations/claude-code/plugins/archon-memory/src/archon_client.py`
+- Modify: `integrations/claude-code/plugins/cortex-memory/src/cortex_client.py`
 
 - [ ] **Step 1: Add report_git_status method**
 
-Add to `ArchonClient` class:
+Add to `CortexClient` class:
 
 ```python
 async def report_git_status(self, system_id: str, git_dirty: bool) -> bool:
@@ -242,8 +242,8 @@ async def report_git_status(self, system_id: str, git_dirty: bool) -> bool:
 - [ ] **Step 2: Commit**
 
 ```bash
-git add integrations/claude-code/plugins/archon-memory/src/archon_client.py
-git commit -m "feat: add report_git_status to ArchonClient"
+git add integrations/claude-code/plugins/cortex-memory/src/cortex_client.py
+git commit -m "feat: add report_git_status to CortexClient"
 ```
 
 ---
@@ -251,12 +251,12 @@ git commit -m "feat: add report_git_status to ArchonClient"
 ## Task 5: Plugin — Add git status capture to session hooks
 
 **Files:**
-- Modify: `integrations/claude-code/plugins/archon-memory/scripts/session_end_hook.py`
-- Modify: `integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py`
+- Modify: `integrations/claude-code/plugins/cortex-memory/scripts/session_end_hook.py`
+- Modify: `integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py`
 
 - [ ] **Step 1: Create shared git status helpers**
 
-Create `integrations/claude-code/plugins/archon-memory/src/git_utils.py` with shared helpers used by both hooks:
+Create `integrations/claude-code/plugins/cortex-memory/src/git_utils.py` with shared helpers used by both hooks:
 
 ```python
 import subprocess
@@ -274,8 +274,8 @@ def _check_git_dirty() -> bool:
         return False
 
 def _load_system_id() -> str:
-    """Read system_id from .claude/archon-state.json."""
-    state_path = Path.cwd() / ".claude" / "archon-state.json"
+    """Read system_id from .claude/cortex-state.json."""
+    state_path = Path.cwd() / ".claude" / "cortex-state.json"
     if state_path.is_file():
         try:
             data = _json.loads(state_path.read_text(encoding="utf-8"))
@@ -302,9 +302,9 @@ Add after the LeaveOffPoint materialization block (after line ~113):
                 )
                 if success:
                     status = "dirty" if git_dirty else "clean"
-                    print(f"archon-memory: git status reported ({status})", file=sys.stderr)
+                    print(f"cortex-memory: git status reported ({status})", file=sys.stderr)
             except (asyncio.TimeoutError, Exception) as e:
-                print(f"archon-memory: git status report failed: {e}", file=sys.stderr)
+                print(f"cortex-memory: git status report failed: {e}", file=sys.stderr)
 ```
 
 - [ ] **Step 3: Add git status reporting to session_start_hook**
@@ -318,13 +318,13 @@ Add the same reporting block at the end of `main()`, after context is gathered b
 
 - [ ] **Step 4: Test session end hook locally**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && python integrations/claude-code/plugins/archon-memory/scripts/session_end_hook.py`
-Expected: Should print git status report line to stderr (or "not configured" if Archon is down)
+Run: `cd /home/winadmin/projects/Trinity/cortex && python integrations/claude-code/plugins/cortex-memory/scripts/session_end_hook.py`
+Expected: Should print git status report line to stderr (or "not configured" if Cortex is down)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add integrations/claude-code/plugins/archon-memory/src/git_utils.py integrations/claude-code/plugins/archon-memory/scripts/session_end_hook.py integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py
+git add integrations/claude-code/plugins/cortex-memory/src/git_utils.py integrations/claude-code/plugins/cortex-memory/scripts/session_end_hook.py integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py
 git commit -m "feat: capture and report git dirty status in session hooks"
 ```
 
@@ -333,8 +333,8 @@ git commit -m "feat: capture and report git dirty status in session hooks"
 ## Task 6: Frontend — Project type updates + multi-pin model
 
 **Files:**
-- Modify: `archon-ui-main/src/features/projects/types/project.ts` (lines 44-65)
-- Modify: `archon-ui-main/src/features/projects/hooks/useProjectQueries.ts` (lines 138-144)
+- Modify: `cortex-ui/src/features/projects/types/project.ts` (lines 44-65)
+- Modify: `cortex-ui/src/features/projects/hooks/useProjectQueries.ts` (lines 138-144)
 
 - [ ] **Step 1: Add new fields to Project interface**
 
@@ -372,7 +372,7 @@ In `python/src/server/services/projects/project_service.py`, find the `update_pr
 if update_fields.get("pinned") is True:
     # Unpin any other pinned projects first
     unpin_response = (
-        self.supabase_client.table("archon_projects")
+        self.supabase_client.table("cortex_projects")
         .update({"pinned": False})
         .neq("id", project_id)
         .eq("pinned", True)
@@ -417,13 +417,13 @@ In `useProjectQueries.ts`, update the `onSuccess` handler (~line 162-167) to rem
 
 - [ ] **Step 5: Verify TypeScript compiles**
 
-Run: `cd archon-ui-main && npx tsc --noEmit 2>&1 | head -20`
+Run: `cd cortex-ui && npx tsc --noEmit 2>&1 | head -20`
 Expected: No new errors
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/types/project.ts archon-ui-main/src/features/projects/hooks/useProjectQueries.ts python/src/server/services/projects/project_service.py
+git add cortex-ui/src/features/projects/types/project.ts cortex-ui/src/features/projects/hooks/useProjectQueries.ts python/src/server/services/projects/project_service.py
 git commit -m "feat: add system registration types and enable multi-pin"
 ```
 
@@ -432,8 +432,8 @@ git commit -m "feat: add system registration types and enable multi-pin"
 ## Task 7: Frontend — System service + query hook
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/services/systemService.ts`
-- Create: `archon-ui-main/src/features/projects/hooks/useSystemQueries.ts`
+- Create: `cortex-ui/src/features/projects/services/systemService.ts`
+- Create: `cortex-ui/src/features/projects/hooks/useSystemQueries.ts`
 
 - [ ] **Step 1: Create systemService.ts**
 
@@ -482,13 +482,13 @@ export function useSystems() {
 
 - [ ] **Step 3: Verify TypeScript compiles**
 
-Run: `cd archon-ui-main && npx tsc --noEmit 2>&1 | head -20`
+Run: `cd cortex-ui && npx tsc --noEmit 2>&1 | head -20`
 Expected: No new errors
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/services/systemService.ts archon-ui-main/src/features/projects/hooks/useSystemQueries.ts
+git add cortex-ui/src/features/projects/services/systemService.ts cortex-ui/src/features/projects/hooks/useSystemQueries.ts
 git commit -m "feat: add system service and query hook for projects filter"
 ```
 
@@ -497,7 +497,7 @@ git commit -m "feat: add system service and query hook for projects filter"
 ## Task 8: Frontend — Filter state hook with localStorage persistence
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/hooks/useProjectFilters.ts`
+- Create: `cortex-ui/src/features/projects/hooks/useProjectFilters.ts`
 
 - [ ] **Step 1: Create useProjectFilters hook**
 
@@ -515,9 +515,9 @@ interface SortState {
 }
 
 const STORAGE_KEYS = {
-  activeFilter: "archon_projects_active_filter",
-  viewMode: "archon_projects_view_mode",
-  sort: "archon_projects_sort",
+  activeFilter: "cortex_projects_active_filter",
+  viewMode: "cortex_projects_view_mode",
+  sort: "cortex_projects_sort",
 } as const;
 
 function loadFromStorage<T>(key: string, fallback: T): T {
@@ -674,13 +674,13 @@ export function useProjectFilters() {
 
 - [ ] **Step 2: Verify TypeScript compiles**
 
-Run: `cd archon-ui-main && npx tsc --noEmit 2>&1 | head -20`
+Run: `cd cortex-ui && npx tsc --noEmit 2>&1 | head -20`
 Expected: No new errors
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/hooks/useProjectFilters.ts
+git add cortex-ui/src/features/projects/hooks/useProjectFilters.ts
 git commit -m "feat: add useProjectFilters hook with localStorage persistence"
 ```
 
@@ -689,7 +689,7 @@ git commit -m "feat: add useProjectFilters hook with localStorage persistence"
 ## Task 9: Frontend — SystemBadge component
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/components/SystemBadge.tsx`
+- Create: `cortex-ui/src/features/projects/components/SystemBadge.tsx`
 
 - [ ] **Step 1: Create SystemBadge**
 
@@ -724,7 +724,7 @@ export function SystemBadge({ name, os, className = "" }: SystemBadgeProps) {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/components/SystemBadge.tsx
+git add cortex-ui/src/features/projects/components/SystemBadge.tsx
 git commit -m "feat: add SystemBadge component with OS-based coloring"
 ```
 
@@ -733,7 +733,7 @@ git commit -m "feat: add SystemBadge component with OS-based coloring"
 ## Task 10: Frontend — ProjectFilterBar component
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/components/ProjectFilterBar.tsx`
+- Create: `cortex-ui/src/features/projects/components/ProjectFilterBar.tsx`
 
 - [ ] **Step 1: Create ProjectFilterBar**
 
@@ -754,12 +754,12 @@ Reference the mockup at `.superpowers/brainstorm/47395-1773953249/grid-layout-mo
 
 - [ ] **Step 2: Verify TypeScript compiles**
 
-Run: `cd archon-ui-main && npx tsc --noEmit 2>&1 | head -20`
+Run: `cd cortex-ui && npx tsc --noEmit 2>&1 | head -20`
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/components/ProjectFilterBar.tsx
+git add cortex-ui/src/features/projects/components/ProjectFilterBar.tsx
 git commit -m "feat: add ProjectFilterBar with Active toggle, system/tag filters, and view toggle"
 ```
 
@@ -768,7 +768,7 @@ git commit -m "feat: add ProjectFilterBar with Active toggle, system/tag filters
 ## Task 11: Frontend — ProjectGridCard component
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/components/ProjectGridCard.tsx`
+- Create: `cortex-ui/src/features/projects/components/ProjectGridCard.tsx`
 
 - [ ] **Step 1: Create ProjectGridCard**
 
@@ -789,7 +789,7 @@ Reference mockup at `.superpowers/brainstorm/47395-1773953249/grid-layout-mockup
 - [ ] **Step 2: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/components/ProjectGridCard.tsx
+git add cortex-ui/src/features/projects/components/ProjectGridCard.tsx
 git commit -m "feat: add ProjectGridCard with system badge and uncommitted indicator"
 ```
 
@@ -798,7 +798,7 @@ git commit -m "feat: add ProjectGridCard with system badge and uncommitted indic
 ## Task 12: Frontend — ProjectGrid component
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/components/ProjectGrid.tsx`
+- Create: `cortex-ui/src/features/projects/components/ProjectGrid.tsx`
 
 - [ ] **Step 1: Create ProjectGrid**
 
@@ -823,7 +823,7 @@ Sort: pinned first, then by `updated_at` descending.
 - [ ] **Step 2: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/components/ProjectGrid.tsx
+git add cortex-ui/src/features/projects/components/ProjectGrid.tsx
 git commit -m "feat: add ProjectGrid with CSS grid layout and parent grouping"
 ```
 
@@ -832,8 +832,8 @@ git commit -m "feat: add ProjectGrid with CSS grid layout and parent grouping"
 ## Task 13: Frontend — ProjectTableRow + ProjectTable
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/components/ProjectTableRow.tsx`
-- Create: `archon-ui-main/src/features/projects/components/ProjectTable.tsx`
+- Create: `cortex-ui/src/features/projects/components/ProjectTableRow.tsx`
+- Create: `cortex-ui/src/features/projects/components/ProjectTable.tsx`
 
 - [ ] **Step 1: Create ProjectTableRow**
 
@@ -861,12 +861,12 @@ Props: `projects: Project[]`, `taskCounts`, `selectedProjectId`, `onSelectProjec
 
 - [ ] **Step 3: Verify TypeScript compiles**
 
-Run: `cd archon-ui-main && npx tsc --noEmit 2>&1 | head -20`
+Run: `cd cortex-ui && npx tsc --noEmit 2>&1 | head -20`
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/components/ProjectTableRow.tsx archon-ui-main/src/features/projects/components/ProjectTable.tsx
+git add cortex-ui/src/features/projects/components/ProjectTableRow.tsx cortex-ui/src/features/projects/components/ProjectTable.tsx
 git commit -m "feat: add ProjectTable and ProjectTableRow with sorting and grouping"
 ```
 
@@ -875,7 +875,7 @@ git commit -m "feat: add ProjectTable and ProjectTableRow with sorting and group
 ## Task 14: Frontend — Rewrite ProjectsView to use new components
 
 **Files:**
-- Modify: `archon-ui-main/src/features/projects/views/ProjectsView.tsx`
+- Modify: `cortex-ui/src/features/projects/views/ProjectsView.tsx`
 
 This is the integration task. The current file is ~461 lines and manages horizontal/sidebar layout modes.
 
@@ -946,31 +946,31 @@ Render structure:
 - [ ] **Step 3: Delete old component files**
 
 Delete:
-- `archon-ui-main/src/features/projects/components/ProjectList.tsx`
-- `archon-ui-main/src/features/projects/components/ProjectCard.tsx`
-- `archon-ui-main/src/features/projects/components/ProjectCardActions.tsx`
-- `archon-ui-main/src/features/projects/components/ProjectHeader.tsx`
+- `cortex-ui/src/features/projects/components/ProjectList.tsx`
+- `cortex-ui/src/features/projects/components/ProjectCard.tsx`
+- `cortex-ui/src/features/projects/components/ProjectCardActions.tsx`
+- `cortex-ui/src/features/projects/components/ProjectHeader.tsx`
 
 Verify no other files import them:
 
-Run: `cd archon-ui-main && grep -r "ProjectList\|ProjectCard\|ProjectCardActions\|ProjectHeader" src/ --include="*.tsx" --include="*.ts" -l`
+Run: `cd cortex-ui && grep -r "ProjectList\|ProjectCard\|ProjectCardActions\|ProjectHeader" src/ --include="*.tsx" --include="*.ts" -l`
 
 Expected: Only the deleted files and possibly barrel exports to clean up.
 
 - [ ] **Step 4: Verify the app builds**
 
-Run: `cd archon-ui-main && npx tsc --noEmit && npm run build`
+Run: `cd cortex-ui && npx tsc --noEmit && npm run build`
 Expected: No errors
 
 - [ ] **Step 5: Verify the app runs**
 
-Run: `cd archon-ui-main && npm run dev`
+Run: `cd cortex-ui && npm run dev`
 Open `http://localhost:3737/projects` — verify filter bar renders, grid shows projects, table toggle works, Active toggle filters to pinned only.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add -A archon-ui-main/src/features/projects/
+git add -A cortex-ui/src/features/projects/
 git commit -m "feat: replace horizontal project list with filterable grid/table view"
 ```
 
@@ -1013,7 +1013,7 @@ If possible, create 15-20 test projects to verify:
 - [ ] **Step 5: Commit**
 
 ```bash
-git add -A archon-ui-main/src/features/projects/
+git add -A cortex-ui/src/features/projects/
 git commit -m "feat: polish projects view — empty states, accessibility, dark mode"
 ```
 
@@ -1023,7 +1023,7 @@ git commit -m "feat: polish projects view — empty states, accessibility, dark 
 
 - [ ] **Step 1: Restart Docker services**
 
-Run: `docker compose restart archon-server archon-mcp`
+Run: `docker compose restart cortex-server cortex-mcp`
 
 - [ ] **Step 2: Verify project list includes system data**
 

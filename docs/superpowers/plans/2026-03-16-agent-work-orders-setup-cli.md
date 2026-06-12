@@ -4,7 +4,7 @@
 
 **Goal:** Create an interactive menu-driven Bash setup CLI that guides users through configuring, deploying, and verifying the Agent Work Orders microservice, with a comprehensive status dashboard.
 
-**Architecture:** A single Bash script (`agentWorkOrderSetup.sh`) following the same conventions as the existing `archonSetup.sh`. Served via an MCP server endpoint with URL template substitution. A UI download card alongside the existing setup download. README updated with setup CLI documentation.
+**Architecture:** A single Bash script (`agentWorkOrderSetup.sh`) following the same conventions as the existing `cortexSetup.sh`. Served via an MCP server endpoint with URL template substitution. A UI download card alongside the existing setup download. README updated with setup CLI documentation.
 
 **Tech Stack:** Bash, curl, Python 3 (for safe .env manipulation), FastAPI/Starlette (MCP endpoint), React/TypeScript (UI card)
 
@@ -17,10 +17,10 @@
 | File | Action | Responsibility |
 |------|--------|---------------|
 | `integrations/claude-code/setup/agentWorkOrderSetup.sh` | Create | The main setup CLI script |
-| `python/src/mcp_server/mcp_server.py` | Modify | Add `/archon-setup/agent-work-orders-setup.sh` endpoint |
-| `archon-ui-main/src/features/mcp/components/AgentWorkOrdersSetupDownload.tsx` | Create | UI download card component |
-| `archon-ui-main/src/features/mcp/components/index.ts` | Modify | Export new component |
-| `archon-ui-main/src/features/mcp/views/McpView.tsx` | Modify | Add new download card below existing one |
+| `python/src/mcp_server/mcp_server.py` | Modify | Add `/cortex-setup/agent-work-orders-setup.sh` endpoint |
+| `cortex-ui/src/features/mcp/components/AgentWorkOrdersSetupDownload.tsx` | Create | UI download card component |
+| `cortex-ui/src/features/mcp/components/index.ts` | Modify | Export new component |
+| `cortex-ui/src/features/mcp/views/McpView.tsx` | Modify | Add new download card below existing one |
 | `python/src/agent_work_orders/README.md` | Modify | Add setup CLI documentation section |
 
 ---
@@ -41,8 +41,8 @@ Create `integrations/claude-code/setup/agentWorkOrderSetup.sh` with:
 set -euo pipefail
 
 # ── Template placeholders (substituted by MCP server) ───────────────
-ARCHON_API_URL="${ARCHON_API_URL:-{{ARCHON_API_URL}}}"
-ARCHON_MCP_URL="${ARCHON_MCP_URL:-{{ARCHON_MCP_URL}}}"
+CORTEX_API_URL="${CORTEX_API_URL:-{{CORTEX_API_URL}}}"
+CORTEX_MCP_URL="${CORTEX_MCP_URL:-{{CORTEX_MCP_URL}}}"
 
 # ── Resolve repo root ───────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -57,7 +57,7 @@ fi
 
 ENV_FILE="$REPO_ROOT/.env"
 
-# ── Color helpers (same pattern as archonSetup.sh) ──────────────────
+# ── Color helpers (same pattern as cortexSetup.sh) ──────────────────
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-}" != "dumb" ]; then
   C_RESET=$'\033[0m'; C_BOLD=$'\033[1m'; C_DIM=$'\033[2m'
   C_BLUE=$'\033[34m'; C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'
@@ -308,21 +308,21 @@ show_dashboard() {
   check_config "GITHUB_PAT_TOKEN" || true
 
   ui_header "  Services"
-  check_service "Archon Server" "http://localhost:8181/health" || true
-  check_service "Archon MCP" "http://localhost:8051/health" || true
+  check_service "Cortex Server" "http://localhost:8181/health" || true
+  check_service "Cortex MCP" "http://localhost:8051/health" || true
   check_service "Work Orders" "http://localhost:8053/health" || true
 
   ui_header "  Database"
   local st
   st=$(_env_val "STATE_STORAGE_TYPE")
   if [ "$st" = "supabase" ]; then
-    check_db_table "archon_agent_work_orders" || true
-    check_db_table "archon_agent_work_order_steps" || true
+    check_db_table "cortex_agent_work_orders" || true
+    check_db_table "cortex_agent_work_order_steps" || true
   else
-    printf "  ${C_DIM}-${C_RESET} %-40s %s\n" "archon_agent_work_orders" "skipped (storage=$st)"
-    printf "  ${C_DIM}-${C_RESET} %-40s %s\n" "archon_agent_work_order_steps" "skipped (storage=$st)"
+    printf "  ${C_DIM}-${C_RESET} %-40s %s\n" "cortex_agent_work_orders" "skipped (storage=$st)"
+    printf "  ${C_DIM}-${C_RESET} %-40s %s\n" "cortex_agent_work_order_steps" "skipped (storage=$st)"
   fi
-  check_db_table "archon_configured_repositories" || true
+  check_db_table "cortex_configured_repositories" || true
 
   printf "\n${C_BOLD}${C_CYAN}═══════════════════════════════════════════════${C_RESET}\n\n"
 }
@@ -593,7 +593,7 @@ action_run_migrations() {
   if [ "$st" = "supabase" ]; then
     local code
     code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 \
-      "${sb_url}/rest/v1/archon_agent_work_orders?select=*&limit=0" \
+      "${sb_url}/rest/v1/cortex_agent_work_orders?select=*&limit=0" \
       -H "apikey: ${sb_key}" -H "Authorization: Bearer ${sb_key}" 2>/dev/null || echo "000")
     if [ "$code" != "200" ]; then
       state_missing=true
@@ -603,7 +603,7 @@ action_run_migrations() {
   # Check repositories table (always needed)
   local code
   code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 \
-    "${sb_url}/rest/v1/archon_configured_repositories?select=*&limit=0" \
+    "${sb_url}/rest/v1/cortex_configured_repositories?select=*&limit=0" \
     -H "apikey: ${sb_key}" -H "Authorization: Bearer ${sb_key}" 2>/dev/null || echo "000")
   if [ "$code" != "200" ]; then
     repo_missing=true
@@ -626,7 +626,7 @@ action_run_migrations() {
 
   if [ "$state_missing" = true ]; then
     echo ""
-    ui_warn "State tables missing (archon_agent_work_orders, archon_agent_work_order_steps)"
+    ui_warn "State tables missing (cortex_agent_work_orders, cortex_agent_work_order_steps)"
     local migration_file="$REPO_ROOT/migration/agent_work_orders_state.sql"
     if [ "$has_psql" = true ]; then
       local run_it
@@ -649,7 +649,7 @@ action_run_migrations() {
 
   if [ "$repo_missing" = true ]; then
     echo ""
-    ui_warn "Repository table missing (archon_configured_repositories)"
+    ui_warn "Repository table missing (cortex_configured_repositories)"
     local migration_file="$REPO_ROOT/migration/agent_work_orders_repositories.sql"
     if [ "$has_psql" = true ]; then
       local run_it
@@ -676,9 +676,9 @@ action_run_migrations() {
   verify=$(ask "Verify tables now? (y/n)" "y")
   if [ "$verify" = "y" ] || [ "$verify" = "Y" ]; then
     ui_header "  Verifying..."
-    check_db_table "archon_agent_work_orders" || true
-    check_db_table "archon_agent_work_order_steps" || true
-    check_db_table "archon_configured_repositories" || true
+    check_db_table "cortex_agent_work_orders" || true
+    check_db_table "cortex_agent_work_order_steps" || true
+    check_db_table "cortex_configured_repositories" || true
   fi
 }
 ```
@@ -726,7 +726,7 @@ action_start_docker() {
   done
 
   ui_warn "Service did not become healthy within 30s"
-  ui_info "Check logs: docker compose logs -f archon-agent-work-orders"
+  ui_info "Check logs: docker compose logs -f cortex-agent-work-orders"
 }
 ```
 
@@ -849,8 +849,8 @@ git commit -m "feat: add all menu actions (deps, migrations, start, verify)"
 
 Read `python/src/mcp_server/mcp_server.py` and find:
 - The `_render_setup_sh()` function
-- The `http_archon_setup_sh()` endpoint
-- The route registration block where `mcp.custom_route("/archon-setup.sh", ...)` is called
+- The `http_cortex_setup_sh()` endpoint
+- The route registration block where `mcp.custom_route("/cortex-setup.sh", ...)` is called
 
 - [ ] **Step 2: Add render function for agent work orders setup script**
 
@@ -863,15 +863,15 @@ def _render_agent_work_orders_setup_sh(api_url: str, mcp_url: str) -> str:
         candidate = parent / "integrations" / "claude-code" / "setup" / "agentWorkOrderSetup.sh"
         if candidate.exists():
             content = candidate.read_text()
-            content = content.replace("{{ARCHON_API_URL}}", api_url)
-            content = content.replace("{{ARCHON_MCP_URL}}", mcp_url)
+            content = content.replace("{{CORTEX_API_URL}}", api_url)
+            content = content.replace("{{CORTEX_MCP_URL}}", mcp_url)
             return content
     raise FileNotFoundError("agentWorkOrderSetup.sh template not found")
 ```
 
 - [ ] **Step 3: Add the HTTP endpoint handler**
 
-Add next to the existing `http_archon_setup_sh`:
+Add next to the existing `http_cortex_setup_sh`:
 
 ```python
 async def http_agent_work_orders_setup_sh(request: Request) -> PlainTextResponse:
@@ -886,10 +886,10 @@ async def http_agent_work_orders_setup_sh(request: Request) -> PlainTextResponse
 
 - [ ] **Step 4: Register the route**
 
-Add to the route registration block (next to the existing `/archon-setup.sh` route):
+Add to the route registration block (next to the existing `/cortex-setup.sh` route):
 
 ```python
-mcp.custom_route("/archon-setup/agent-work-orders-setup.sh", methods=["GET"])(http_agent_work_orders_setup_sh)
+mcp.custom_route("/cortex-setup/agent-work-orders-setup.sh", methods=["GET"])(http_agent_work_orders_setup_sh)
 ```
 
 - [ ] **Step 5: Commit MCP endpoint**
@@ -904,13 +904,13 @@ git commit -m "feat: add MCP endpoint for agent work orders setup script"
 ### Task 6: Add UI download card component
 
 **Files:**
-- Create: `archon-ui-main/src/features/mcp/components/AgentWorkOrdersSetupDownload.tsx`
-- Modify: `archon-ui-main/src/features/mcp/components/index.ts`
-- Modify: `archon-ui-main/src/features/mcp/views/McpView.tsx`
+- Create: `cortex-ui/src/features/mcp/components/AgentWorkOrdersSetupDownload.tsx`
+- Modify: `cortex-ui/src/features/mcp/components/index.ts`
+- Modify: `cortex-ui/src/features/mcp/views/McpView.tsx`
 
 - [ ] **Step 1: Create the download card component**
 
-Create `archon-ui-main/src/features/mcp/components/AgentWorkOrdersSetupDownload.tsx`:
+Create `cortex-ui/src/features/mcp/components/AgentWorkOrdersSetupDownload.tsx`:
 
 ```tsx
 import { Download, Wrench } from "lucide-react";
@@ -931,7 +931,7 @@ export function AgentWorkOrdersSetupDownload() {
           </p>
           <div className="flex flex-wrap gap-3 mb-4">
             <a
-              href="/archon-setup/agent-work-orders-setup.sh"
+              href="/cortex-setup/agent-work-orders-setup.sh"
               download="agentWorkOrderSetup.sh"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-medium hover:bg-emerald-500/20 transition-colors"
             >
@@ -953,7 +953,7 @@ export function AgentWorkOrdersSetupDownload() {
 
 - [ ] **Step 2: Export the component from barrel file**
 
-Add to `archon-ui-main/src/features/mcp/components/index.ts`:
+Add to `cortex-ui/src/features/mcp/components/index.ts`:
 
 ```typescript
 export * from "./AgentWorkOrdersSetupDownload";
@@ -961,10 +961,10 @@ export * from "./AgentWorkOrdersSetupDownload";
 
 - [ ] **Step 3: Add the card to McpView**
 
-In `archon-ui-main/src/features/mcp/views/McpView.tsx`:
+In `cortex-ui/src/features/mcp/views/McpView.tsx`:
 1. Add `AgentWorkOrdersSetupDownload` to the import from `"../components"`
 2. Update `useStaggeredEntrance([1, 2, 3, 4], 0.15)` to `useStaggeredEntrance([1, 2, 3, 4, 5], 0.15)` to account for the new card
-3. Insert after the existing `<ArchonSetupDownload />` block (after line 92):
+3. Insert after the existing `<CortexSetupDownload />` block (after line 92):
 
 ```tsx
       {/* Agent Work Orders Setup */}
@@ -976,9 +976,9 @@ In `archon-ui-main/src/features/mcp/views/McpView.tsx`:
 - [ ] **Step 4: Commit UI card**
 
 ```bash
-git add archon-ui-main/src/features/mcp/components/AgentWorkOrdersSetupDownload.tsx \
-       archon-ui-main/src/features/mcp/components/index.ts \
-       archon-ui-main/src/features/mcp/views/McpView.tsx
+git add cortex-ui/src/features/mcp/components/AgentWorkOrdersSetupDownload.tsx \
+       cortex-ui/src/features/mcp/components/index.ts \
+       cortex-ui/src/features/mcp/views/McpView.tsx
 git commit -m "feat: add Agent Work Orders setup download card to MCP page"
 ```
 
@@ -1039,14 +1039,14 @@ The script automatically detects your current setup state and shows a status das
   ! GITHUB_PAT_TOKEN               not set
 
   Services
-  ✓ Archon Server       http://localhost:8181 (healthy)
-  ✓ Archon MCP          http://localhost:8051 (healthy)
+  ✓ Cortex Server       http://localhost:8181 (healthy)
+  ✓ Cortex MCP          http://localhost:8051 (healthy)
   ✗ Work Orders         http://localhost:8053 (not responding)
 
   Database
-  ✓ archon_agent_work_orders       exists
-  ✓ archon_agent_work_order_steps  exists
-  ✓ archon_configured_repositories exists
+  ✓ cortex_agent_work_orders       exists
+  ✓ cortex_agent_work_order_steps  exists
+  ✓ cortex_configured_repositories exists
 
 ═══════════════════════════════════════════════
 ```

@@ -4,14 +4,14 @@
 <div class="section">
   <h3>System Architecture Overview</h3>
   <div class="mockup">
-    <div class="mockup-header">Archon Workflows 2.0 — Component Map</div>
+    <div class="mockup-header">Cortex Workflows 2.0 — Component Map</div>
     <div class="mockup-body" style="padding:24px; font-family:monospace; font-size:12px; line-height:1.6;">
       <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:20px;">
         <!-- Column 1: Clients -->
         <div style="border:1px solid rgba(0,200,255,0.3); border-radius:8px; padding:12px;">
           <div style="color:#0cf; font-weight:bold; margin-bottom:8px; font-size:13px;">CLIENTS</div>
           <div style="background:rgba(0,200,255,0.08); padding:8px; border-radius:4px; margin-bottom:6px;">
-            🌐 Archon Web UI<br>
+            🌐 Cortex Web UI<br>
             <span style="color:#888; font-size:11px;">Rich approval views, DAG visualizer, workflow editor</span>
           </div>
           <div style="background:rgba(0,200,255,0.08); padding:8px; border-radius:4px; margin-bottom:6px;">
@@ -23,9 +23,9 @@
             <span style="color:#888; font-size:11px;">IDE integration, CLI tools</span>
           </div>
         </div>
-        <!-- Column 2: Archon Core -->
+        <!-- Column 2: Cortex Core -->
         <div style="border:2px solid rgba(0,255,100,0.4); border-radius:8px; padding:12px; background:rgba(0,255,100,0.03);">
-          <div style="color:#6f8; font-weight:bold; margin-bottom:8px; font-size:13px;">ARCHON CORE (Python)</div>
+          <div style="color:#6f8; font-weight:bold; margin-bottom:8px; font-size:13px;">CORTEX CORE (Python)</div>
           <div style="background:rgba(0,255,100,0.08); padding:8px; border-radius:4px; margin-bottom:6px; border-left:3px solid #6f8;">
             <strong>DAG Engine</strong><br>
             <span style="color:#888; font-size:11px;">State machine, topological sort, condition eval, HITL pause/resume</span>
@@ -55,7 +55,7 @@
             <span style="color:#888; font-size:11px;">TypeScript, Claude Agent SDK, worktree isolation</span>
           </div>
           <div style="background:rgba(255,100,0,0.08); padding:8px; border-radius:4px; margin-bottom:6px;">
-            ⚙️ Archon Local Executor<br>
+            ⚙️ Cortex Local Executor<br>
             <span style="color:#888; font-size:11px;">Python, Claude CLI subprocess, git worktrees</span>
           </div>
           <div style="background:rgba(255,100,0,0.08); padding:8px; border-radius:4px;">
@@ -70,12 +70,12 @@
         <div style="color:#aaa; font-weight:bold; margin-bottom:8px; font-size:13px;">DATA FLOW</div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:11px;">
           <div>
-            <span style="color:#0cf;">Client → Archon:</span> REST (start workflow, approve, reject)<br>
-            <span style="color:#0cf;">Archon → Client:</span> SSE (state changes, approval requests)
+            <span style="color:#0cf;">Client → Cortex:</span> REST (start workflow, approve, reject)<br>
+            <span style="color:#0cf;">Cortex → Client:</span> SSE (state changes, approval requests)
           </div>
           <div>
-            <span style="color:#f84;">Backend → Archon:</span> REST (register, report step result)<br>
-            <span style="color:#f84;">Archon → Backend:</span> SSE (next nodes, resume signals)
+            <span style="color:#f84;">Backend → Cortex:</span> REST (register, report step result)<br>
+            <span style="color:#f84;">Cortex → Backend:</span> SSE (next nodes, resume signals)
           </div>
         </div>
       </div>

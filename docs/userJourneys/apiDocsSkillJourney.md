@@ -2,11 +2,11 @@
 
 ## Prerequisites
 
-- Archon server running (for extension seeding)
-- Claude Code CLI with Archon MCP connected
-- The `api-docs` skill deployed via `/archon-extension-sync` or `/archon-bootstrap`
+- Cortex server running (for extension seeding)
+- Claude Code CLI with Cortex MCP connected
+- The `api-docs` skill deployed via `/cortex-extension-sync` or `/cortex-bootstrap`
 - The `postman-integration` skill installed (for Postman handoff tests)
-- A FastAPI project available for testing (Archon itself works)
+- A FastAPI project available for testing (Cortex itself works)
 
 ---
 
@@ -14,14 +14,14 @@
 
 **What it tests:** The extension seeding service finds `integrations/claude-code/extensions/api-docs/SKILL.md` and registers it.
 
-- [x] **1.1** Restart the Archon server:
+- [x] **1.1** Restart the Cortex server:
   ```bash
-  docker compose restart archon-server
+  docker compose restart cortex-server
   ```
 
 - [x] **1.2** Check server logs for seeding:
   ```bash
-  docker compose logs archon-server | grep -i "seed"
+  docker compose logs cortex-server | grep -i "seed"
   ```
   **Expected:** The `api-docs` extension appears in the seeding output (created or unchanged).
 
@@ -32,7 +32,7 @@
   **Expected:** `api-docs` appears in the extensions list with the correct description.
 
 - [x] **1.4** Run extension sync in Claude Code:
-  > "/archon-extension-sync"
+  > "/cortex-extension-sync"
 
   **Expected:** `api-docs` skill is synced to the local machine.
 
@@ -44,7 +44,7 @@
 
 ### 2.1 Guard passes in a FastAPI project
 
-- [x] **2.1.1** In the Archon repo, invoke the skill:
+- [x] **2.1.1** In the Cortex repo, invoke the skill:
   > "Use the api-docs skill to audit the API endpoints"
 
   **Expected:** The skill does NOT output the skip message. It proceeds to project discovery and eventually reports documentation gaps.
@@ -62,9 +62,9 @@
 
 ## Journey 3: Project Discovery
 
-**What it tests:** Phase 1 correctly identifies project structure in the Archon codebase.
+**What it tests:** Phase 1 correctly identifies project structure in the Cortex codebase.
 
-- [x] **3.1** Invoke the skill in the Archon repo:
+- [x] **3.1** Invoke the skill in the Cortex repo:
   > "Use the api-docs skill to audit the projects API"
 
 - [x] **3.2** Verify discovery finds the correct structure. Claude should identify:
@@ -171,7 +171,7 @@
 **What it tests:** Phase 5 correctly hands off to the postman-integration skill.
 
 - [x] **7.1** Ensure postman-integration is installed and configured.
-  - postman-integration skill is installed. Postman API not configured (sync_mode=api, configured=false). Git-mode YAML collection exists at `postman/collections/Archon/`.
+  - postman-integration skill is installed. Postman API not configured (sync_mode=api, configured=false). Git-mode YAML collection exists at `postman/collections/Cortex/`.
 
 - [x] **7.2** After retrofit or intercept mode completes, verify Claude:
   - [x] Called `find_postman()` to detect sync mode — confirmed API returns `{"sync_mode":"api","configured":false}`. Git YAML files detected as fallback.
@@ -232,11 +232,11 @@
 | Journey | Status | Notes |
 |---------|--------|-------|
 | 1. Extension Seeding | PASS | All 4 steps pass. MCP session was stale after restart; skill installed manually from repo source. Seeding logs confirm `api-docs` created. API returns correct entry. |
-| 2. Guard Detection | PASS | FastAPI detected in Archon repo (21+ route files). Non-FastAPI directory returns zero matches. 2.2 simulated (no separate non-FastAPI project available). |
+| 2. Guard Detection | PASS | FastAPI detected in Cortex repo (21+ route files). Non-FastAPI directory returns zero matches. 2.2 simulated (no separate non-FastAPI project available). |
 | 3. Project Discovery | PASS | All 7 discovery steps correct: routes in `api_routes/`, services in `services/`, inline models, Pydantic v2, entry point `main.py`, postman-integration available. Multiple FastAPI apps detected (3 non-test). |
 | 4. Retrofit Dry Run | PASS | 25 endpoints scanned, all have gaps. Every endpoint missing: response_model, status_code, responses, return type. All 8 request models missing Field(description). 3 spot-checks confirmed no false positives. |
 | 5. Retrofit Fix All | PASS | 25 endpoints documented across 1 file. 19 response models created, 8 request models annotated, all decorators updated. Zero new ruff errors. All pre-existing docstrings preserved. |
 | 6. Intercept Mode | PASS | GET /api/projects/{project_id}/stats created with all 8 documentation checks passing. Response model, status_code, tags, responses, docstring, Field descriptions, json_schema_extra example, return type annotation. Reused existing TaskService (no unnecessary scaffolding). |
-| 7. Postman Handoff | PASS | find_postman() detected API mode not configured. Git-mode YAML collection found at postman/collections/Archon/. Created Get Project Stats.request.yaml with tests following existing convention. |
+| 7. Postman Handoff | PASS | find_postman() detected API mode not configured. Git-mode YAML collection found at postman/collections/Cortex/. Created Get Project Stats.request.yaml with tests following existing convention. |
 | 8. Edge Cases | PARTIAL | 8.1 PASS (retrofit preserved docs — verified). 8.2-8.6 cannot test without different project types; logic verified via Phase 1 discovery. 8.7 tested on 1 file (full repo deferred). |
 | 9. Trigger Accuracy | PASS | Skill description correctly triggers on "endpoints"/"API route"/"document API"/"audit"/"retrofit" keywords. Does not match "React component" or "database migration". Explicit /api-docs maps correctly. |

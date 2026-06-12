@@ -558,7 +558,7 @@ async def get_knowledge_item_chunks(
         supabase = get_supabase_client()
 
         # First get total count
-        count_query = supabase.from_("archon_crawled_pages").select(
+        count_query = supabase.from_("cortex_crawled_pages").select(
             "id", count="exact", head=True
         )
         count_query = count_query.eq("source_id", source_id)
@@ -570,7 +570,7 @@ async def get_knowledge_item_chunks(
         total = count_result.count if hasattr(count_result, "count") else 0
 
         # Build the main query with pagination
-        query = supabase.from_("archon_crawled_pages").select(
+        query = supabase.from_("cortex_crawled_pages").select(
             "id, source_id, content, metadata, url"
         )
         query = query.eq("source_id", source_id)
@@ -715,7 +715,7 @@ async def get_knowledge_item_code_examples(
 
         # First get total count
         count_result = (
-            supabase.from_("archon_code_examples")
+            supabase.from_("cortex_code_examples")
             .select("id", count="exact", head=True)
             .eq("source_id", source_id)
             .execute()
@@ -724,7 +724,7 @@ async def get_knowledge_item_code_examples(
 
         # Get paginated code examples
         result = (
-            supabase.from_("archon_code_examples")
+            supabase.from_("cortex_code_examples")
             .select("id, source_id, content, summary, metadata")
             .eq("source_id", source_id)
             .order("id", desc=False)  # Deterministic ordering
@@ -957,7 +957,7 @@ async def crawl_knowledge_item(request: KnowledgeItemRequest):
         if request.project_id:
             try:
                 supabase_client = get_supabase_client()
-                supabase_client.table("archon_project_sources").upsert(
+                supabase_client.table("cortex_project_sources").upsert(
                     {
                         "project_id": request.project_id,
                         "source_id": source_id,
@@ -972,7 +972,7 @@ async def crawl_knowledge_item(request: KnowledgeItemRequest):
         # Mark source as in-progress in the database for crash recovery
         try:
             supabase_client = get_supabase_client()
-            supabase_client.table("archon_sources").upsert(
+            supabase_client.table("cortex_sources").upsert(
                 {
                     "source_id": source_id,
                     "url": str(request.url),
@@ -1190,7 +1190,7 @@ async def _perform_inline_ingest(
 
             # Update source metadata with project_id, source_type, and file_hashes
             try:
-                existing = supabase_client.table("archon_sources").select("metadata").eq(
+                existing = supabase_client.table("cortex_sources").select("metadata").eq(
                     "source_id", source_id
                 ).execute()
                 if existing.data:
@@ -1213,7 +1213,7 @@ async def _perform_inline_ingest(
                         else:
                             metadata["file_hashes"] = new_hashes
                     metadata["last_synced"] = datetime.now(timezone.utc).isoformat()
-                    supabase_client.table("archon_sources").update(
+                    supabase_client.table("cortex_sources").update(
                         {"metadata": metadata}
                     ).eq("source_id", source_id).execute()
             except Exception as e:
@@ -1224,7 +1224,7 @@ async def _perform_inline_ingest(
 
             # Persist completion summary to source metadata for durable querying
             try:
-                existing_meta = supabase_client.table("archon_sources").select("metadata").eq(
+                existing_meta = supabase_client.table("cortex_sources").select("metadata").eq(
                     "source_id", source_id
                 ).execute()
                 if existing_meta.data:
@@ -1236,7 +1236,7 @@ async def _perform_inline_ingest(
                         "code_examples_stored": code_examples_stored,
                         "status": "completed",
                     }
-                    supabase_client.table("archon_sources").update(
+                    supabase_client.table("cortex_sources").update(
                         {"metadata": meta}
                     ).eq("source_id", source_id).execute()
             except Exception as e:
@@ -1375,16 +1375,16 @@ async def ingest_inline_documents(request: InlineIngestRequest):
     is_upsert = False
     supabase_client = get_supabase_client()
     try:
-        existing = supabase_client.table("archon_sources").select("source_id").eq(
+        existing = supabase_client.table("cortex_sources").select("source_id").eq(
             "source_id", source_id
         ).execute()
         if existing.data:
             is_upsert = True
             # Delete existing chunks and code examples so we can re-ingest cleanly
-            supabase_client.table("archon_crawled_pages").delete().eq(
+            supabase_client.table("cortex_crawled_pages").delete().eq(
                 "source_id", source_id
             ).execute()
-            supabase_client.table("archon_code_examples").delete().eq(
+            supabase_client.table("cortex_code_examples").delete().eq(
                 "source_id", source_id
             ).execute()
             logger.info(f"Upsert: cleared existing data for source_id={source_id}")
@@ -1437,7 +1437,7 @@ async def sync_inline_documents(request: InlineSyncRequest):
     """
     # Validate source exists
     supabase_client = get_supabase_client()
-    existing = supabase_client.table("archon_sources").select(
+    existing = supabase_client.table("cortex_sources").select(
         "source_id, title, metadata"
     ).eq("source_id", request.source_id).execute()
     if not existing.data:
@@ -1510,10 +1510,10 @@ async def sync_inline_documents(request: InlineSyncRequest):
         if urls_to_delete:
             try:
                 for url in urls_to_delete:
-                    supabase_client.table("archon_crawled_pages").delete().eq(
+                    supabase_client.table("cortex_crawled_pages").delete().eq(
                         "source_id", request.source_id
                     ).eq("url", url).execute()
-                    supabase_client.table("archon_code_examples").delete().eq(
+                    supabase_client.table("cortex_code_examples").delete().eq(
                         "source_id", request.source_id
                     ).eq("url", url).execute()
             except Exception as e:
@@ -1528,7 +1528,7 @@ async def sync_inline_documents(request: InlineSyncRequest):
             source_metadata["file_hashes"] = new_hashes
             source_metadata["last_synced"] = datetime.now(timezone.utc).isoformat()
             try:
-                supabase_client.table("archon_sources").update(
+                supabase_client.table("cortex_sources").update(
                     {"metadata": source_metadata}
                 ).eq("source_id", request.source_id).execute()
             except Exception as e:
@@ -1549,10 +1549,10 @@ async def sync_inline_documents(request: InlineSyncRequest):
         docs_to_process = list(valid_docs)
         sync_diff = None
         try:
-            supabase_client.table("archon_crawled_pages").delete().eq(
+            supabase_client.table("cortex_crawled_pages").delete().eq(
                 "source_id", request.source_id
             ).execute()
-            supabase_client.table("archon_code_examples").delete().eq(
+            supabase_client.table("cortex_code_examples").delete().eq(
                 "source_id", request.source_id
             ).execute()
             logger.info(f"Full sync: cleared existing data for source_id={request.source_id}")
@@ -1621,7 +1621,7 @@ async def append_inline_documents(request: InlineAppendRequest):
     """
     # Validate source exists
     supabase_client = get_supabase_client()
-    existing = supabase_client.table("archon_sources").select(
+    existing = supabase_client.table("cortex_sources").select(
         "source_id, title, metadata"
     ).eq("source_id", request.source_id).execute()
     if not existing.data:
@@ -1799,7 +1799,7 @@ async def _perform_upload_with_progress(
             if upload_source_id:
                 try:
                     sc = get_supabase_client()
-                    existing_meta = sc.table("archon_sources").select("metadata").eq(
+                    existing_meta = sc.table("cortex_sources").select("metadata").eq(
                         "source_id", upload_source_id
                     ).execute()
                     if existing_meta.data:
@@ -1811,7 +1811,7 @@ async def _perform_upload_with_progress(
                             "code_examples_stored": result.get("code_examples_stored", 0),
                             "status": "completed",
                         }
-                        sc.table("archon_sources").update(
+                        sc.table("cortex_sources").update(
                             {"metadata": meta}
                         ).eq("source_id", upload_source_id).execute()
                 except Exception as e:
@@ -1866,7 +1866,7 @@ def _resolve_project_source_filter(
 ) -> str | None:
     """Resolve project_id to comma-separated source_ids using the junction table.
 
-    Uses archon_project_sources as the canonical source for project-source links.
+    Uses cortex_project_sources as the canonical source for project-source links.
     When include_parent is True and the project has a parent_project_id, the parent's
     sources are included in the result (cascading search).
     Results are cached in-memory with a 5-minute TTL.
@@ -1899,7 +1899,7 @@ def _resolve_project_source_filter(
         client = get_supabase_client()
 
         # Get this project's sources from junction table
-        project_sources = client.table("archon_project_sources").select(
+        project_sources = client.table("cortex_project_sources").select(
             "source_id"
         ).eq("project_id", project_id).execute()
         if project_sources.data:
@@ -1907,13 +1907,13 @@ def _resolve_project_source_filter(
 
         # Include parent's sources if requested
         if include_parent:
-            project = client.table("archon_projects").select(
+            project = client.table("cortex_projects").select(
                 "parent_project_id"
             ).eq("id", project_id).maybe_single().execute()
 
             if project.data and project.data.get("parent_project_id"):
                 parent_id = project.data["parent_project_id"]
-                parent_sources = client.table("archon_project_sources").select(
+                parent_sources = client.table("cortex_project_sources").select(
                     "source_id"
                 ).eq("project_id", parent_id).execute()
                 if parent_sources.data:

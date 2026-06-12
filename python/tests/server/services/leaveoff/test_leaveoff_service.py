@@ -67,7 +67,7 @@ async def test_upsert_creates_new_record(service, mock_supabase):
     assert result["next_steps"] == ["Add token refresh"]
 
     # Verify upsert was called on the correct table
-    mock_supabase.table.assert_any_call("archon_leaveoff_points")
+    mock_supabase.table.assert_any_call("cortex_leaveoff_points")
 
 
 @pytest.mark.asyncio

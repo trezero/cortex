@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS workflow_commands (
   variables JSONB DEFAULT '{}',
   version INTEGER NOT NULL DEFAULT 1,
   is_latest BOOLEAN NOT NULL DEFAULT true,
-  project_id UUID REFERENCES archon_projects(id) ON DELETE SET NULL,
+  project_id UUID REFERENCES cortex_projects(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   is_builtin BOOLEAN NOT NULL DEFAULT false,
   deleted_at TIMESTAMPTZ DEFAULT NULL

@@ -50,13 +50,13 @@ def _make_mock_client(junction_data, project_data=None, parent_junction_data=Non
     responses = []
 
     # First call: junction table for project
-    responses.append(("archon_project_sources", junction_data))
-    # If include_parent, second call: archon_projects for parent lookup
+    responses.append(("cortex_project_sources", junction_data))
+    # If include_parent, second call: cortex_projects for parent lookup
     if project_data is not None:
-        responses.append(("archon_projects", project_data))
+        responses.append(("cortex_projects", project_data))
     # If parent has sources, third call: junction table for parent
     if parent_junction_data is not None:
-        responses.append(("archon_project_sources", parent_junction_data))
+        responses.append(("cortex_project_sources", parent_junction_data))
 
     def table_side_effect(table_name):
         idx = call_count["n"]
@@ -71,7 +71,7 @@ def _make_mock_client(junction_data, project_data=None, parent_junction_data=Non
 
         if idx < len(responses):
             _, data = responses[idx]
-            if table_name == "archon_projects":
+            if table_name == "cortex_projects":
                 # maybe_single() chain
                 mock_maybe = MagicMock()
                 mock_eq.maybe_single.return_value = mock_maybe
@@ -89,7 +89,7 @@ def _make_mock_client(junction_data, project_data=None, parent_junction_data=Non
 
 @patch("src.server.api_routes.knowledge_api.get_supabase_client")
 def test_queries_junction_table(mock_get_client):
-    """Should query archon_project_sources for project sources."""
+    """Should query cortex_project_sources for project sources."""
     from src.server.api_routes.knowledge_api import _resolve_project_source_filter
 
     mock_client = _make_mock_client(

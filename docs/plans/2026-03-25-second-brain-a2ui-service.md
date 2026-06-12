@@ -1,23 +1,23 @@
-# Second Brain: A2UI Generation Service for Archon
+# Second Brain: A2UI Generation Service for Cortex
 
 **Date:** 2026-03-25
 **Repo:** `Trinity/second-brain-research-dashboard`
 **Branch:** `feat/a2ui-service`
-**Depends on:** Archon Workflows 2.0 Phases 1-4 (merged to main)
+**Depends on:** Cortex Workflows 2.0 Phases 1-4 (merged to main)
 
 ## Goal
 
-Expose the Second Brain's A2UI component generation pipeline as a standalone REST endpoint that Archon can call for rendering workflow approval payloads. Add containerization so it can run as a Docker service alongside Archon.
+Expose the Second Brain's A2UI component generation pipeline as a standalone REST endpoint that Cortex can call for rendering workflow approval payloads. Add containerization so it can run as a Docker service alongside Cortex.
 
 The Second Brain already has all 59 A2UI components, a content analyzer, layout selector, and LLM-driven generation pipeline. This plan adds the HTTP interface and Docker packaging — no new AI logic needed.
 
 ## Architecture Context
 
-Archon's `A2UIService` (`python/src/server/services/generative_ui/a2ui_service.py`) already calls:
+Cortex's `A2UIService` (`python/src/server/services/generative_ui/a2ui_service.py`) already calls:
 - `POST http://trinity-a2ui:8054/api/a2ui/generate` for custom approval types
 - `GET http://trinity-a2ui:8054/health` to check availability
 
-Archon gracefully degrades when the service is unavailable (returns `None`, falls back to raw markdown). Standard approval types (`plan_review`, `pr_review`, `deploy_gate`) use deterministic templates and never call the A2UI service.
+Cortex gracefully degrades when the service is unavailable (returns `None`, falls back to raw markdown). Standard approval types (`plan_review`, `pr_review`, `deploy_gate`) use deterministic templates and never call the A2UI service.
 
 ## Current State
 
@@ -34,9 +34,9 @@ Archon gracefully degrades when the service is unavailable (returns `None`, fall
 - Standalone REST endpoint (`POST /api/a2ui/generate`)
 - Health check endpoint (`GET /health`)
 - Dockerfile for containerized deployment
-- Request/response Pydantic models matching Archon's `A2UIGenerationRequest`/`A2UIGenerationResponse`
+- Request/response Pydantic models matching Cortex's `A2UIGenerationRequest`/`A2UIGenerationResponse`
 - Environment variable configuration for LLM API keys
-- Docker Compose integration in Archon's `docker-compose.yml`
+- Docker Compose integration in Cortex's `docker-compose.yml`
 
 ## Tech Stack
 
@@ -64,7 +64,7 @@ frontend/
 ```
 agent/main.py                  # Mount a2ui_service_api alongside AG-UI endpoint
 agent/llm_orchestrator.py      # Extract generate() into a reusable async function
-archon/docker-compose.yml      # Add trinity-a2ui service under trinity profile
+cortex/docker-compose.yml      # Add trinity-a2ui service under trinity profile
 ```
 
 ---
@@ -73,12 +73,12 @@ archon/docker-compose.yml      # Add trinity-a2ui service under trinity profile
 
 **File:** `agent/a2ui_request_models.py`
 
-Pydantic models matching Archon's client expectations:
+Pydantic models matching Cortex's client expectations:
 
 ```python
 """Request and response models for the A2UI generation REST API.
 
-These must match the models in Archon's a2ui_models.py.
+These must match the models in Cortex's a2ui_models.py.
 """
 
 from typing import Any
@@ -87,7 +87,7 @@ from pydantic import BaseModel, Field
 
 
 class A2UIGenerationRequest(BaseModel):
-    """Request payload from Archon."""
+    """Request payload from Cortex."""
     content: str = Field(description="Raw content to render (markdown, text, etc.)")
     context: str | None = Field(None, description="Usage context, e.g. 'workflow_approval'")
     content_type: str | None = Field(None, description="Content category, e.g. 'plan_review'")
@@ -105,7 +105,7 @@ class A2UIComponent(BaseModel):
 
 
 class A2UIGenerationResponse(BaseModel):
-    """Response payload to Archon."""
+    """Response payload to Cortex."""
     components: list[A2UIComponent]
     analysis: dict[str, Any] | None = Field(
         None,
@@ -125,7 +125,7 @@ Standalone FastAPI application (or sub-router mountable onto existing app):
 """A2UI Generation REST API.
 
 Exposes the Second Brain's component generation pipeline
-as a synchronous REST endpoint for Archon integration.
+as a synchronous REST endpoint for Cortex integration.
 """
 
 import logging
@@ -157,7 +157,7 @@ app.add_middleware(
 
 @app.get("/health")
 async def health():
-    """Health check for Docker and Archon availability probes."""
+    """Health check for Docker and Cortex availability probes."""
     return {"status": "ok", "service": "trinity-a2ui"}
 
 
@@ -305,9 +305,9 @@ CMD ["uvicorn", "agent.a2ui_service_api:app", "--host", "0.0.0.0", "--port", "80
 
 ---
 
-## Task 6: Docker Compose Integration (in Archon repo)
+## Task 6: Docker Compose Integration (in Cortex repo)
 
-**File to modify:** `archon/docker-compose.yml`
+**File to modify:** `cortex/docker-compose.yml`
 
 Add under the `trinity` profile:
 
@@ -360,7 +360,7 @@ Add a build script that exports the A2UI components as a consumable library:
 
 Create `frontend/vite.lib.config.ts` for library build mode that exports components without bundling React/Tailwind (peer dependencies).
 
-**Archon consumption:** In `archon-ui-main/package.json`:
+**Cortex consumption:** In `cortex-ui/package.json`:
 ```json
 {
   "dependencies": {
@@ -394,7 +394,7 @@ Required environment variables for the A2UI service:
 Write tests for:
 - `test_a2ui_service_api.py` — test `/health` and `/api/a2ui/generate` endpoints with mock LLM
 - `test_a2ui_request_models.py` — validate Pydantic models serialize/deserialize correctly
-- Verify response format matches what Archon's `A2UIClient` expects
+- Verify response format matches what Cortex's `A2UIClient` expects
 
 ---
 
@@ -413,12 +413,12 @@ Write tests for:
        "content_type": "plan_review"
      }'
    ```
-5. Start via Archon's Docker Compose:
+5. Start via Cortex's Docker Compose:
    ```bash
-   cd archon && docker compose --profile trinity up -d
+   cd cortex && docker compose --profile trinity up -d
    ```
-6. Verify Archon can reach it: set `A2UI_SERVICE_URL=http://trinity-a2ui:8054` in Archon's `.env`
-7. Create a custom approval in Archon — verify A2UI components are generated and rendered
+6. Verify Cortex can reach it: set `A2UI_SERVICE_URL=http://trinity-a2ui:8054` in Cortex's `.env`
+7. Create a custom approval in Cortex — verify A2UI components are generated and rendered
 
 ---
 
@@ -427,13 +427,13 @@ Write tests for:
 | What Changed | How to Propagate |
 |---|---|
 | New REST endpoint in Second Brain | `docker compose --profile trinity up --build -d` |
-| Docker Compose changes in Archon | `docker compose --profile trinity up -d` |
-| @trinity/a2ui package (future) | `cd archon-ui-main && npm install` |
-| Environment variables | Add `OPENROUTER_API_KEY` to Archon `.env` |
+| Docker Compose changes in Cortex | `docker compose --profile trinity up -d` |
+| @trinity/a2ui package (future) | `cd cortex-ui && npm install` |
+| Environment variables | Add `OPENROUTER_API_KEY` to Cortex `.env` |
 
 ## Dependencies
 
 - OpenRouter API key for LLM-based component generation
-- Archon must be running with Workflows 2.0
-- Network connectivity between Archon and Second Brain containers
+- Cortex must be running with Workflows 2.0
+- Network connectivity between Cortex and Second Brain containers
 - No new Python package dependencies (uses existing PydanticAI, FastAPI)

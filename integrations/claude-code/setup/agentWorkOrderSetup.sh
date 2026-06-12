@@ -4,12 +4,12 @@
 set -euo pipefail
 
 # ── Template placeholders (substituted by MCP server when served) ────────────
-ARCHON_API_URL="${ARCHON_API_URL:-{{ARCHON_API_URL}}}"
-ARCHON_MCP_URL="${ARCHON_MCP_URL:-{{ARCHON_MCP_URL}}}"
+CORTEX_API_URL="${CORTEX_API_URL:-{{CORTEX_API_URL}}}"
+CORTEX_MCP_URL="${CORTEX_MCP_URL:-{{CORTEX_MCP_URL}}}"
 
 # Fall back to defaults if placeholders were not substituted (script run directly from repo)
-# ARCHON_HOST, _SERVER_PORT, _MCP_PORT are resolved after ENV_FILE is located (below)
-if [ "$ARCHON_API_URL" = "{{ARCHON_API_URL}}" ]; then
+# CORTEX_HOST, _SERVER_PORT, _MCP_PORT are resolved after ENV_FILE is located (below)
+if [ "$CORTEX_API_URL" = "{{CORTEX_API_URL}}" ]; then
   _NEEDS_URL_FALLBACK=true
 else
   _NEEDS_URL_FALLBACK=false
@@ -27,21 +27,21 @@ if [ ! -f "$REPO_ROOT/docker-compose.yml" ]; then
 fi
 ENV_FILE="$REPO_ROOT/.env"
 
-# ── Resolve ARCHON_HOST and service ports from .env ─────────────────────────
+# ── Resolve CORTEX_HOST and service ports from .env ─────────────────────────
 _read_env() { grep "^${1}=" "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2- | sed 's/^["'\'']\|["'\''"]$//g'; }
-ARCHON_HOST="${ARCHON_HOST:-$(_read_env ARCHON_HOST)}"
-ARCHON_HOST="${ARCHON_HOST:-localhost}"
-_SERVER_PORT="${ARCHON_SERVER_PORT:-$(_read_env ARCHON_SERVER_PORT)}"
+CORTEX_HOST="${CORTEX_HOST:-$(_read_env CORTEX_HOST)}"
+CORTEX_HOST="${CORTEX_HOST:-localhost}"
+_SERVER_PORT="${CORTEX_SERVER_PORT:-$(_read_env CORTEX_SERVER_PORT)}"
 _SERVER_PORT="${_SERVER_PORT:-8181}"
-_MCP_PORT="${ARCHON_MCP_PORT:-$(_read_env ARCHON_MCP_PORT)}"
+_MCP_PORT="${CORTEX_MCP_PORT:-$(_read_env CORTEX_MCP_PORT)}"
 _MCP_PORT="${_MCP_PORT:-8051}"
 _WO_PORT="${AGENT_WORK_ORDERS_PORT:-$(_read_env AGENT_WORK_ORDERS_PORT)}"
 _WO_PORT="${_WO_PORT:-8053}"
 
-# Apply URL fallback now that ARCHON_HOST and ports are resolved
+# Apply URL fallback now that CORTEX_HOST and ports are resolved
 if [ "$_NEEDS_URL_FALLBACK" = "true" ]; then
-  ARCHON_API_URL="http://${ARCHON_HOST}:${_SERVER_PORT}"
-  ARCHON_MCP_URL="http://${ARCHON_HOST}:${_MCP_PORT}"
+  CORTEX_API_URL="http://${CORTEX_HOST}:${_SERVER_PORT}"
+  CORTEX_MCP_URL="http://${CORTEX_HOST}:${_MCP_PORT}"
 fi
 
 # ── Color helpers (detect TTY, respect NO_COLOR) ────────────────────────────
@@ -342,9 +342,9 @@ show_dashboard() {
 
   # --- Services ---
   ui_header "  Services"
-  check_service "Archon Server (:${_SERVER_PORT})" "http://${ARCHON_HOST}:${_SERVER_PORT}/health" || true
-  check_service "Archon MCP (:${_MCP_PORT})" "http://${ARCHON_HOST}:${_MCP_PORT}/health" || true
-  check_service "Work Orders (:${_WO_PORT})" "http://${ARCHON_HOST}:${_WO_PORT}/health" || true
+  check_service "Cortex Server (:${_SERVER_PORT})" "http://${CORTEX_HOST}:${_SERVER_PORT}/health" || true
+  check_service "Cortex MCP (:${_MCP_PORT})" "http://${CORTEX_HOST}:${_MCP_PORT}/health" || true
+  check_service "Work Orders (:${_WO_PORT})" "http://${CORTEX_HOST}:${_WO_PORT}/health" || true
 
   # --- Database ---
   ui_header "  Database"
@@ -353,16 +353,16 @@ show_dashboard() {
   storage_type="$(_env_val "STATE_STORAGE_TYPE")"
 
   if [ "$storage_type" = "supabase" ]; then
-    check_db_table "archon_agent_work_orders" || true
-    check_db_table "archon_agent_work_order_steps" || true
+    check_db_table "cortex_agent_work_orders" || true
+    check_db_table "cortex_agent_work_order_steps" || true
   else
     printf "    %s%-36s%s %s-  skipped (STATE_STORAGE_TYPE=%s)%s\n" \
-      "$C_BOLD" "archon_agent_work_orders" "$C_RESET" "$C_DIM" "${storage_type:-memory}" "$C_RESET"
+      "$C_BOLD" "cortex_agent_work_orders" "$C_RESET" "$C_DIM" "${storage_type:-memory}" "$C_RESET"
     printf "    %s%-36s%s %s-  skipped (STATE_STORAGE_TYPE=%s)%s\n" \
-      "$C_BOLD" "archon_agent_work_order_steps" "$C_RESET" "$C_DIM" "${storage_type:-memory}" "$C_RESET"
+      "$C_BOLD" "cortex_agent_work_order_steps" "$C_RESET" "$C_DIM" "${storage_type:-memory}" "$C_RESET"
   fi
 
-  check_db_table "archon_configured_repositories" || true
+  check_db_table "cortex_configured_repositories" || true
 
   echo
 }
@@ -467,7 +467,7 @@ action_configure_env() {
 
   # SERVICE_DISCOVERY_MODE — auto-detect Docker
   local detected_mode="local"
-  if docker info &>/dev/null && docker compose ps --services 2>/dev/null | grep -q "archon-server"; then
+  if docker info &>/dev/null && docker compose ps --services 2>/dev/null | grep -q "cortex-server"; then
     detected_mode="docker_compose"
   fi
   current="$(_env_val "SERVICE_DISCOVERY_MODE")"
@@ -554,8 +554,8 @@ action_run_migrations() {
   if [ "$storage_type" = "supabase" ]; then
     ui_info "Checking state tables (STATE_STORAGE_TYPE=supabase)..."
     local state_ok=true
-    check_db_table "archon_agent_work_orders" || state_ok=false
-    check_db_table "archon_agent_work_order_steps" || state_ok=false
+    check_db_table "cortex_agent_work_orders" || state_ok=false
+    check_db_table "cortex_agent_work_order_steps" || state_ok=false
 
     if [ "$state_ok" = "false" ]; then
       echo
@@ -599,7 +599,7 @@ action_run_migrations() {
   # --- Group 2: Repository table (always needed) ---
   ui_info "Checking repository configuration table..."
   local repo_ok=true
-  check_db_table "archon_configured_repositories" || repo_ok=false
+  check_db_table "cortex_configured_repositories" || repo_ok=false
 
   if [ "$repo_ok" = "false" ]; then
     echo
@@ -639,10 +639,10 @@ action_run_migrations() {
   echo
   ui_info "Verifying tables after migration..."
   if [ "$storage_type" = "supabase" ]; then
-    check_db_table "archon_agent_work_orders" || true
-    check_db_table "archon_agent_work_order_steps" || true
+    check_db_table "cortex_agent_work_orders" || true
+    check_db_table "cortex_agent_work_order_steps" || true
   fi
-  check_db_table "archon_configured_repositories" || true
+  check_db_table "cortex_configured_repositories" || true
   echo
 }
 
@@ -692,18 +692,18 @@ action_start_docker() {
   echo
   ui_info "Waiting for service to become healthy..."
   trap 'kill "$log_pid" 2>/dev/null || true' INT TERM
-  docker compose -f "$REPO_ROOT/docker-compose.yml" logs -f archon-agent-work-orders --since 5s &
+  docker compose -f "$REPO_ROOT/docker-compose.yml" logs -f cortex-agent-work-orders --since 5s &
   local log_pid=$!
   local attempts=0
   local max_attempts=15
   while [ "$attempts" -lt "$max_attempts" ]; do
     local code=""
-    code="$(curl -sf -m 3 -o /dev/null -w "%{http_code}" "http://${ARCHON_HOST}:${_WO_PORT}/health" 2>/dev/null)" || code="000"
+    code="$(curl -sf -m 3 -o /dev/null -w "%{http_code}" "http://${CORTEX_HOST}:${_WO_PORT}/health" 2>/dev/null)" || code="000"
     if [ "$code" = "200" ]; then
       kill "$log_pid" 2>/dev/null || true
       trap - INT TERM
       echo
-      ui_success "Work Orders service is healthy at http://${ARCHON_HOST}:${_WO_PORT}"
+      ui_success "Work Orders service is healthy at http://${CORTEX_HOST}:${_WO_PORT}"
       echo
       return
     fi
@@ -716,7 +716,7 @@ action_start_docker() {
   trap - INT TERM
   echo
   ui_warn "Service did not become healthy within 30 seconds."
-  ui_info "Check logs: docker compose logs -f archon-agent-work-orders"
+  ui_info "Check logs: docker compose logs -f cortex-agent-work-orders"
   echo
 }
 
@@ -848,7 +848,7 @@ action_verify() {
   fi
 
   local svc_code=""
-  svc_code="$(curl -sf -m 3 -o /dev/null -w "%{http_code}" "http://${ARCHON_HOST}:${_WO_PORT}/health" 2>/dev/null)" || svc_code="000"
+  svc_code="$(curl -sf -m 3 -o /dev/null -w "%{http_code}" "http://${CORTEX_HOST}:${_WO_PORT}/health" 2>/dev/null)" || svc_code="000"
   if [ "$svc_code" != "200" ]; then
     issues+=("4/5 - Work Orders service not running (run option [4] or [5])")
   fi

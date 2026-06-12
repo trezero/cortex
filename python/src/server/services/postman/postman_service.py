@@ -23,12 +23,12 @@ class PostmanService:
         return mode if mode in ("api", "git", "disabled") else "disabled"
 
     async def _get_client(self) -> PostmanClient:
-        """Create a PostmanClient using credentials from archon_settings."""
+        """Create a PostmanClient using credentials from cortex_settings."""
         api_key = await credential_service.get_credential("POSTMAN_API_KEY", decrypt=True)
         workspace_id = await credential_service.get_credential("POSTMAN_WORKSPACE_ID", decrypt=False)
 
         if not api_key:
-            raise ValueError("POSTMAN_API_KEY not configured in Archon Settings.")
+            raise ValueError("POSTMAN_API_KEY not configured in Cortex Settings.")
 
         config = PostmanConfig(
             api_key=api_key,

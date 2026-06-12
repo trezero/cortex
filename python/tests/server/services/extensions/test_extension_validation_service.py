@@ -216,7 +216,7 @@ description: A skill with uppercase letters in its name.
 
     def test_valid_kebab_names(self, validator):
         """Various valid kebab-case names should pass."""
-        for name in ["a", "my-skill", "archon-memory", "x-y-z", "skill-v2"]:
+        for name in ["a", "my-skill", "cortex-memory", "x-y-z", "skill-v2"]:
             content = f"""\
 ---
 name: {name}

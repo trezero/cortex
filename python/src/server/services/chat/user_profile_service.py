@@ -1,5 +1,5 @@
 """
-User Profile Service for Archon
+User Profile Service for Cortex
 
 Manages the singleton user profile row used to personalize chat and AI interactions.
 The profile is always at id=1; it is created on first access if missing.

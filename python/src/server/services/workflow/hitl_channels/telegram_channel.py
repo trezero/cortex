@@ -1,6 +1,6 @@
-"""Telegram channel — sends approval notifications via Archon's direct bot.
+"""Telegram channel — sends approval notifications via Cortex's direct bot.
 
-The bot is optional. If ARCHON_TELEGRAM_BOT_TOKEN is not set, this
+The bot is optional. If CORTEX_TELEGRAM_BOT_TOKEN is not set, this
 channel silently does nothing.
 """
 
@@ -11,8 +11,8 @@ from src.server.services.workflow.hitl_models import ApprovalContext
 
 logger = get_logger(__name__)
 
-BOT_TOKEN = os.getenv("ARCHON_TELEGRAM_BOT_TOKEN")
-CHAT_IDS = [cid.strip() for cid in os.getenv("ARCHON_TELEGRAM_CHAT_IDS", "").split(",") if cid.strip()]
+BOT_TOKEN = os.getenv("CORTEX_TELEGRAM_BOT_TOKEN")
+CHAT_IDS = [cid.strip() for cid in os.getenv("CORTEX_TELEGRAM_CHAT_IDS", "").split(",") if cid.strip()]
 
 
 class TelegramChannel:
@@ -54,12 +54,12 @@ class TelegramChannel:
                     ],
                 ]
             )
-            if context.archon_url:
+            if context.cortex_url:
                 keyboard.inline_keyboard.append(
                     [
                         InlineKeyboardButton(
-                            "View in Archon",
-                            url=f"{context.archon_url}/workflows/{context.workflow_run_id}/approvals/{context.approval_id}",
+                            "View in Cortex",
+                            url=f"{context.cortex_url}/workflows/{context.workflow_run_id}/approvals/{context.approval_id}",
                         ),
                     ]
                 )

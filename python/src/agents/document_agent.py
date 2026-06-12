@@ -17,14 +17,14 @@ from typing import Any
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
 
-from .base_agent import ArchonDependencies, BaseAgent
+from .base_agent import CortexDependencies, BaseAgent
 from .mcp_client import get_mcp_client
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class DocumentDependencies(ArchonDependencies):
+class DocumentDependencies(CortexDependencies):
     """Dependencies for document operations."""
 
     project_id: str = ""  # Required but needs default value due to parent class having defaults
@@ -149,7 +149,7 @@ class DocumentAgent(BaseAgent[DocumentDependencies, DocumentOperation]):
 
                 supabase = get_supabase_client()
                 response = (
-                    supabase.table("archon_projects")
+                    supabase.table("cortex_projects")
                     .select("docs")
                     .eq("id", ctx.deps.project_id)
                     .execute()
@@ -180,7 +180,7 @@ class DocumentAgent(BaseAgent[DocumentDependencies, DocumentOperation]):
             try:
                 supabase = get_supabase_client()
                 response = (
-                    supabase.table("archon_projects")
+                    supabase.table("cortex_projects")
                     .select("docs")
                     .eq("id", ctx.deps.project_id)
                     .execute()

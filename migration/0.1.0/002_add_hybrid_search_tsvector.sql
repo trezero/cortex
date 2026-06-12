@@ -14,29 +14,29 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- =====================================================
 
 -- Add ts_vector columns for full-text search if they don't exist
-ALTER TABLE archon_crawled_pages 
+ALTER TABLE cortex_crawled_pages 
 ADD COLUMN IF NOT EXISTS content_search_vector tsvector 
 GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
 
-ALTER TABLE archon_code_examples 
+ALTER TABLE cortex_code_examples 
 ADD COLUMN IF NOT EXISTS content_search_vector tsvector 
 GENERATED ALWAYS AS (to_tsvector('english', content || ' ' || COALESCE(summary, ''))) STORED;
 
 -- Create GIN indexes for fast text search
-CREATE INDEX IF NOT EXISTS idx_archon_crawled_pages_content_search ON archon_crawled_pages USING GIN (content_search_vector);
-CREATE INDEX IF NOT EXISTS idx_archon_code_examples_content_search ON archon_code_examples USING GIN (content_search_vector);
+CREATE INDEX IF NOT EXISTS idx_cortex_crawled_pages_content_search ON cortex_crawled_pages USING GIN (content_search_vector);
+CREATE INDEX IF NOT EXISTS idx_cortex_code_examples_content_search ON cortex_code_examples USING GIN (content_search_vector);
 
 -- Create trigram indexes for fuzzy matching (useful for typos and partial matches)
-CREATE INDEX IF NOT EXISTS idx_archon_crawled_pages_content_trgm ON archon_crawled_pages USING GIN (content gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_archon_code_examples_content_trgm ON archon_code_examples USING GIN (content gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_archon_code_examples_summary_trgm ON archon_code_examples USING GIN (summary gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_cortex_crawled_pages_content_trgm ON cortex_crawled_pages USING GIN (content gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_cortex_code_examples_content_trgm ON cortex_code_examples USING GIN (content gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_cortex_code_examples_summary_trgm ON cortex_code_examples USING GIN (summary gin_trgm_ops);
 
 -- =====================================================
 -- SECTION 2: HYBRID SEARCH FUNCTIONS
 -- =====================================================
 
--- Multi-dimensional hybrid search function for archon_crawled_pages
-CREATE OR REPLACE FUNCTION hybrid_search_archon_crawled_pages_multi(
+-- Multi-dimensional hybrid search function for cortex_crawled_pages
+CREATE OR REPLACE FUNCTION hybrid_search_cortex_crawled_pages_multi(
     query_embedding VECTOR,
     embedding_dimension INTEGER,
     query_text TEXT,
@@ -89,7 +89,7 @@ BEGIN
             cp.metadata,
             cp.source_id,
             1 - (cp.%I <=> $1) AS vector_sim
-        FROM archon_crawled_pages cp
+        FROM cortex_crawled_pages cp
         WHERE cp.metadata @> $4
             AND ($5 IS NULL OR cp.source_id = $5)
             AND cp.%I IS NOT NULL
@@ -106,7 +106,7 @@ BEGIN
             cp.metadata,
             cp.source_id,
             ts_rank_cd(cp.content_search_vector, plainto_tsquery(''english'', $6)) AS text_sim
-        FROM archon_crawled_pages cp
+        FROM cortex_crawled_pages cp
         WHERE cp.metadata @> $4
             AND ($5 IS NULL OR cp.source_id = $5)
             AND cp.content_search_vector @@ plainto_tsquery(''english'', $6)
@@ -144,7 +144,7 @@ END;
 $$;
 
 -- Legacy compatibility function (defaults to 1536D)
-CREATE OR REPLACE FUNCTION hybrid_search_archon_crawled_pages(
+CREATE OR REPLACE FUNCTION hybrid_search_cortex_crawled_pages(
     query_embedding vector(1536),
     query_text TEXT,
     match_count INT DEFAULT 10,
@@ -164,12 +164,12 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN QUERY SELECT * FROM hybrid_search_archon_crawled_pages_multi(query_embedding, 1536, query_text, match_count, filter, source_filter);
+    RETURN QUERY SELECT * FROM hybrid_search_cortex_crawled_pages_multi(query_embedding, 1536, query_text, match_count, filter, source_filter);
 END;
 $$;
 
--- Multi-dimensional hybrid search function for archon_code_examples
-CREATE OR REPLACE FUNCTION hybrid_search_archon_code_examples_multi(
+-- Multi-dimensional hybrid search function for cortex_code_examples
+CREATE OR REPLACE FUNCTION hybrid_search_cortex_code_examples_multi(
     query_embedding VECTOR,
     embedding_dimension INTEGER,
     query_text TEXT,
@@ -224,7 +224,7 @@ BEGIN
             ce.metadata,
             ce.source_id,
             1 - (ce.%I <=> $1) AS vector_sim
-        FROM archon_code_examples ce
+        FROM cortex_code_examples ce
         WHERE ce.metadata @> $4
             AND ($5 IS NULL OR ce.source_id = $5)
             AND ce.%I IS NOT NULL
@@ -242,7 +242,7 @@ BEGIN
             ce.metadata,
             ce.source_id,
             ts_rank_cd(ce.content_search_vector, plainto_tsquery(''english'', $6)) AS text_sim
-        FROM archon_code_examples ce
+        FROM cortex_code_examples ce
         WHERE ce.metadata @> $4
             AND ($5 IS NULL OR ce.source_id = $5)
             AND ce.content_search_vector @@ plainto_tsquery(''english'', $6)
@@ -281,7 +281,7 @@ END;
 $$;
 
 -- Legacy compatibility function (defaults to 1536D)
-CREATE OR REPLACE FUNCTION hybrid_search_archon_code_examples(
+CREATE OR REPLACE FUNCTION hybrid_search_cortex_code_examples(
     query_embedding vector(1536),
     query_text TEXT,
     match_count INT DEFAULT 10,
@@ -302,7 +302,7 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    RETURN QUERY SELECT * FROM hybrid_search_archon_code_examples_multi(query_embedding, 1536, query_text, match_count, filter, source_filter);
+    RETURN QUERY SELECT * FROM hybrid_search_cortex_code_examples_multi(query_embedding, 1536, query_text, match_count, filter, source_filter);
 END;
 $$;
 
@@ -314,10 +314,10 @@ $$;
 -- This is handled automatically by the GENERATED ALWAYS AS columns
 
 -- Add comments to document the new functionality
-COMMENT ON FUNCTION hybrid_search_archon_crawled_pages_multi IS 'Multi-dimensional hybrid search combining vector similarity and full-text search with configurable embedding dimensions';
-COMMENT ON FUNCTION hybrid_search_archon_crawled_pages IS 'Legacy hybrid search function for backward compatibility (uses 1536D embeddings)';
-COMMENT ON FUNCTION hybrid_search_archon_code_examples_multi IS 'Multi-dimensional hybrid search on code examples with configurable embedding dimensions';
-COMMENT ON FUNCTION hybrid_search_archon_code_examples IS 'Legacy hybrid search function for code examples (uses 1536D embeddings)';
+COMMENT ON FUNCTION hybrid_search_cortex_crawled_pages_multi IS 'Multi-dimensional hybrid search combining vector similarity and full-text search with configurable embedding dimensions';
+COMMENT ON FUNCTION hybrid_search_cortex_crawled_pages IS 'Legacy hybrid search function for backward compatibility (uses 1536D embeddings)';
+COMMENT ON FUNCTION hybrid_search_cortex_code_examples_multi IS 'Multi-dimensional hybrid search on code examples with configurable embedding dimensions';
+COMMENT ON FUNCTION hybrid_search_cortex_code_examples IS 'Legacy hybrid search function for code examples (uses 1536D embeddings)';
 
 -- =====================================================
 -- MIGRATION COMPLETE

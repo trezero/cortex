@@ -1,5 +1,5 @@
 """
-Chat Conversation Service for Archon
+Chat Conversation Service for Cortex
 
 Provides CRUD operations for chat conversations including creation, listing,
 retrieval, updating, and soft deletion.
@@ -151,14 +151,14 @@ class ChatService:
 
     def list_categories(self) -> tuple[bool, dict[str, Any]]:
         """
-        List distinct project categories from archon_projects (non-null values only).
+        List distinct project categories from cortex_projects (non-null values only).
 
         Returns:
             Tuple of (success, result_dict)
         """
         try:
             response = (
-                self.supabase_client.table("archon_projects")
+                self.supabase_client.table("cortex_projects")
                 .select("project_category")
                 .not_.is_("project_category", "null")
                 .execute()

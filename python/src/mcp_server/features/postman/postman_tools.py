@@ -128,7 +128,7 @@ def register_postman_tools(mcp: FastMCP):
 
         Args:
             action: The operation to perform
-            project_id: Archon project ID
+            project_id: Cortex project ID
             project_name: Project name for collection naming
             folder_name: Target folder in collection
             request: Request data dict (name, method, url, headers, body, test_script)

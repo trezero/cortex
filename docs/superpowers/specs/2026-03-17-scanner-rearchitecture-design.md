@@ -2,7 +2,7 @@
 
 ## Problem
 
-The current scanner implementation runs entirely inside the Archon Docker container via a volume mount (`~/projects:/projects:rw`). This means:
+The current scanner implementation runs entirely inside the Cortex Docker container via a volume mount (`~/projects:/projects:rw`). This means:
 
 - Only the machine running Docker can scan its projects directory
 - Multi-system setups (WSL, Windows, Mac, Ubuntu server) are locked out
@@ -10,7 +10,7 @@ The current scanner implementation runs entirely inside the Archon Docker contai
 
 ## Solution
 
-Move scanning and config-writing to the client side. A standalone Python script runs locally on each machine, orchestrated by a Claude Code skill. The Archon backend only handles project creation via existing APIs.
+Move scanning and config-writing to the client side. A standalone Python script runs locally on each machine, orchestrated by a Claude Code skill. The Cortex backend only handles project creation via existing APIs.
 
 ## Architecture
 
@@ -22,16 +22,16 @@ User: "/scan-projects"
 |  /scan-projects Skill (orchestrator)                  |
 |                                                        |
 |  1. Preflight: verify registered, detect Python & OS   |
-|  2. Download archon-scanner.py from Archon API         |
-|  3. Run: <PYTHON> archon-scanner.py --scan ~/projects  |
+|  2. Download cortex-scanner.py from Cortex API         |
+|  3. Run: <PYTHON> cortex-scanner.py --scan ~/projects  |
 |  4. Fetch existing projects via MCP (find_projects)    |
 |  5. Client-side dedup (compare normalized GitHub URLs) |
 |  6. Claude generates descriptions from README content  |
 |  7. Present results to user for confirmation           |
 |  8. Create projects via MCP (manage_project)           |
 |  9. Register system via MCP (per project)              |
-|  10. Download extensions tarball from Archon API       |
-|  11. Run: <PYTHON> archon-scanner.py --apply           |
+|  10. Download extensions tarball from Cortex API       |
+|  11. Run: <PYTHON> cortex-scanner.py --apply           |
 |      --payload-file <TEMP>/payload.json                |
 |      --extensions-tarball <TEMP>/extensions.tar.gz     |
 |  12. Queue README crawls via MCP (batched, 5 at a time)|
@@ -56,10 +56,10 @@ All temp file paths use Python's `tempfile.gettempdir()` semantics. The skill re
 - Unix/macOS/WSL: `/tmp/`
 - Windows: `%TEMP%` (typically `C:\Users\<user>\AppData\Local\Temp`)
 
-The skill detects the OS and uses the correct path. Temp files are named with an `archon-` prefix for easy identification:
-- `<tempdir>/archon-scanner.py`
-- `<tempdir>/archon-extensions.tar.gz`
-- `<tempdir>/archon-apply-payload.json`
+The skill detects the OS and uses the correct path. Temp files are named with an `cortex-` prefix for easy identification:
+- `<tempdir>/cortex-scanner.py`
+- `<tempdir>/cortex-extensions.tar.gz`
+- `<tempdir>/cortex-apply-payload.json`
 
 ### Python Executable
 The `python3` command does not exist on Windows. The skill runs a preflight detection:
@@ -79,9 +79,9 @@ The skill avoids raw `curl` commands with inline JSON payloads (brittle across B
 
 ## Components
 
-### 1. Scanner Script (`archon-scanner.py`)
+### 1. Scanner Script (`cortex-scanner.py`)
 
-**Location:** `python/src/server/static/archon-scanner.py`
+**Location:** `python/src/server/static/cortex-scanner.py`
 **Distribution:** Served via `GET /api/scanner/script`
 **Requirements:** Python 3.8+, stdlib only (no pip dependencies)
 **Size:** ~500 lines, single file
@@ -89,7 +89,7 @@ The skill avoids raw `curl` commands with inline JSON payloads (brittle across B
 #### Scan Mode
 
 ```bash
-python3 archon-scanner.py --scan ~/projects
+python3 cortex-scanner.py --scan ~/projects
 ```
 
 Outputs JSON to stdout:
@@ -147,7 +147,7 @@ Outputs JSON to stdout:
 #### Apply Mode
 
 ```bash
-python3 archon-scanner.py --apply --payload-file /tmp/archon-apply-payload.json --extensions-tarball /tmp/extensions.tar.gz
+python3 cortex-scanner.py --apply --payload-file /tmp/cortex-apply-payload.json --extensions-tarball /tmp/extensions.tar.gz
 ```
 
 The payload is passed via a temp file (not CLI argument) to avoid shell `ARG_MAX` limits with 50+ projects.
@@ -159,10 +159,10 @@ Payload structure (written by the skill to a temp file):
   "projects": [
     {
       "absolute_path": "/home/user/projects/RecipeRaiders",
-      "project_id": "uuid-from-archon",
+      "project_id": "uuid-from-cortex",
       "project_title": "RecipeRaiders",
-      "archon_api_url": "http://localhost:8181",
-      "archon_mcp_url": "http://localhost:8051",
+      "cortex_api_url": "http://localhost:8181",
+      "cortex_mcp_url": "http://localhost:8051",
       "system_fingerprint": "abc123",
       "system_name": "WIN-AI-PC"
     }
@@ -171,10 +171,10 @@ Payload structure (written by the skill to a temp file):
 ```
 
 Per project, apply writes:
-- `.claude/archon-config.json` — project_id, project_title, URLs, `installed_by: "scanner"`, extensions_hash (computed from tarball SHA-256), `extensions_installed_at` (ISO timestamp)
-- `.claude/archon-state.json` — system_fingerprint, system_name, archon_project_id
+- `.claude/cortex-config.json` — project_id, project_title, URLs, `installed_by: "scanner"`, extensions_hash (computed from tarball SHA-256), `extensions_installed_at` (ISO timestamp)
+- `.claude/cortex-state.json` — system_fingerprint, system_name, cortex_project_id
 - `.claude/settings.local.json` — PostToolUse observation hook
-- `.gitignore` — append Archon entries (idempotent, checks for `# Archon` marker). Before appending, the script ensures the file ends with a newline to prevent corrupting the last existing rule (e.g., `node_modules# Archon` if the file had no trailing newline)
+- `.gitignore` — append Cortex entries (idempotent, checks for `# Cortex` marker). Before appending, the script ensures the file ends with a newline to prevent corrupting the last existing rule (e.g., `node_modules# Cortex` if the file had no trailing newline)
 - `.claude/skills/` — extract extensions tarball (if `--extensions-tarball` provided and file exists)
 
 The `extensions_hash` is computed by the script from the tarball contents (SHA-256 of the file), not passed in the payload.
@@ -190,7 +190,7 @@ If a single project fails (permissions, disk full), it logs the error and contin
 **File:** `python/src/server/api_routes/scanner_script_api.py`
 
 Single endpoint:
-- `GET /api/scanner/script` — returns `archon-scanner.py` as `text/plain`
+- `GET /api/scanner/script` — returns `cortex-scanner.py` as `text/plain`
 - No authentication (local-only deployment)
 - Includes `X-Scanner-Version: 1.0` response header
 - ~10 lines of code
@@ -206,27 +206,27 @@ The skill always re-downloads the script on each invocation. Since `/scan-projec
 Rigid, step-by-step skill:
 
 #### Step 1 — Preflight Checks
-- Verify `archon-state.json` exists (`~/.claude/` or current project's `.claude/`)
+- Verify `cortex-state.json` exists (`~/.claude/` or current project's `.claude/`)
 - Extract `system_fingerprint` and `system_name`
-- If not found: tell user to run `/archon-setup` first, stop
+- If not found: tell user to run `/cortex-setup` first, stop
 - Detect Python executable: try `python3 --version`, fall back to `python --version` (verify 3.x)
 - Detect OS temp directory: use `python -c "import tempfile; print(tempfile.gettempdir())"` or infer from OS
 - Store `PYTHON_CMD` and `TEMP_DIR` for use in subsequent steps
 
 #### Step 2 — Download Scanner Script
-- `curl -s http://<archon_api_url>/api/scanner/script -o <TEMP_DIR>/archon-scanner.py`
-- Archon API URL from `archon-config.json` or default `http://localhost:8181`
-- If download fails: error with instructions to check Archon is running
+- `curl -s http://<cortex_api_url>/api/scanner/script -o <TEMP_DIR>/cortex-scanner.py`
+- Cortex API URL from `cortex-config.json` or default `http://localhost:8181`
+- If download fails: error with instructions to check Cortex is running
 
 #### Step 3 — Run Scan
 - Ask user for projects directory path (default: `~/projects`)
-- `<PYTHON_CMD> <TEMP_DIR>/archon-scanner.py --scan <path>`
+- `<PYTHON_CMD> <TEMP_DIR>/cortex-scanner.py --scan <path>`
 - Parse JSON output
 
 #### Step 4 — Deduplicate
-- Call `find_projects` MCP tool to get all existing Archon projects
+- Call `find_projects` MCP tool to get all existing Cortex projects
 - Compare GitHub URLs (normalized) between scan results and existing projects
-- Mark matches as `already_in_archon` with their `existing_project_id`
+- Mark matches as `already_in_cortex` with their `existing_project_id`
 
 #### Step 5 — Present Results
 - Display summary: total found, new, existing, groups
@@ -234,7 +234,7 @@ Rigid, step-by-step skill:
 - Present list to user for confirmation
 - User can exclude specific projects before proceeding
 
-#### Step 6 — Create Projects in Archon
+#### Step 6 — Create Projects in Cortex
 - For each confirmed project, call `manage_project` MCP tool (`action: "create"`):
   - `title`: directory name
   - `description`: AI-generated description
@@ -246,19 +246,19 @@ Rigid, step-by-step skill:
 
 #### Step 7 — Register System
 - For each created project, call the `manage_extensions` MCP tool with `action: "sync"` and the `project_id` and `system_fingerprint`
-- This uses the same mechanism that `/archon-setup` uses (extension sync service, table `archon_project_system_registrations`)
-- Links the current system to each project so Archon knows which systems have which projects
+- This uses the same mechanism that `/cortex-setup` uses (extension sync service, table `cortex_project_system_registrations`)
+- Links the current system to each project so Cortex knows which systems have which projects
 - **Note:** A new MCP tool `register_system_to_project(project_id, system_fingerprint)` should be added if `manage_extensions` does not support a sync action. This avoids raw `curl` commands with JSON payloads which are brittle across platforms (Bash vs CMD vs PowerShell quoting)
 
 #### Step 8 — Download Extensions Tarball
-- Read `archon_mcp_url` from `archon-config.json` (same file used in Step 2 for `archon_api_url`), default `http://localhost:8051`
-- `curl -s http://<archon_mcp_url>/archon-setup/extensions.tar.gz -o <TEMP_DIR>/archon-extensions.tar.gz`
+- Read `cortex_mcp_url` from `cortex-config.json` (same file used in Step 2 for `cortex_api_url`), default `http://localhost:8051`
+- `curl -s http://<cortex_mcp_url>/cortex-setup/extensions.tar.gz -o <TEMP_DIR>/cortex-extensions.tar.gz`
 - One download, reused for all projects
 
 #### Step 9 — Apply Configs
 - Build apply payload JSON with all project IDs, paths, titles, and system info
-- Write payload to temp file using Claude Code's Write tool: `<TEMP_DIR>/archon-apply-payload.json`
-- `<PYTHON_CMD> <TEMP_DIR>/archon-scanner.py --apply --payload-file <TEMP_DIR>/archon-apply-payload.json --extensions-tarball <TEMP_DIR>/archon-extensions.tar.gz`
+- Write payload to temp file using Claude Code's Write tool: `<TEMP_DIR>/cortex-apply-payload.json`
+- `<PYTHON_CMD> <TEMP_DIR>/cortex-scanner.py --apply --payload-file <TEMP_DIR>/cortex-apply-payload.json --extensions-tarball <TEMP_DIR>/cortex-extensions.tar.gz`
 - Parse output summary
 
 #### Step 10 — Knowledge Base Ingestion
@@ -280,7 +280,7 @@ Rigid, step-by-step skill:
 - Per-project status (created, skipped, failed)
 - Total setup time
 - Any errors encountered
-- Reminder: "Open Claude Code in any of these projects and Archon context will be available"
+- Reminder: "Open Claude Code in any of these projects and Cortex context will be available"
 
 ---
 
@@ -291,10 +291,10 @@ Rigid, step-by-step skill:
 |------|--------|
 | `python/src/server/api_routes/scanner_api.py` | Replaced by single script endpoint |
 | `python/src/server/services/scanner/scanner_service.py` | Logic moves to client-side script |
-| `python/src/server/services/scanner/git_detector.py` | Extracted into `archon-scanner.py` |
+| `python/src/server/services/scanner/git_detector.py` | Extracted into `cortex-scanner.py` |
 | `python/src/server/services/scanner/scan_template.py` | Templates become skill parameters |
 | `python/src/server/services/scanner/scan_report.py` | Report generation moves to skill |
-| `python/src/server/services/scanner/url_normalizer.py` | URL normalization logic duplicated into `archon-scanner.py` |
+| `python/src/server/services/scanner/url_normalizer.py` | URL normalization logic duplicated into `cortex-scanner.py` |
 | `python/src/server/services/scanner/cleanup.py` | Cleanup loop removed (scanner tables dropped) |
 | `python/src/server/services/scanner/__init__.py` | Package removed |
 | `python/src/server/config/scanner_config.py` | No server-side config needed |
@@ -303,9 +303,9 @@ Rigid, step-by-step skill:
 | `python/tests/server/services/scanner/test_scanner_service.py` | Tests move to script tests |
 
 ### Database
-- Drop `archon_scan_results` table
-- Drop `archon_scan_projects` table
-- Drop `archon_scanner_templates` table
+- Drop `cortex_scan_results` table
+- Drop `cortex_scan_projects` table
+- Drop `cortex_scanner_templates` table
 - New migration: `019_drop_scanner_tables.sql`
 
 ### Docker
@@ -345,8 +345,8 @@ Rigid, step-by-step skill:
 ### Skill Errors
 | Scenario | Behavior |
 |----------|----------|
-| Archon not running | Stop: "Can't reach Archon at <url>. Is it running?" |
-| No `archon-state.json` | Stop: "System not registered. Run /archon-setup first." |
+| Cortex not running | Stop: "Can't reach Cortex at <url>. Is it running?" |
+| No `cortex-state.json` | Stop: "System not registered. Run /cortex-setup first." |
 | `manage_project` fails for one project | Log failure, continue creating others |
 | User cancels at confirmation | Stop cleanly, no changes made |
 | Script outputs invalid JSON | Stop with error, show raw output for debugging |
@@ -354,16 +354,16 @@ Rigid, step-by-step skill:
 
 ### Idempotency
 - **Re-scan:** Always safe — reads filesystem, outputs fresh JSON
-- **Re-dedup:** Always accurate — fetches current Archon projects each time
+- **Re-dedup:** Always accurate — fetches current Cortex projects each time
 - **Re-apply configs:** Safe — overwrites existing files with same content
 - **Re-create projects:** Skill checks dedup before calling `manage_project`
-- **`.gitignore` updates:** Script checks for `# Archon` marker before appending
+- **`.gitignore` updates:** Script checks for `# Cortex` marker before appending
 
 ---
 
 ## Testing
 
-### Script Tests (`python/tests/test_archon_scanner.py`)
+### Script Tests (`python/tests/test_cortex_scanner.py`)
 
 Tests import the script directly. Use `tempfile.mkdtemp()` for disposable directory structures.
 
@@ -384,12 +384,12 @@ Tests import the script directly. Use `tempfile.mkdtemp()` for disposable direct
 | Apply extracts extensions | Tarball extracted to `.claude/skills/` |
 | Apply handles permission errors | Fails gracefully, continues others |
 | Apply with missing tarball | Configs written, extensions skipped |
-| .gitignore without trailing newline | Newline inserted before Archon block, no corruption |
+| .gitignore without trailing newline | Newline inserted before Cortex block, no corruption |
 | .gitignore already has trailing newline | No extra blank line added |
 | TOML parsing on Python 3.10 | Regex fallback extracts dependencies correctly |
 | TOML parsing on Python 3.11+ | `tomllib` used, correct results |
 
-No Docker or Archon instance needed for any tests.
+No Docker or Cortex instance needed for any tests.
 
 ### Journey Test
 `docs/userJourneys/projectScannerJourney.md` will be rewritten to reflect:

@@ -1,4 +1,4 @@
-# Archon Makefile - Simple, Secure, Cross-Platform
+# Cortex Makefile - Simple, Secure, Cross-Platform
 SHELL := /bin/bash
 .SHELLFLAGS := -ec
 
@@ -8,7 +8,7 @@ COMPOSE ?= $(shell docker compose version >/dev/null 2>&1 && echo "docker compos
 .PHONY: help dev dev-docker dev-docker-full stop test test-fe test-be lint lint-fe lint-be clean install check
 
 help:
-	@echo "Archon Development Commands"
+	@echo "Cortex Development Commands"
 	@echo "==========================="
 	@echo "  make dev                    - Backend in Docker, frontend local (recommended)"
 	@echo "  make dev-docker             - Backend + frontend in Docker"
@@ -27,7 +27,7 @@ help:
 # Install dependencies
 install:
 	@echo "Installing dependencies..."
-	@cd archon-ui-main && npm install
+	@cd cortex-ui && npm install
 	@cd python && uv sync --group all --group dev
 	@echo "✓ Dependencies installed"
 
@@ -48,11 +48,11 @@ dev: check
 	@echo "Backend: Docker | Frontend: Local with hot reload"
 	@$(COMPOSE) --profile backend up -d --build
 	@set -a; [ -f .env ] && . ./.env; set +a; \
-	echo "Backend running at http://$${HOST:-localhost}:$${ARCHON_SERVER_PORT:-8181}"
+	echo "Backend running at http://$${HOST:-localhost}:$${CORTEX_SERVER_PORT:-8181}"
 	@echo "Starting frontend..."
-	@cd archon-ui-main && \
-	VITE_ARCHON_SERVER_PORT=$${ARCHON_SERVER_PORT:-8181} \
-	VITE_ARCHON_SERVER_HOST=$${HOST:-} \
+	@cd cortex-ui && \
+	VITE_CORTEX_SERVER_PORT=$${CORTEX_SERVER_PORT:-8181} \
+	VITE_CORTEX_SERVER_HOST=$${HOST:-} \
 	npm run dev
 
 # Full Docker development (backend + frontend)
@@ -66,12 +66,12 @@ dev-docker: check
 # Full Docker with all services (server + mcp + ui)
 dev-docker-full: check
 	@echo "Starting full Docker environment..."
-	@$(COMPOSE) up archon-server archon-mcp archon-frontend -d --build
+	@$(COMPOSE) up cortex-server cortex-mcp cortex-frontend -d --build
 	@set -a; [ -f .env ] && . ./.env; set +a; \
 	echo "✓ All services running"; \
 	echo "Frontend: http://localhost:3737"; \
-	echo "API: http://$${HOST:-localhost}:$${ARCHON_SERVER_PORT:-8181}"; \
-	echo "MCP: http://$${HOST:-localhost}:$${ARCHON_MCP_PORT:-8051}"
+	echo "API: http://$${HOST:-localhost}:$${CORTEX_SERVER_PORT:-8181}"; \
+	echo "MCP: http://$${HOST:-localhost}:$${CORTEX_MCP_PORT:-8051}"
 
 # Stop all services
 stop:
@@ -85,7 +85,7 @@ test: test-fe test-be
 # Run frontend tests
 test-fe:
 	@echo "Running frontend tests..."
-	@cd archon-ui-main && npm test
+	@cd cortex-ui && npm test
 
 # Run backend tests
 test-be:
@@ -98,7 +98,7 @@ lint: lint-fe lint-be
 # Run frontend linter
 lint-fe:
 	@echo "Linting frontend..."
-	@cd archon-ui-main && npm run lint
+	@cd cortex-ui && npm run lint
 
 # Run backend linter
 lint-be:

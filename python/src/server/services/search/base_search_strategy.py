@@ -29,7 +29,7 @@ class BaseSearchStrategy:
         query_embedding: list[float],
         match_count: int,
         filter_metadata: dict | None = None,
-        table_rpc: str = "match_archon_crawled_pages",
+        table_rpc: str = "match_cortex_crawled_pages",
     ) -> list[dict[str, Any]]:
         """
         Perform basic vector similarity search.
@@ -42,7 +42,7 @@ class BaseSearchStrategy:
             filter_metadata: Optional metadata filters. Supports:
                 - {"source": "single_source_id"} for single source filtering
                 - {"source_ids": ["id1", "id2"]} for multi-source filtering
-            table_rpc: The RPC function to call (match_archon_crawled_pages or match_archon_code_examples)
+            table_rpc: The RPC function to call (match_cortex_crawled_pages or match_cortex_code_examples)
 
         Returns:
             List of matching documents with similarity scores

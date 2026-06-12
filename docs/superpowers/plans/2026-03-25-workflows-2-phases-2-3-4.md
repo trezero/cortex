@@ -4,7 +4,7 @@
 
 **Goal:** Complete the Workflows 2.0 engine across three independent phases: HITL approvals with A2UI rendering (Phase 2), proactive pattern discovery (Phase 3), and the workflow editor UI (Phase 4).
 
-**Architecture:** Archon is a Control Plane. Phase 1 (complete) built dispatch, state tracking, SSE, and callback endpoints. Phases 2–4 extend it with approval handling, intelligence, and authoring UI. Each phase is independently deployable.
+**Architecture:** Cortex is a Control Plane. Phase 1 (complete) built dispatch, state tracking, SSE, and callback endpoints. Phases 2–4 extend it with approval handling, intelligence, and authoring UI. Each phase is independently deployable.
 
 **Tech Stack:** Python 3.12, FastAPI, Supabase, python-telegram-bot, httpx, anthropic SDK, prefixspan, React 18, TanStack Query v5, @trinity/a2ui
 
@@ -14,7 +14,7 @@
 **Phase 1 artifacts (already built):**
 - Services: `python/src/server/services/workflow/{workflow_models,backend_service,definition_service,dispatch_service,state_service}.py`
 - Routes: `python/src/server/api_routes/workflow_{api,backend_api,approval_api,definition_api}.py`
-- Frontend: `archon-ui-main/src/features/workflows/{types,services,hooks}/`
+- Frontend: `cortex-ui/src/features/workflows/{types,services,hooks}/`
 - Migrations: `migration/0.1.0/027–032`
 - The approval resolve endpoint already transitions node state + fires SSE — it has `TODO Phase 2` markers for resume signal and Telegram
 
@@ -28,7 +28,7 @@ Same as Phase 1. All services follow `tuple[bool, dict[str, Any]]` return patter
 
 # PHASE 2: Generative UI & HITL Approvals
 
-**Goal:** Workflows pause for human review. Archon renders approvals with A2UI components, sends Telegram notifications, and resumes the remote-agent after user decision.
+**Goal:** Workflows pause for human review. Cortex renders approvals with A2UI components, sends Telegram notifications, and resumes the remote-agent after user decision.
 
 ## File Structure (Phase 2)
 
@@ -40,7 +40,7 @@ python/src/server/services/workflow/
 ├── hitl_channels/
 │   ├── __init__.py
 │   ├── ui_channel.py           # SSE push to UI clients
-│   └── telegram_channel.py     # Direct Archon Telegram bot
+│   └── telegram_channel.py     # Direct Cortex Telegram bot
 ├── hitl_models.py              # Approval channel protocol, types
 └── approval_templates.py       # Deterministic A2UI JSON for standard types
 
@@ -50,12 +50,12 @@ python/src/server/services/generative_ui/
 ├── a2ui_models.py              # Pydantic models for A2UI component spec
 └── a2ui_service.py             # High-level: deterministic templates + LLM fallback
 
-archon-ui-main/src/features/workflows/components/
+cortex-ui/src/features/workflows/components/
 ├── ApprovalList.tsx            # Pending approvals list view
 ├── ApprovalDetail.tsx          # Full approval with A2UI rendering
 └── ApprovalActions.tsx         # Approve/Reject buttons + comment
 
-archon-ui-main/src/features/generative-ui/
+cortex-ui/src/features/generative-ui/
 ├── components/
 │   └── A2UIDisplay.tsx         # Wrapper around @trinity/a2ui renderer
 ├── hooks/
@@ -72,9 +72,9 @@ python/src/server/api_routes/workflow_approval_api.py  # Replace TODO stubs with
 python/src/server/api_routes/workflow_backend_api.py   # Wire HITL router into approval_request_callback
 python/src/server/main.py                          # Start Telegram bot in lifespan
 docker-compose.yml                                 # Add trinity-a2ui service under trinity profile
-archon-ui-main/src/features/workflows/hooks/useWorkflowQueries.ts  # Add approval hooks
-archon-ui-main/src/features/workflows/services/workflowService.ts  # Add approval API methods
-archon-ui-main/src/features/workflows/types/index.ts               # Add ApprovalRequest type
+cortex-ui/src/features/workflows/hooks/useWorkflowQueries.ts  # Add approval hooks
+cortex-ui/src/features/workflows/services/workflowService.ts  # Add approval API methods
+cortex-ui/src/features/workflows/types/index.ts               # Add ApprovalRequest type
 ```
 
 ---
@@ -306,7 +306,7 @@ class TestGenerateApprovalComponents:
 
 - [ ] **Step 6: Run tests, verify pass**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/services/generative_ui/ -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/services/generative_ui/ -v`
 
 - [ ] **Step 7: Commit**
 
@@ -612,7 +612,7 @@ git commit -m "feat(workflows): add deterministic A2UI approval templates for st
 - Modify: `python/pyproject.toml` (add `python-telegram-bot>=21.0`)
 - Test: `python/tests/server/services/workflow/test_hitl_router.py`
 
-**Context:** The HITL Router dispatches approval requests to configured channels. UI channel fires SSE events (already works via state_service). Telegram channel sends inline keyboard messages via Archon's own bot. Channels implement the `ApprovalChannel` protocol (send-side only). Resolution converges on the existing `POST /api/workflows/approvals/{id}/resolve` endpoint.
+**Context:** The HITL Router dispatches approval requests to configured channels. UI channel fires SSE events (already works via state_service). Telegram channel sends inline keyboard messages via Cortex's own bot. Channels implement the `ApprovalChannel` protocol (send-side only). Resolution converges on the existing `POST /api/workflows/approvals/{id}/resolve` endpoint.
 
 - [ ] **Step 1: Add python-telegram-bot dependency**
 
@@ -639,7 +639,7 @@ class ApprovalContext(BaseModel):
     a2ui_payload: list[dict[str, Any]] | None = None
     channels: list[str] = Field(default_factory=lambda: ["ui"])
     project_name: str | None = None
-    archon_url: str | None = None
+    cortex_url: str | None = None
 
 
 class ApprovalChannel(Protocol):
@@ -690,9 +690,9 @@ class UIChannel:
 - [ ] **Step 4: Write telegram_channel.py**
 
 ```python
-"""Telegram channel — sends approval notifications via Archon's direct bot.
+"""Telegram channel — sends approval notifications via Cortex's direct bot.
 
-The bot is optional. If ARCHON_TELEGRAM_BOT_TOKEN is not set, this
+The bot is optional. If CORTEX_TELEGRAM_BOT_TOKEN is not set, this
 channel silently does nothing.
 """
 
@@ -703,8 +703,8 @@ from ..workflow.hitl_models import ApprovalContext
 
 logger = get_logger(__name__)
 
-BOT_TOKEN = os.getenv("ARCHON_TELEGRAM_BOT_TOKEN")
-CHAT_IDS = [cid.strip() for cid in os.getenv("ARCHON_TELEGRAM_CHAT_IDS", "").split(",") if cid.strip()]
+BOT_TOKEN = os.getenv("CORTEX_TELEGRAM_BOT_TOKEN")
+CHAT_IDS = [cid.strip() for cid in os.getenv("CORTEX_TELEGRAM_CHAT_IDS", "").split(",") if cid.strip()]
 
 
 class TelegramChannel:
@@ -743,11 +743,11 @@ class TelegramChannel:
                     InlineKeyboardButton("Reject", callback_data=f"reject:{context.approval_id}"),
                 ],
             ])
-            if context.archon_url:
+            if context.cortex_url:
                 keyboard.inline_keyboard.append([
                     InlineKeyboardButton(
-                        "View in Archon",
-                        url=f"{context.archon_url}/workflows/{context.workflow_run_id}/approvals/{context.approval_id}",
+                        "View in Cortex",
+                        url=f"{context.cortex_url}/workflows/{context.workflow_run_id}/approvals/{context.approval_id}",
                     ),
                 ])
 
@@ -970,7 +970,7 @@ Replace the inline `approval_requests.insert()` block in the `approval_request_c
 - [ ] **Step 2: Update workflow_approval_api.py resolve_approval**
 
 Replace the `TODO Phase 2` markers with:
-1. Send resume signal to remote-agent: `POST {backend_url}/api/archon/workflows/{run_id}/resume` via httpx
+1. Send resume signal to remote-agent: `POST {backend_url}/api/cortex/workflows/{run_id}/resume` via httpx
 2. Call `hitl_router.handle_resolution()` to notify channels
 
 - [ ] **Step 3: Test the full flow manually** (or write integration test)
@@ -986,14 +986,14 @@ git commit -m "feat(workflows): wire HITL Router into approval callbacks and add
 ## Task 5: Frontend — Approval UI Components
 
 **Files:**
-- Create: `archon-ui-main/src/features/generative-ui/components/A2UIDisplay.tsx`
-- Create: `archon-ui-main/src/features/generative-ui/types/index.ts`
-- Create: `archon-ui-main/src/features/workflows/components/ApprovalList.tsx`
-- Create: `archon-ui-main/src/features/workflows/components/ApprovalDetail.tsx`
-- Create: `archon-ui-main/src/features/workflows/components/ApprovalActions.tsx`
-- Modify: `archon-ui-main/src/features/workflows/types/index.ts` (add ApprovalRequest type)
-- Modify: `archon-ui-main/src/features/workflows/services/workflowService.ts` (add approval methods)
-- Modify: `archon-ui-main/src/features/workflows/hooks/useWorkflowQueries.ts` (add approval hooks)
+- Create: `cortex-ui/src/features/generative-ui/components/A2UIDisplay.tsx`
+- Create: `cortex-ui/src/features/generative-ui/types/index.ts`
+- Create: `cortex-ui/src/features/workflows/components/ApprovalList.tsx`
+- Create: `cortex-ui/src/features/workflows/components/ApprovalDetail.tsx`
+- Create: `cortex-ui/src/features/workflows/components/ApprovalActions.tsx`
+- Modify: `cortex-ui/src/features/workflows/types/index.ts` (add ApprovalRequest type)
+- Modify: `cortex-ui/src/features/workflows/services/workflowService.ts` (add approval methods)
+- Modify: `cortex-ui/src/features/workflows/hooks/useWorkflowQueries.ts` (add approval hooks)
 
 **Context:** The approval UI renders A2UI component payloads from the `approval_requests.payload` JSONB column. For Phase 2, we render raw JSON as a formatted preview — full @trinity/a2ui library integration comes when the Second Brain's library build is ready. The `A2UIDisplay` component is a thin wrapper that renders component JSON or falls back to raw markdown.
 
@@ -1087,11 +1087,11 @@ A thin wrapper that renders A2UI components as formatted cards or falls back to 
 
 - [ ] **Step 5: Create ApprovalList.tsx, ApprovalDetail.tsx, ApprovalActions.tsx**
 
-Standard React components following Archon's Tron-inspired glassmorphism styling. ApprovalDetail renders the `payload.components` array through A2UIDisplay, or `payload.raw_output` as markdown.
+Standard React components following Cortex's Tron-inspired glassmorphism styling. ApprovalDetail renders the `payload.components` array through A2UIDisplay, or `payload.raw_output` as markdown.
 
 - [ ] **Step 6: Verify TypeScript compiles**
 
-Run: `cd archon-ui-main && npx tsc --noEmit 2>&1 | grep "src/features/workflows" | head -20`
+Run: `cd cortex-ui && npx tsc --noEmit 2>&1 | grep "src/features/workflows" | head -20`
 
 - [ ] **Step 7: Commit**
 
@@ -1154,7 +1154,7 @@ python/tests/server/services/pattern_discovery/
 CREATE TABLE IF NOT EXISTS activity_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   event_type TEXT NOT NULL,
-  project_id UUID REFERENCES archon_projects(id) ON DELETE SET NULL,
+  project_id UUID REFERENCES cortex_projects(id) ON DELETE SET NULL,
   repo_url TEXT,
   raw_content TEXT,
   action_verb TEXT,
@@ -1337,14 +1337,14 @@ git commit -m "feat(patterns): add backfill service for historical data ingestio
 
 # PHASE 4: Workflow Editor & UI Polish
 
-**Goal:** Users can view, edit, and discover workflows in the Archon UI.
+**Goal:** Users can view, edit, and discover workflows in the Cortex UI.
 
 ## File Structure (Phase 4)
 
 ### Files to Create
 
 ```
-archon-ui-main/src/features/workflows/components/
+cortex-ui/src/features/workflows/components/
 ├── WorkflowEditor.tsx           # Split-pane YAML editor
 ├── NodeForm.tsx                 # Individual node editing form
 ├── YamlPanel.tsx                # Live YAML preview with syntax highlighting
@@ -1354,7 +1354,7 @@ archon-ui-main/src/features/workflows/components/
 ├── SuggestedWorkflows.tsx       # Pattern discovery suggestions panel
 └── WorkflowsPage.tsx            # Main page combining all sub-views
 
-archon-ui-main/src/features/workflows/components/editor/
+cortex-ui/src/features/workflows/components/editor/
 ├── NodeList.tsx                 # Sortable node list
 ├── MetadataForm.tsx             # Workflow metadata (name, description, tags)
 └── DependencySelect.tsx         # Multi-select for depends_on
@@ -1363,9 +1363,9 @@ archon-ui-main/src/features/workflows/components/editor/
 ### Files to Modify
 
 ```
-archon-ui-main/src/features/workflows/services/workflowService.ts  # Add command CRUD
-archon-ui-main/src/features/workflows/hooks/useWorkflowQueries.ts   # Add editor hooks
-archon-ui-main/src/features/workflows/types/index.ts                # Add editor types
+cortex-ui/src/features/workflows/services/workflowService.ts  # Add command CRUD
+cortex-ui/src/features/workflows/hooks/useWorkflowQueries.ts   # Add editor hooks
+cortex-ui/src/features/workflows/types/index.ts                # Add editor types
 ```
 
 ---
@@ -1373,8 +1373,8 @@ archon-ui-main/src/features/workflows/types/index.ts                # Add editor
 ## Task 13: Workflow Run Viewer (SSE-powered)
 
 **Files:**
-- Create: `archon-ui-main/src/features/workflows/components/WorkflowRunView.tsx`
-- Create: `archon-ui-main/src/features/workflows/components/WorkflowRunCard.tsx`
+- Create: `cortex-ui/src/features/workflows/components/WorkflowRunView.tsx`
+- Create: `cortex-ui/src/features/workflows/components/WorkflowRunCard.tsx`
 
 **Context:** WorkflowRunView connects to `GET /api/workflows/{run_id}/events` via native `EventSource` API. Renders a live DAG view showing node states, progress messages, and approval gates. WorkflowRunCard is a compact card for list views.
 
@@ -1391,12 +1391,12 @@ git commit -m "feat(workflows): add WorkflowRunView with live SSE updates and Wo
 ## Task 14: Split-Pane Workflow Editor
 
 **Files:**
-- Create: `archon-ui-main/src/features/workflows/components/WorkflowEditor.tsx`
-- Create: `archon-ui-main/src/features/workflows/components/YamlPanel.tsx`
-- Create: `archon-ui-main/src/features/workflows/components/NodeForm.tsx`
-- Create: `archon-ui-main/src/features/workflows/components/editor/NodeList.tsx`
-- Create: `archon-ui-main/src/features/workflows/components/editor/MetadataForm.tsx`
-- Create: `archon-ui-main/src/features/workflows/components/editor/DependencySelect.tsx`
+- Create: `cortex-ui/src/features/workflows/components/WorkflowEditor.tsx`
+- Create: `cortex-ui/src/features/workflows/components/YamlPanel.tsx`
+- Create: `cortex-ui/src/features/workflows/components/NodeForm.tsx`
+- Create: `cortex-ui/src/features/workflows/components/editor/NodeList.tsx`
+- Create: `cortex-ui/src/features/workflows/components/editor/MetadataForm.tsx`
+- Create: `cortex-ui/src/features/workflows/components/editor/DependencySelect.tsx`
 
 **Context:** Split-pane design: left is a form panel (sortable node list, metadata, approval toggles, dependency multi-selects). Right is a live YAML preview that updates bidirectionally. Uses `js-yaml` for YAML serialization.
 
@@ -1416,10 +1416,10 @@ git commit -m "feat(workflows): add split-pane workflow editor with YAML preview
 ## Task 15: Command Library Editor
 
 **Files:**
-- Create: `archon-ui-main/src/features/workflows/components/CommandEditor.tsx`
-- Modify: `archon-ui-main/src/features/workflows/services/workflowService.ts` (add command CRUD)
-- Modify: `archon-ui-main/src/features/workflows/hooks/useWorkflowQueries.ts` (add command hooks)
-- Modify: `archon-ui-main/src/features/workflows/types/index.ts` (add WorkflowCommand type)
+- Create: `cortex-ui/src/features/workflows/components/CommandEditor.tsx`
+- Modify: `cortex-ui/src/features/workflows/services/workflowService.ts` (add command CRUD)
+- Modify: `cortex-ui/src/features/workflows/hooks/useWorkflowQueries.ts` (add command hooks)
+- Modify: `cortex-ui/src/features/workflows/types/index.ts` (add WorkflowCommand type)
 
 **Context:** Markdown editor with preview for prompt templates. Supports variable placeholders (`$ARGUMENTS`, `$1`, `$2`), version history, and "fork from built-in" to customize defaults. Backed by the `workflow_commands` table via `DefinitionService`.
 
@@ -1440,10 +1440,10 @@ git commit -m "feat(workflows): add command library editor with markdown preview
 ## Task 16: Suggested Workflows Dashboard
 
 **Files:**
-- Create: `archon-ui-main/src/features/workflows/components/SuggestedWorkflows.tsx`
-- Modify: `archon-ui-main/src/features/workflows/services/workflowService.ts` (add pattern suggestion methods)
-- Modify: `archon-ui-main/src/features/workflows/hooks/useWorkflowQueries.ts` (add suggestion hooks)
-- Modify: `archon-ui-main/src/features/workflows/types/index.ts` (add DiscoveredPattern type)
+- Create: `cortex-ui/src/features/workflows/components/SuggestedWorkflows.tsx`
+- Modify: `cortex-ui/src/features/workflows/services/workflowService.ts` (add pattern suggestion methods)
+- Modify: `cortex-ui/src/features/workflows/hooks/useWorkflowQueries.ts` (add suggestion hooks)
+- Modify: `cortex-ui/src/features/workflows/types/index.ts` (add DiscoveredPattern type)
 
 **Context:** Dashboard showing discovered patterns sorted by `final_score`. Each card shows pattern name, description, involved repos, and suggested YAML preview. Actions: Accept (creates definition), Customize (opens in editor), Dismiss (decays score).
 
@@ -1462,11 +1462,11 @@ git commit -m "feat(workflows): add Suggested Workflows dashboard with accept/cu
 ## Task 17: Workflows Page & Navigation
 
 **Files:**
-- Create: `archon-ui-main/src/features/workflows/components/WorkflowsPage.tsx`
-- Modify: `archon-ui-main/src/pages/` (add route)
+- Create: `cortex-ui/src/features/workflows/components/WorkflowsPage.tsx`
+- Modify: `cortex-ui/src/pages/` (add route)
 - Modify: navigation component (add Workflows link)
 
-**Context:** Main page combining all workflow sub-views: tab navigation between Runs, Definitions, Approvals, Suggestions. Uses existing Archon Tron-inspired glassmorphism styling.
+**Context:** Main page combining all workflow sub-views: tab navigation between Runs, Definitions, Approvals, Suggestions. Uses existing Cortex Tron-inspired glassmorphism styling.
 
 - [ ] **Step 1: Create WorkflowsPage** with tab navigation
 - [ ] **Step 2: Add route and navigation link**
@@ -1515,7 +1515,7 @@ Run: `cd python && uv run pytest tests/server/services/workflow/ tests/server/se
 | What Changed | How to Propagate |
 |---|---|
 | pyproject.toml (new deps) | `docker compose up --build -d` |
-| Backend Python files | `docker compose restart archon-server` |
+| Backend Python files | `docker compose restart cortex-server` |
 | Database migrations 033-034 | Run SQL in Supabase SQL editor |
 | Frontend files | Auto-reloads with `npm run dev` |
 | docker-compose.yml (trinity profile) | `docker compose --profile trinity up -d` |

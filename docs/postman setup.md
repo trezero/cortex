@@ -1,6 +1,6 @@
 # Postman Setup
 
-How to obtain the **Postman API Key** and **Workspace ID** needed by Archon's Postman integration, and where to enter them.
+How to obtain the **Postman API Key** and **Workspace ID** needed by Cortex's Postman integration, and where to enter them.
 
 ---
 
@@ -11,7 +11,7 @@ How to obtain the **Postman API Key** and **Workspace ID** needed by Archon's Po
    (Direct link: **https://web.postman.co/settings/me/api-keys**)
 3. In the left sidebar of the Settings page, click **API keys**.
 4. Click **Generate API Key**.
-5. Give it a descriptive name (e.g. `Archon Integration`) and click **Generate API Key**.
+5. Give it a descriptive name (e.g. `Cortex Integration`) and click **Generate API Key**.
 6. **Copy the key immediately** — Postman shows it only once. If you lose it, you must generate a new one.
 
 ### Expected format
@@ -32,7 +32,7 @@ If your key is missing the `PMAK-` prefix, or has spaces, line breaks, or extra 
 
 ## 2. Get Your Workspace ID
 
-1. In Postman, open the **workspace** you want Archon to write collections into.
+1. In Postman, open the **workspace** you want Cortex to write collections into.
 2. Click the **workspace name** at the top of the left sidebar → choose **Settings**.
    (Or: top-right gear icon while inside the workspace → **Workspace settings**.)
 3. Scroll to the **Workspace ID** field at the bottom of the General tab and click the **copy** icon.
@@ -69,9 +69,9 @@ A valid workspace ID is a **standard UUID v4** — 36 characters total, formatte
 
 ---
 
-## 3. Enter the Values into Archon
+## 3. Enter the Values into Cortex
 
-1. Open the Archon UI (e.g. `http://172.16.1.230:3737`).
+1. Open the Cortex UI (e.g. `http://172.16.1.230:3737`).
 2. Go to **Settings** → **API Keys / Credentials**.
 3. Add (or update) these two credentials:
    - `POSTMAN_API_KEY` — paste the `PMAK-…` key. Mark it **Encrypted**.

@@ -214,7 +214,7 @@ def test_get_container_status_docker_running():
         assert result["status"] == "running"
         assert result["uptime"] is not None  # Uptime should be calculated
         assert result["logs"] == []
-        mock_docker_client.containers.get.assert_called_once_with("archon-mcp")
+        mock_docker_client.containers.get.assert_called_once_with("cortex-mcp")
         mock_docker_client.close.assert_called_once()
 
 
@@ -341,7 +341,7 @@ async def test_get_container_status_routes_to_docker():
         result = await get_container_status()
 
         assert result["status"] == "running"
-        mock_docker_client.containers.get.assert_called_once_with("archon-mcp")
+        mock_docker_client.containers.get.assert_called_once_with("cortex-mcp")
         mock_docker_client.close.assert_called_once()
 
 

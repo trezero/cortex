@@ -405,13 +405,13 @@ class DocumentStorageOperations:
                     if source_display_name:
                         fallback_data["source_display_name"] = source_display_name
 
-                    self.supabase_client.table("archon_sources").upsert(fallback_data).execute()
+                    self.supabase_client.table("cortex_sources").upsert(fallback_data).execute()
                     safe_logfire_info(f"Fallback source creation succeeded for '{source_id}'")
 
                     # Link source to project in junction table (fallback path)
                     if request.get("project_id"):
                         try:
-                            self.supabase_client.table("archon_project_sources").upsert(
+                            self.supabase_client.table("cortex_project_sources").upsert(
                                 {
                                     "project_id": request["project_id"],
                                     "source_id": source_id,
@@ -436,7 +436,7 @@ class DocumentStorageOperations:
             for source_id in unique_source_ids:
                 try:
                     source_check = (
-                        self.supabase_client.table("archon_sources")
+                        self.supabase_client.table("cortex_sources")
                         .select("source_id")
                         .eq("source_id", source_id)
                         .execute()

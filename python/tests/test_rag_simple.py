@@ -94,7 +94,7 @@ class TestRAGServiceSearch:
         # Verify RPC was called correctly
         mock_supabase.rpc.assert_called_once()
         call_args = mock_supabase.rpc.call_args[0]
-        assert call_args[0] == "match_archon_crawled_pages"
+        assert call_args[0] == "match_cortex_crawled_pages"
 
     @pytest.mark.asyncio
     async def test_search_documents_with_embedding(self, rag_service):

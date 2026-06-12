@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Archon can dispatch a YAML workflow definition to a remote-coding-agent instance, track execution state via REST callbacks, and stream live updates to the UI via SSE.
+**Goal:** Cortex can dispatch a YAML workflow definition to a remote-coding-agent instance, track execution state via REST callbacks, and stream live updates to the UI via SSE.
 
-**Architecture:** Archon acts as a Control Plane — it stores workflow definitions, dispatches them to registered remote-agent backends, mirrors node execution state from REST callbacks, and pushes live updates to UI clients via SSE. No DAG evaluation, condition parsing, or node scheduling happens in Archon. The remote-agent's existing TypeScript DAG executor handles all execution.
+**Architecture:** Cortex acts as a Control Plane — it stores workflow definitions, dispatches them to registered remote-agent backends, mirrors node execution state from REST callbacks, and pushes live updates to UI clients via SSE. No DAG evaluation, condition parsing, or node scheduling happens in Cortex. The remote-agent's existing TypeScript DAG executor handles all execution.
 
 **Tech Stack:** Python 3.12, FastAPI, Supabase (PostgreSQL), httpx (async HTTP), sse-starlette, pyyaml, React 18, TanStack Query v5, EventSource API
 
@@ -47,7 +47,7 @@ python/tests/server/services/workflow/
 ├── test_dispatch_service.py
 └── test_state_service.py
 
-archon-ui-main/src/features/workflows/
+cortex-ui/src/features/workflows/
 ├── types/index.ts
 ├── services/workflowService.ts
 ├── hooks/useWorkflowQueries.ts
@@ -127,7 +127,7 @@ async def create_resource(request: CreateRequest):
 CREATE TABLE IF NOT EXISTS table_name (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  project_id UUID REFERENCES archon_projects(id) ON DELETE SET NULL,
+  project_id UUID REFERENCES cortex_projects(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   deleted_at TIMESTAMPTZ DEFAULT NULL
 );
@@ -182,7 +182,7 @@ CREATE TABLE IF NOT EXISTS workflow_definitions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
-  project_id UUID REFERENCES archon_projects(id) ON DELETE SET NULL,
+  project_id UUID REFERENCES cortex_projects(id) ON DELETE SET NULL,
   yaml_content TEXT NOT NULL,
   parsed_definition JSONB DEFAULT '{}',
   version INTEGER NOT NULL DEFAULT 1,
@@ -220,7 +220,7 @@ CREATE TABLE IF NOT EXISTS workflow_commands (
   variables JSONB DEFAULT '{}',
   version INTEGER NOT NULL DEFAULT 1,
   is_latest BOOLEAN NOT NULL DEFAULT true,
-  project_id UUID REFERENCES archon_projects(id) ON DELETE SET NULL,
+  project_id UUID REFERENCES cortex_projects(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   deleted_at TIMESTAMPTZ DEFAULT NULL
 );
@@ -239,7 +239,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_workflow_commands_name_project_version
 CREATE TABLE IF NOT EXISTS workflow_runs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   definition_id UUID NOT NULL REFERENCES workflow_definitions(id) ON DELETE CASCADE,
-  project_id UUID REFERENCES archon_projects(id) ON DELETE SET NULL,
+  project_id UUID REFERENCES cortex_projects(id) ON DELETE SET NULL,
   backend_id UUID,
   status TEXT NOT NULL DEFAULT 'pending',
   triggered_by TEXT,
@@ -327,7 +327,7 @@ CREATE TABLE IF NOT EXISTS execution_backends (
   name TEXT NOT NULL UNIQUE,
   base_url TEXT NOT NULL,
   auth_token_hash TEXT NOT NULL,
-  project_id UUID REFERENCES archon_projects(id) ON DELETE SET NULL,
+  project_id UUID REFERENCES cortex_projects(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'healthy',
   last_heartbeat_at TIMESTAMPTZ,
   registered_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -371,7 +371,7 @@ git commit -m "feat(workflows): add database migrations 027-032 for Workflows 2.
 
 Create `python/src/server/services/workflow/__init__.py`:
 ```python
-"""Workflow orchestration services for the Archon Control Plane."""
+"""Workflow orchestration services for the Cortex Control Plane."""
 ```
 
 Create `python/tests/server/services/workflow/__init__.py`:
@@ -429,12 +429,12 @@ class TestDispatchPayload:
             yaml_content="name: test\nnodes:\n  - id: step1\n    command: create-branch",
             trigger_context={"user_request": "Add rate limiting"},
             node_id_map={"step1": "uuid-1"},
-            callback_url="http://archon:8181/api/workflows",
+            callback_url="http://cortex:8181/api/workflows",
         )
         data = payload.model_dump()
         assert data["workflow_run_id"] == "wr_abc123"
         assert data["node_id_map"]["step1"] == "uuid-1"
-        assert data["callback_url"] == "http://archon:8181/api/workflows"
+        assert data["callback_url"] == "http://cortex:8181/api/workflows"
 
 
 class TestNodeStateCallback:
@@ -482,7 +482,7 @@ class TestRunCompleteCallback:
 
 - [ ] **Step 3: Run test to verify it fails**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/services/workflow/test_workflow_models.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/services/workflow/test_workflow_models.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'src.server.services.workflow.workflow_models'`
 
 - [ ] **Step 4: Implement workflow_models.py**
@@ -525,7 +525,7 @@ RunStatus = Literal[
 BackendStatus = Literal["healthy", "unhealthy", "disconnected"]
 
 
-# -- Dispatch payload (Archon → remote-agent) --
+# -- Dispatch payload (Cortex → remote-agent) --
 
 class DispatchPayload(BaseModel):
     """Sent to the remote-agent to start a workflow execution."""
@@ -534,9 +534,9 @@ class DispatchPayload(BaseModel):
     trigger_context: dict[str, Any] = Field(default_factory=dict)
     node_id_map: dict[str, str] = Field(
         default_factory=dict,
-        description="Maps YAML node IDs to Archon DB UUIDs",
+        description="Maps YAML node IDs to Cortex DB UUIDs",
     )
-    callback_url: str = Field(description="Base URL for state callbacks back to Archon")
+    callback_url: str = Field(description="Base URL for state callbacks back to Cortex")
 
 
 class ResumePayload(BaseModel):
@@ -546,7 +546,7 @@ class ResumePayload(BaseModel):
     comment: str | None = None
 
 
-# -- Callback payloads (remote-agent → Archon) --
+# -- Callback payloads (remote-agent → Cortex) --
 
 class NodeStateCallback(BaseModel):
     """Received from the remote-agent when a node changes state."""
@@ -565,7 +565,7 @@ class NodeProgressCallback(BaseModel):
 class ApprovalRequestCallback(BaseModel):
     """Received from the remote-agent when a node hits an approval gate."""
     workflow_run_id: str
-    workflow_node_id: str = Field(description="Archon DB UUID for the workflow_nodes row")
+    workflow_node_id: str = Field(description="Cortex DB UUID for the workflow_nodes row")
     yaml_node_id: str = Field(description="Human-readable YAML node ID")
     approval_type: str
     node_output: str
@@ -640,7 +640,7 @@ class ExecutionBackendRow(BaseModel):
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/services/workflow/test_workflow_models.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/services/workflow/test_workflow_models.py -v`
 Expected: All tests PASS
 
 - [ ] **Step 6: Commit**
@@ -762,7 +762,7 @@ class TestResolveBackend:
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/services/workflow/test_backend_service.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/services/workflow/test_backend_service.py -v`
 Expected: FAIL — `ModuleNotFoundError`
 
 - [ ] **Step 3: Implement backend_service.py**
@@ -936,7 +936,7 @@ class BackendService:
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/services/workflow/test_backend_service.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/services/workflow/test_backend_service.py -v`
 Expected: All tests PASS
 
 - [ ] **Step 5: Commit**
@@ -1053,7 +1053,7 @@ class TestListDefinitions:
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/services/workflow/test_definition_service.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/services/workflow/test_definition_service.py -v`
 Expected: FAIL — `ModuleNotFoundError`
 
 - [ ] **Step 3: Implement definition_service.py**
@@ -1266,7 +1266,7 @@ class DefinitionService:
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/services/workflow/test_definition_service.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/services/workflow/test_definition_service.py -v`
 Expected: All tests PASS
 
 - [ ] **Step 5: Commit**
@@ -1364,7 +1364,7 @@ class TestSSESubscription:
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/services/workflow/test_state_service.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/services/workflow/test_state_service.py -v`
 Expected: FAIL — `ModuleNotFoundError`
 
 - [ ] **Step 3: Implement state_service.py**
@@ -1598,7 +1598,7 @@ class StateService:
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/services/workflow/test_state_service.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/services/workflow/test_state_service.py -v`
 Expected: All tests PASS
 
 - [ ] **Step 5: Commit**
@@ -1694,17 +1694,17 @@ class TestDispatchToBackend:
                 backend=backend,
                 node_id_map={"step-one": "n1", "step-two": "n2"},
                 trigger_context={"user_request": "test"},
-                callback_url="http://archon:8181/api/workflows",
+                callback_url="http://cortex:8181/api/workflows",
             )
             assert success is True
             mock_client.post.assert_called_once()
             call_url = mock_client.post.call_args[0][0]
-            assert "archon/workflows/execute" in call_url
+            assert "cortex/workflows/execute" in call_url
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/services/workflow/test_dispatch_service.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/services/workflow/test_dispatch_service.py -v`
 Expected: FAIL — `ModuleNotFoundError`
 
 - [ ] **Step 3: Implement dispatch_service.py**
@@ -1773,7 +1773,7 @@ class DispatchService:
     ) -> tuple[bool, dict[str, Any]]:
         """Parse YAML node IDs and create workflow_nodes records.
 
-        Returns a node_id_map: {yaml_node_id: archon_db_uuid}
+        Returns a node_id_map: {yaml_node_id: cortex_db_uuid}
         """
         try:
             parsed = yaml.safe_load(yaml_content)
@@ -1807,7 +1807,7 @@ class DispatchService:
         callback_url: str,
     ) -> tuple[bool, dict[str, Any]]:
         """POST the workflow payload to the remote-agent for execution."""
-        url = f"{backend['base_url']}/api/archon/workflows/execute"
+        url = f"{backend['base_url']}/api/cortex/workflows/execute"
         payload = {
             "workflow_run_id": workflow_run_id,
             "yaml_content": yaml_content,
@@ -1858,7 +1858,7 @@ class DispatchService:
         backend: dict[str, Any],
     ) -> tuple[bool, dict[str, Any]]:
         """Send a cancel signal to the remote-agent and update run status."""
-        url = f"{backend['base_url']}/api/archon/workflows/{workflow_run_id}/cancel"
+        url = f"{backend['base_url']}/api/cortex/workflows/{workflow_run_id}/cancel"
         try:
             async with httpx.AsyncClient(timeout=DISPATCH_TIMEOUT) as client:
                 response = await client.post(url)
@@ -1887,7 +1887,7 @@ class DispatchService:
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/services/workflow/test_dispatch_service.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/services/workflow/test_dispatch_service.py -v`
 Expected: All tests PASS
 
 - [ ] **Step 5: Commit**
@@ -1915,7 +1915,7 @@ In `python/pyproject.toml`, add `"sse-starlette>=2.3.3"` to the `server` depende
 
 - [ ] **Step 2: Run `uv sync --group server` to install the dependency**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv sync --group server`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv sync --group server`
 Expected: sse-starlette installed successfully
 
 - [ ] **Step 3: Create workflow_definition_api.py**
@@ -2202,7 +2202,7 @@ async def deregister_backend(backend_id: str):
         raise HTTPException(status_code=500, detail={"error": str(e)})
 
 
-# -- Callback endpoints (remote-agent → Archon) --
+# -- Callback endpoints (remote-agent → Cortex) --
 
 @router.post("/nodes/{node_id}/state")
 async def node_state_callback(
@@ -2631,7 +2631,7 @@ app.include_router(workflow_definition_router)
 
 - [ ] **Step 8: Verify server starts**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run python -c "from src.server.api_routes.workflow_api import router; print('OK')"`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run python -c "from src.server.api_routes.workflow_api import router; print('OK')"`
 Expected: `OK`
 
 - [ ] **Step 9: Commit**
@@ -2646,14 +2646,14 @@ git commit -m "feat(workflows): add API routes for workflow management, backends
 ## Task 8: Frontend Scaffolding
 
 **Files:**
-- Create: `archon-ui-main/src/features/workflows/types/index.ts`
-- Create: `archon-ui-main/src/features/workflows/services/workflowService.ts`
-- Create: `archon-ui-main/src/features/workflows/hooks/useWorkflowQueries.ts`
+- Create: `cortex-ui/src/features/workflows/types/index.ts`
+- Create: `cortex-ui/src/features/workflows/services/workflowService.ts`
+- Create: `cortex-ui/src/features/workflows/hooks/useWorkflowQueries.ts`
 
 - [ ] **Step 1: Create TypeScript types**
 
 ```typescript
-// archon-ui-main/src/features/workflows/types/index.ts
+// cortex-ui/src/features/workflows/types/index.ts
 
 export type RunStatus = "pending" | "dispatched" | "running" | "paused" | "completed" | "failed" | "cancelled";
 export type NodeState = "pending" | "running" | "waiting_approval" | "completed" | "failed" | "skipped" | "cancelled";
@@ -2738,7 +2738,7 @@ export interface WorkflowSSEEvent {
 - [ ] **Step 2: Create workflow service**
 
 ```typescript
-// archon-ui-main/src/features/workflows/services/workflowService.ts
+// cortex-ui/src/features/workflows/services/workflowService.ts
 
 import { callAPIWithETag } from "../../shared/api/apiClient";
 import type {
@@ -2806,7 +2806,7 @@ export const workflowService = {
 - [ ] **Step 3: Create query hooks**
 
 ```typescript
-// archon-ui-main/src/features/workflows/hooks/useWorkflowQueries.ts
+// cortex-ui/src/features/workflows/hooks/useWorkflowQueries.ts
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -2910,13 +2910,13 @@ export function useExecutionBackends() {
 
 - [ ] **Step 4: Verify TypeScript compiles**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep "src/features/workflows" | head -20`
+Run: `cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep "src/features/workflows" | head -20`
 Expected: No errors (or only errors from files not yet created, not from these 3 files)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add archon-ui-main/src/features/workflows/types/index.ts archon-ui-main/src/features/workflows/services/workflowService.ts archon-ui-main/src/features/workflows/hooks/useWorkflowQueries.ts
+git add cortex-ui/src/features/workflows/types/index.ts cortex-ui/src/features/workflows/services/workflowService.ts cortex-ui/src/features/workflows/hooks/useWorkflowQueries.ts
 git commit -m "feat(workflows): add frontend types, service, and TanStack Query hooks"
 ```
 
@@ -2926,17 +2926,17 @@ git commit -m "feat(workflows): add frontend types, service, and TanStack Query 
 
 - [ ] **Step 1: Run all workflow tests**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/services/workflow/ -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/services/workflow/ -v`
 Expected: All tests PASS
 
 - [ ] **Step 2: Verify backend starts with new routes**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && timeout 5 uv run python -m src.server.main 2>&1 || true`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && timeout 5 uv run python -m src.server.main 2>&1 || true`
 Expected: Server starts without import errors (will fail on missing env vars — that's OK, we just need no import crashes)
 
 - [ ] **Step 3: Verify frontend compiles**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep "src/features/workflows" | head -20`
+Run: `cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep "src/features/workflows" | head -20`
 Expected: No TypeScript errors in workflows feature
 
 - [ ] **Step 4: Final commit (if any loose changes)**
@@ -2957,5 +2957,5 @@ After implementation, to see changes on a running system:
 |---|---|
 | Database migrations (027-032) | Run each `.sql` file in Supabase SQL editor |
 | `python/pyproject.toml` | `docker compose up --build -d` (rebuild container) |
-| Backend Python files | `docker compose restart archon-server` |
+| Backend Python files | `docker compose restart cortex-server` |
 | Frontend TypeScript files | Auto-reloads if `npm run dev` is running |

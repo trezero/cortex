@@ -2,7 +2,7 @@
 
 ## Problem
 
-Archon's MCP server exposes 5 read-only RAG tools for searching knowledge bases. There is no MCP tool to add, sync, or delete sources. Users must add sources through the web UI or API, which breaks the workflow when using Claude Code as the primary interface.
+Cortex's MCP server exposes 5 read-only RAG tools for searching knowledge bases. There is no MCP tool to add, sync, or delete sources. Users must add sources through the web UI or API, which breaks the workflow when using Claude Code as the primary interface.
 
 ## Solution
 
@@ -145,7 +145,7 @@ async def rag_search_knowledge_base(
 ```
 
 When `project_id` is provided:
-1. Query `archon_sources` where `metadata->>'project_id' = ?` to collect source_ids
+1. Query `cortex_sources` where `metadata->>'project_id' = ?` to collect source_ids
 2. Pass source_ids as IN clause to the vector search
 3. Single query, no N+1
 
@@ -180,9 +180,9 @@ Response:
 
 Processing pipeline (async, background task):
 1. Generate `source_id` from `sha256(title + "-" + iso_timestamp)[:16]`
-2. Create source record in `archon_sources` with `project_id` in metadata JSONB
+2. Create source record in `cortex_sources` with `project_id` in metadata JSONB
 3. For each document:
-   a. Create page record in `archon_page_metadata` (full content, section title from doc title)
+   a. Create page record in `cortex_page_metadata` (full content, section title from doc title)
    b. Chunk content using existing `smart_chunk_text_async()` (5000 chars)
    c. Track per-document status
 4. Batch embed all chunks using existing embedding pipeline
@@ -192,7 +192,7 @@ Processing pipeline (async, background task):
 ### Modified Endpoint: `POST /api/rag/query`
 
 Add optional `project_id` to the request body. When provided:
-1. Query `archon_sources` for matching `metadata->>'project_id'`
+1. Query `cortex_sources` for matching `metadata->>'project_id'`
 2. Collect source_ids
 3. Filter vector search results to those source_ids
 

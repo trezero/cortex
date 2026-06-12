@@ -1,5 +1,5 @@
 """
-Chat Message Service for Archon
+Chat Message Service for Cortex
 
 Handles persistence and retrieval of chat messages, including full-text search
 via the search_chat_messages RPC function.

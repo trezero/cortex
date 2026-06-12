@@ -1,8 +1,8 @@
-"""Session memory tools for Archon MCP Server.
+"""Session memory tools for Cortex MCP Server.
 
 Provides two MCP tools:
-- archon_search_sessions: Full-text search across session history
-- archon_get_session: Retrieve a specific session with all observations
+- cortex_search_sessions: Full-text search across session history
+- cortex_get_session: Retrieve a specific session with all observations
 """
 
 import json
@@ -23,7 +23,7 @@ def register_session_tools(mcp: FastMCP):
     """Register session memory tools with the MCP server."""
 
     @mcp.tool()
-    async def archon_search_sessions(
+    async def cortex_search_sessions(
         ctx: Context,
         query: str,
         project_id: str | None = None,
@@ -36,7 +36,7 @@ def register_session_tools(mcp: FastMCP):
 
         Args:
             query: Search terms to find in session observations
-            project_id: Limit search to a specific Archon project
+            project_id: Limit search to a specific Cortex project
             limit: Maximum number of results to return (default: 10)
 
         Returns:
@@ -63,11 +63,11 @@ def register_session_tools(mcp: FastMCP):
             return json.dumps({"success": False, "error": f"API error {response.status_code}: {response.text}"})
 
         except Exception as e:
-            logger.error("archon_search_sessions failed", exc_info=True)
+            logger.error("cortex_search_sessions failed", exc_info=True)
             return json.dumps({"success": False, "error": str(e)})
 
     @mcp.tool()
-    async def archon_get_session(
+    async def cortex_get_session(
         ctx: Context,
         session_id: str,
     ) -> str:
@@ -105,5 +105,5 @@ def register_session_tools(mcp: FastMCP):
             return json.dumps({"success": False, "error": f"API error {response.status_code}: {response.text}"})
 
         except Exception as e:
-            logger.error("archon_get_session failed", session_id=session_id, exc_info=True)
+            logger.error("cortex_get_session failed", session_id=session_id, exc_info=True)
             return json.dumps({"success": False, "error": str(e)})

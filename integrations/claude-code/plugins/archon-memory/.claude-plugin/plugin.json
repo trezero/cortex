@@ -1,6 +1,0 @@
-{
-  "name": "archon-memory",
-  "version": "1.1.0",
-  "description": "Smart code exploration, session memory, and Archon integration for Claude Code",
-  "author": "Archon"
-}

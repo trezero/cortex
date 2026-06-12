@@ -61,7 +61,7 @@ class DispatchService:
     ) -> tuple[bool, dict[str, Any]]:
         """Parse YAML node IDs and create workflow_nodes records.
 
-        Returns a node_id_map: {yaml_node_id: archon_db_uuid}
+        Returns a node_id_map: {yaml_node_id: cortex_db_uuid}
         """
         try:
             parsed = yaml.safe_load(yaml_content)
@@ -95,7 +95,7 @@ class DispatchService:
         callback_url: str,
     ) -> tuple[bool, dict[str, Any]]:
         """POST the workflow payload to the remote-agent for execution."""
-        url = f"{backend['base_url']}/api/archon/workflows/execute"
+        url = f"{backend['base_url']}/api/cortex/workflows/execute"
         payload = {
             "workflow_run_id": workflow_run_id,
             "yaml_content": yaml_content,
@@ -144,7 +144,7 @@ class DispatchService:
         backend: dict[str, Any],
     ) -> tuple[bool, dict[str, Any]]:
         """Send a cancel signal to the remote-agent and update run status."""
-        url = f"{backend['base_url']}/api/archon/workflows/{workflow_run_id}/cancel"
+        url = f"{backend['base_url']}/api/cortex/workflows/{workflow_run_id}/cancel"
         try:
             async with httpx.AsyncClient(timeout=DISPATCH_TIMEOUT) as client:
                 response = await client.post(url)

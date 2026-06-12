@@ -18,11 +18,11 @@ from src.server.services.extensions.extension_service import ExtensionService
 
 SAMPLE_SKILL_MD = textwrap.dedent("""\
     ---
-    name: archon-memory
-    description: Manage long-term knowledge memory via Archon RAG.
+    name: cortex-memory
+    description: Manage long-term knowledge memory via Cortex RAG.
     ---
 
-    # Archon Memory
+    # Cortex Memory
 
     Some content here.
 """)
@@ -55,18 +55,18 @@ class TestSeedOneCreatePath:
     def test_creates_new_extension_when_not_in_registry(self, service, mock_extension_service, tmp_path):
         """When find_by_name returns None, create_extension is called with correct args."""
         mock_extension_service.find_by_name.return_value = None
-        mock_extension_service.create_extension.return_value = {"id": "abc123", "name": "archon-memory"}
+        mock_extension_service.create_extension.return_value = {"id": "abc123", "name": "cortex-memory"}
 
-        _make_skill_dir(tmp_path, "archon-memory", SAMPLE_SKILL_MD)
+        _make_skill_dir(tmp_path, "cortex-memory", SAMPLE_SKILL_MD)
 
         counts = service.seed_extensions(tmp_path)
 
-        mock_extension_service.find_by_name.assert_called_once_with("archon-memory")
+        mock_extension_service.find_by_name.assert_called_once_with("cortex-memory")
         mock_extension_service.create_extension.assert_called_once_with(
-            "archon-memory",
-            "Manage long-term knowledge memory via Archon RAG.",
+            "cortex-memory",
+            "Manage long-term knowledge memory via Cortex RAG.",
             SAMPLE_SKILL_MD,
-            created_by="archon-seeder",
+            created_by="cortex-seeder",
         )
         assert counts == {"created": 1, "updated": 0, "skipped": 0, "errors": 0}
 
@@ -77,12 +77,12 @@ class TestSeedOneSkipPath:
         content_hash = ExtensionService.compute_content_hash(SAMPLE_SKILL_MD)
         mock_extension_service.find_by_name.return_value = {
             "id": "abc123",
-            "name": "archon-memory",
+            "name": "cortex-memory",
             "content_hash": content_hash,
             "current_version": 1,
         }
 
-        _make_skill_dir(tmp_path, "archon-memory", SAMPLE_SKILL_MD)
+        _make_skill_dir(tmp_path, "cortex-memory", SAMPLE_SKILL_MD)
 
         counts = service.seed_extensions(tmp_path)
 
@@ -96,13 +96,13 @@ class TestSeedOneUpdatePath:
         """When the content hash differs, update_extension is called with new_version bumped by 1."""
         mock_extension_service.find_by_name.return_value = {
             "id": "abc123",
-            "name": "archon-memory",
+            "name": "cortex-memory",
             "content_hash": "old-hash-does-not-match",
             "current_version": 2,
         }
         mock_extension_service.update_extension.return_value = {"id": "abc123"}
 
-        _make_skill_dir(tmp_path, "archon-memory", SAMPLE_SKILL_MD)
+        _make_skill_dir(tmp_path, "cortex-memory", SAMPLE_SKILL_MD)
 
         counts = service.seed_extensions(tmp_path)
 
@@ -110,8 +110,8 @@ class TestSeedOneUpdatePath:
             "abc123",
             SAMPLE_SKILL_MD,
             new_version=3,
-            updated_by="archon-seeder",
-            description="Manage long-term knowledge memory via Archon RAG.",
+            updated_by="cortex-seeder",
+            description="Manage long-term knowledge memory via Cortex RAG.",
         )
         mock_extension_service.create_extension.assert_not_called()
         assert counts == {"created": 0, "updated": 1, "skipped": 0, "errors": 0}
@@ -213,13 +213,13 @@ class TestDefaultDirResolvesCorrectly:
 # ── Command Seeding Tests ────────────────────────────────────────────────────
 
 SAMPLE_COMMAND_NO_FRONTMATTER = textwrap.dedent("""\
-    # Archon Setup — Register This Machine
+    # Cortex Setup — Register This Machine
 
-    Connect this machine to Archon.
+    Connect this machine to Cortex.
 
     ## Phase 0: Health Check
 
-    Call `health_check()` via the Archon MCP tool.
+    Call `health_check()` via the Cortex MCP tool.
 """)
 
 SAMPLE_COMMAND_WITH_FRONTMATTER = textwrap.dedent("""\
@@ -251,42 +251,42 @@ class TestSeedCommandsFlatFile:
     def test_creates_flat_command_with_correct_args(self, service, mock_extension_service, tmp_path):
         """A flat (root-level) .md file is seeded as a command with no group."""
         mock_extension_service.find_by_name.return_value = None
-        mock_extension_service.create_extension.return_value = {"id": "cmd1", "name": "archon-setup"}
+        mock_extension_service.create_extension.return_value = {"id": "cmd1", "name": "cortex-setup"}
 
-        _make_command_file(tmp_path, "archon-setup.md", SAMPLE_COMMAND_NO_FRONTMATTER)
+        _make_command_file(tmp_path, "cortex-setup.md", SAMPLE_COMMAND_NO_FRONTMATTER)
 
         counts = service.seed_commands(tmp_path)
 
-        mock_extension_service.find_by_name.assert_called_once_with("archon-setup")
+        mock_extension_service.find_by_name.assert_called_once_with("cortex-setup")
         mock_extension_service.create_extension.assert_called_once_with(
-            "archon-setup",
-            "Archon Setup — Register This Machine",
+            "cortex-setup",
+            "Cortex Setup — Register This Machine",
             SAMPLE_COMMAND_NO_FRONTMATTER,
-            created_by="archon-seeder",
+            created_by="cortex-seeder",
             type="command",
-            plugin_manifest={"command_group": None, "filename": "archon-setup.md"},
+            plugin_manifest={"command_group": None, "filename": "cortex-setup.md"},
         )
         assert counts == {"created": 1, "updated": 0, "skipped": 0, "errors": 0}
 
 
 class TestSeedCommandsGroupedFile:
     def test_creates_grouped_command_with_group_prefix_stripped(self, service, mock_extension_service, tmp_path):
-        """A file in archon/ whose stem already starts with 'archon' keeps its stem as name."""
+        """A file in cortex/ whose stem already starts with 'cortex' keeps its stem as name."""
         mock_extension_service.find_by_name.return_value = None
-        mock_extension_service.create_extension.return_value = {"id": "cmd2", "name": "archon-prime"}
+        mock_extension_service.create_extension.return_value = {"id": "cmd2", "name": "cortex-prime"}
 
-        _make_command_file(tmp_path, "archon-prime.md", SAMPLE_COMMAND_WITH_FRONTMATTER, group="archon")
+        _make_command_file(tmp_path, "cortex-prime.md", SAMPLE_COMMAND_WITH_FRONTMATTER, group="cortex")
 
         counts = service.seed_commands(tmp_path)
 
-        mock_extension_service.find_by_name.assert_called_once_with("archon-prime")
+        mock_extension_service.find_by_name.assert_called_once_with("cortex-prime")
         mock_extension_service.create_extension.assert_called_once_with(
-            "archon-prime",
+            "cortex-prime",
             "Prime Claude Code with deep context.",
             SAMPLE_COMMAND_WITH_FRONTMATTER,
-            created_by="archon-seeder",
+            created_by="cortex-seeder",
             type="command",
-            plugin_manifest={"command_group": "archon", "filename": "archon-prime.md"},
+            plugin_manifest={"command_group": "cortex", "filename": "cortex-prime.md"},
         )
         assert counts == {"created": 1, "updated": 0, "skipped": 0, "errors": 0}
 
@@ -313,7 +313,7 @@ class TestSeedCommandsGroupPrefixed:
             "agent-work-orders-commit",
             "Commit",
             content,
-            created_by="archon-seeder",
+            created_by="cortex-seeder",
             type="command",
             plugin_manifest={"command_group": "agent-work-orders", "filename": "commit.md"},
         )
@@ -326,12 +326,12 @@ class TestSeedCommandsSkipUnchanged:
         content_hash = ExtensionService.compute_content_hash(SAMPLE_COMMAND_NO_FRONTMATTER)
         mock_extension_service.find_by_name.return_value = {
             "id": "cmd1",
-            "name": "archon-setup",
+            "name": "cortex-setup",
             "content_hash": content_hash,
             "current_version": 1,
         }
 
-        _make_command_file(tmp_path, "archon-setup.md", SAMPLE_COMMAND_NO_FRONTMATTER)
+        _make_command_file(tmp_path, "cortex-setup.md", SAMPLE_COMMAND_NO_FRONTMATTER)
 
         counts = service.seed_commands(tmp_path)
 
@@ -345,13 +345,13 @@ class TestSeedCommandsUpdateChanged:
         """When the content hash differs from the registry, update_extension is called."""
         mock_extension_service.find_by_name.return_value = {
             "id": "cmd1",
-            "name": "archon-setup",
+            "name": "cortex-setup",
             "content_hash": "old-hash-does-not-match",
             "current_version": 2,
         }
         mock_extension_service.update_extension.return_value = {"id": "cmd1"}
 
-        _make_command_file(tmp_path, "archon-setup.md", SAMPLE_COMMAND_NO_FRONTMATTER)
+        _make_command_file(tmp_path, "cortex-setup.md", SAMPLE_COMMAND_NO_FRONTMATTER)
 
         counts = service.seed_commands(tmp_path)
 
@@ -359,8 +359,8 @@ class TestSeedCommandsUpdateChanged:
             "cmd1",
             SAMPLE_COMMAND_NO_FRONTMATTER,
             new_version=3,
-            updated_by="archon-seeder",
-            description="Archon Setup — Register This Machine",
+            updated_by="cortex-seeder",
+            description="Cortex Setup — Register This Machine",
         )
         mock_extension_service.create_extension.assert_not_called()
         assert counts == {"created": 0, "updated": 1, "skipped": 0, "errors": 0}

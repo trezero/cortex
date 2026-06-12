@@ -2,13 +2,13 @@ __pycache__
 .env
 .serena
 
-# Archon local setup files (machine-specific, created by archonSetup)
-.claude/archon-config.json
-.claude/archon-state.json
-.claude/archon-memory-buffer.jsonl
+# Cortex local setup files (machine-specific, created by cortexSetup)
+.claude/cortex-config.json
+.claude/cortex-state.json
+.claude/cortex-memory-buffer.jsonl
 .claude/plugins/
 .claude/settings.local.json
-.archon/
+.cortex/
 .playwright-mcp/
 
 PRPs/local
@@ -35,14 +35,14 @@ UAT/
 
 .DS_Store
 
-# Postman exported collections/environments (available via Archon UI or Postman app)
+# Postman exported collections/environments (available via Cortex UI or Postman app)
 /postman/
 
 # Local release notes testing
 release-notes-*.md
 .claude/plugins/
 .claude/skills/
-.claude/archon-config.json
-.claude/archon-state.json
-.claude/archon-memory-buffer.jsonl
-.archon/
+.claude/cortex-config.json
+.claude/cortex-state.json
+.claude/cortex-memory-buffer.jsonl
+.cortex/

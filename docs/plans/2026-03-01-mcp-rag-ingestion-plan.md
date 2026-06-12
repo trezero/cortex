@@ -4,7 +4,7 @@
 
 **Goal:** Add `manage_rag_source` and `rag_check_progress` MCP tools to enable inline document ingestion, URL crawling, source sync, and deletion through the MCP interface.
 
-**Architecture:** Two new MCP tools call new/existing API endpoints via HTTP. The inline ingestion endpoint accepts a batch of documents, chunks them using the existing 5000-char pipeline, embeds them asynchronously, and reports progress via the existing ProgressTracker. Project scoping uses the metadata JSONB column on `archon_sources`.
+**Architecture:** Two new MCP tools call new/existing API endpoints via HTTP. The inline ingestion endpoint accepts a batch of documents, chunks them using the existing 5000-char pipeline, embeds them asynchronously, and reports progress via the existing ProgressTracker. Project scoping uses the metadata JSONB column on `cortex_sources`.
 
 **Tech Stack:** Python 3.12, FastAPI, FastMCP, httpx, Supabase, existing embedding pipeline
 
@@ -221,7 +221,7 @@ async def _perform_inline_ingest(
 
             # Update source metadata with project_id and source_type
             try:
-                existing = supabase_client.table("archon_sources").select("metadata").eq(
+                existing = supabase_client.table("cortex_sources").select("metadata").eq(
                     "source_id", source_id
                 ).execute()
                 if existing.data:
@@ -230,7 +230,7 @@ async def _perform_inline_ingest(
                     metadata["ingestion_method"] = "mcp_inline"
                     if request.project_id:
                         metadata["project_id"] = request.project_id
-                    supabase_client.table("archon_sources").update(
+                    supabase_client.table("cortex_sources").update(
                         {"metadata": metadata}
                     ).eq("source_id", source_id).execute()
             except Exception as e:
@@ -300,7 +300,7 @@ In `knowledge_api.py`, modify `perform_rag_query` (line ~1109). After the query 
     source_filter = request.source
     if request.project_id and not source_filter:
         try:
-            project_sources = get_supabase_client().table("archon_sources").select(
+            project_sources = get_supabase_client().table("cortex_sources").select(
                 "source_id"
             ).filter(
                 "metadata->>project_id", "eq", request.project_id
@@ -383,7 +383,7 @@ Add inside `register_rag_tools()`, after the last existing tool (`rag_read_full_
                 Example: '[{"title": "auth.md", "content": "# Auth\\n## Overview\\n..."}]'
             url: URL to crawl (required for add with source_type="url")
             tags: Tags for categorization, e.g. ["project-name", "docs"]
-            project_id: Associate source with an Archon project for scoped searches
+            project_id: Associate source with an Cortex project for scoped searches
             knowledge_type: Classification (default: "technical")
             extract_code_examples: Extract and index code blocks (default: true)
             source_id: Source ID for sync/delete (from rag_get_available_sources)
@@ -729,7 +729,7 @@ In `document_storage_operations.py`, in the `_create_source_records` method (or 
 metadata["project_id"] = request.get("project_id")
 ```
 
-Check `_create_source_records` to see how metadata flows to `update_source_info()` in `source_management_service.py`. The `project_id` should be preserved in the metadata dict that gets upserted to `archon_sources`.
+Check `_create_source_records` to see how metadata flows to `update_source_info()` in `source_management_service.py`. The `project_id` should be preserved in the metadata dict that gets upserted to `cortex_sources`.
 
 **Step 2: Commit**
 

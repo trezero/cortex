@@ -57,7 +57,7 @@ class TestGenerateUniqueFilename:
         assert filename == "my-topic.md"
 
     def test_collision_handling(self, indexer: IndexerService, project_dir: str):
-        knowledge_dir = os.path.join(project_dir, ".archon", "knowledge")
+        knowledge_dir = os.path.join(project_dir, ".cortex", "knowledge")
         os.makedirs(knowledge_dir, exist_ok=True)
         # Create a file to cause a collision
         with open(os.path.join(knowledge_dir, "my-topic.md"), "w") as f:
@@ -67,7 +67,7 @@ class TestGenerateUniqueFilename:
         assert filename == "my-topic-2.md"
 
     def test_multiple_collisions(self, indexer: IndexerService, project_dir: str):
-        knowledge_dir = os.path.join(project_dir, ".archon", "knowledge")
+        knowledge_dir = os.path.join(project_dir, ".cortex", "knowledge")
         os.makedirs(knowledge_dir, exist_ok=True)
         for name in ["my-topic.md", "my-topic-2.md", "my-topic-3.md"]:
             with open(os.path.join(knowledge_dir, name), "w") as f:
@@ -96,7 +96,7 @@ class TestWriteMaterializedFile:
 
     @pytest.mark.asyncio
     async def test_creates_directories(self, indexer: IndexerService, project_dir: str):
-        knowledge_dir = os.path.join(project_dir, ".archon", "knowledge")
+        knowledge_dir = os.path.join(project_dir, ".cortex", "knowledge")
         assert not os.path.exists(knowledge_dir)
 
         await indexer.write_materialized_file(project_dir, "test.md", "content")
@@ -112,7 +112,7 @@ class TestWriteMaterializedFile:
     @pytest.mark.asyncio
     async def test_returns_full_path(self, indexer: IndexerService, project_dir: str):
         path = await indexer.write_materialized_file(project_dir, "out.md", "data")
-        expected = os.path.join(project_dir, ".archon", "knowledge", "out.md")
+        expected = os.path.join(project_dir, ".cortex", "knowledge", "out.md")
         assert path == expected
 
 
@@ -141,12 +141,12 @@ class TestUpdateIndex:
     @pytest.mark.asyncio
     async def test_empty_index(self, indexer: IndexerService, project_dir: str):
         await indexer.update_index(project_dir)
-        index_path = os.path.join(project_dir, ".archon", "index.md")
+        index_path = os.path.join(project_dir, ".cortex", "index.md")
         assert os.path.exists(index_path)
         with open(index_path) as f:
             content = f.read()
         assert "No materialized knowledge files yet." in content
-        assert "# .archon Knowledge Index" in content
+        assert "# .cortex Knowledge Index" in content
 
     @pytest.mark.asyncio
     async def test_index_with_frontmatter_entries(self, indexer: IndexerService, project_dir: str):
@@ -163,7 +163,7 @@ class TestUpdateIndex:
         await indexer.write_materialized_file(project_dir, "fastapi-basics.md", file_content)
         await indexer.update_index(project_dir)
 
-        index_path = os.path.join(project_dir, ".archon", "index.md")
+        index_path = os.path.join(project_dir, ".cortex", "index.md")
         with open(index_path) as f:
             content = f.read()
 
@@ -184,7 +184,7 @@ class TestUpdateIndex:
         await indexer.write_materialized_file(project_dir, "test-topic.md", file_content)
         await indexer.update_index(project_dir)
 
-        index_path = os.path.join(project_dir, ".archon", "index.md")
+        index_path = os.path.join(project_dir, ".cortex", "index.md")
         with open(index_path) as f:
             content = f.read()
         # Should show date only, not full timestamp
@@ -197,7 +197,7 @@ class TestUpdateIndex:
         await indexer.write_materialized_file(project_dir, "my-cool-topic.md", "# Just content")
         await indexer.update_index(project_dir)
 
-        index_path = os.path.join(project_dir, ".archon", "index.md")
+        index_path = os.path.join(project_dir, ".cortex", "index.md")
         with open(index_path) as f:
             content = f.read()
         # Topic derived from filename: "my-cool-topic" -> "My Cool Topic"
@@ -218,7 +218,7 @@ class TestUpdateIndex:
         await indexer.write_materialized_file(project_dir, "alt-sources.md", file_content)
         await indexer.update_index(project_dir)
 
-        index_path = os.path.join(project_dir, ".archon", "index.md")
+        index_path = os.path.join(project_dir, ".cortex", "index.md")
         with open(index_path) as f:
             content = f.read()
         assert "https://example.com" in content
@@ -230,7 +230,7 @@ class TestUpdateIndex:
         await indexer.write_materialized_file(project_dir, "gamma.md", "---\ntopic: Gamma\n---\n")
         await indexer.update_index(project_dir)
 
-        index_path = os.path.join(project_dir, ".archon", "index.md")
+        index_path = os.path.join(project_dir, ".cortex", "index.md")
         with open(index_path) as f:
             content = f.read()
 
@@ -241,14 +241,14 @@ class TestUpdateIndex:
 
     @pytest.mark.asyncio
     async def test_index_ignores_non_md_files(self, indexer: IndexerService, project_dir: str):
-        knowledge_dir = os.path.join(project_dir, ".archon", "knowledge")
+        knowledge_dir = os.path.join(project_dir, ".cortex", "knowledge")
         os.makedirs(knowledge_dir, exist_ok=True)
         with open(os.path.join(knowledge_dir, "notes.txt"), "w") as f:
             f.write("not markdown")
         await indexer.write_materialized_file(project_dir, "real.md", "---\ntopic: Real\n---\n")
         await indexer.update_index(project_dir)
 
-        index_path = os.path.join(project_dir, ".archon", "index.md")
+        index_path = os.path.join(project_dir, ".cortex", "index.md")
         with open(index_path) as f:
             content = f.read()
         assert "notes.txt" not in content

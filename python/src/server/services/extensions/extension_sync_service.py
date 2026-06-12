@@ -1,6 +1,6 @@
 """Extension sync service.
 
-Compares local extension state against the Archon registry,
+Compares local extension state against the Cortex registry,
 resolves pending actions, and detects drift between
 what a system has installed and what the registry expects.
 """
@@ -12,39 +12,39 @@ from ...config.logfire_config import get_logger
 
 logger = get_logger(__name__)
 
-SYSTEM_EXTENSIONS_TABLE = "archon_system_extensions"
-REGISTRATIONS_TABLE = "archon_project_system_registrations"
+SYSTEM_EXTENSIONS_TABLE = "cortex_system_extensions"
+REGISTRATIONS_TABLE = "cortex_project_system_registrations"
 
-# Seconds of tolerance when comparing local file mtime against archon updated_at.
+# Seconds of tolerance when comparing local file mtime against cortex updated_at.
 # Guards against minor clock skew between machines.
 _CLOCK_SKEW_SECONDS = 5
 
 
-def _compute_direction(local_mtime: float | int | None, archon_updated_at: str | None) -> str:
+def _compute_direction(local_mtime: float | int | None, cortex_updated_at: str | None) -> str:
     """Determine which copy of an extension is newer based on timestamps.
 
     Returns one of:
-      "local_newer"   — local file mtime is meaningfully later than Archon's updated_at
-      "archon_newer"  — Archon's updated_at is meaningfully later than local file mtime
+      "local_newer"   — local file mtime is meaningfully later than Cortex's updated_at
+      "cortex_newer"  — Cortex's updated_at is meaningfully later than local file mtime
       "conflict"      — timestamps are within clock-skew threshold (genuine conflict)
       "unknown"       — one or both timestamps are missing or unparseable
     """
-    if local_mtime is None or not archon_updated_at:
+    if local_mtime is None or not cortex_updated_at:
         return "unknown"
     try:
-        archon_ts = datetime.fromisoformat(archon_updated_at.replace("Z", "+00:00")).timestamp()
+        cortex_ts = datetime.fromisoformat(cortex_updated_at.replace("Z", "+00:00")).timestamp()
         local_ts = float(local_mtime)
-        if local_ts > archon_ts + _CLOCK_SKEW_SECONDS:
+        if local_ts > cortex_ts + _CLOCK_SKEW_SECONDS:
             return "local_newer"
-        if archon_ts > local_ts + _CLOCK_SKEW_SECONDS:
-            return "archon_newer"
+        if cortex_ts > local_ts + _CLOCK_SKEW_SECONDS:
+            return "cortex_newer"
         return "conflict"
     except (ValueError, TypeError, AttributeError):
         return "unknown"
 
 
 class ExtensionSyncService:
-    """Handles sync logic between local systems and the Archon extension registry."""
+    """Handles sync logic between local systems and the Cortex extension registry."""
 
     def __init__(self, supabase_client=None):
         """Initialize with an optional Supabase client.
@@ -64,27 +64,27 @@ class ExtensionSyncService:
     def compute_sync_report(
         self,
         local_extensions: list[dict[str, Any]],
-        archon_extensions: list[dict[str, Any]],
+        cortex_extensions: list[dict[str, Any]],
         system_extensions: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        """Compare local extensions against Archon state and return a sync report.
+        """Compare local extensions against Cortex state and return a sync report.
 
         Args:
             local_extensions: [{name, content_hash, local_mtime?}] from the client's disk.
                 local_mtime is a Unix timestamp (seconds) of the file's last modification.
-            archon_extensions: Full extension records from archon_extensions table.
-            system_extensions: Records from archon_system_extensions for this system+project.
+            cortex_extensions: Full extension records from cortex_extensions table.
+            system_extensions: Records from cortex_system_extensions for this system+project.
 
         Returns:
             Sync report with keys: in_sync, local_changes, pending_install,
             pending_remove, unknown_local.
 
             Each local_changes item includes:
-              direction: "local_newer" | "archon_newer" | "conflict" | "unknown"
+              direction: "local_newer" | "cortex_newer" | "conflict" | "unknown"
               local_mtime: Unix timestamp from the client (or None)
-              archon_updated_at: ISO timestamp from the Archon record (or None)
+              cortex_updated_at: ISO timestamp from the Cortex record (or None)
         """
-        archon_by_name: dict[str, dict[str, Any]] = {s["name"]: s for s in archon_extensions}
+        cortex_by_name: dict[str, dict[str, Any]] = {s["name"]: s for s in cortex_extensions}
         system_by_extension_id: dict[str, dict[str, Any]] = {s["extension_id"]: s for s in system_extensions}
         local_by_name: dict[str, dict[str, Any]] = {s["name"]: s for s in local_extensions}
 
@@ -94,57 +94,57 @@ class ExtensionSyncService:
         pending_remove: list[dict[str, Any]] = []
         unknown_local: list[dict[str, Any]] = []
 
-        # Classify each local extension against the Archon registry
+        # Classify each local extension against the Cortex registry
         for local in local_extensions:
             name = local["name"]
-            archon_extension = archon_by_name.get(name)
+            cortex_extension = cortex_by_name.get(name)
 
-            if not archon_extension:
+            if not cortex_extension:
                 unknown_local.append({"name": name, "content_hash": local["content_hash"]})
                 continue
 
             # is_required extensions are system-critical and must never be auto-updated
             # or removed by sync — always treat as in_sync regardless of content hash
-            if archon_extension.get("is_required"):
+            if cortex_extension.get("is_required"):
                 in_sync.append(name)
                 continue
 
-            sys_extension = system_by_extension_id.get(archon_extension["id"])
+            sys_extension = system_by_extension_id.get(cortex_extension["id"])
 
             if sys_extension and sys_extension["status"] == "pending_remove":
                 pending_remove.append({
-                    "extension_id": archon_extension["id"],
+                    "extension_id": cortex_extension["id"],
                     "name": name,
                 })
-            elif local["content_hash"] == archon_extension["content_hash"]:
+            elif local["content_hash"] == cortex_extension["content_hash"]:
                 in_sync.append(name)
             else:
                 local_mtime = local.get("local_mtime")
-                archon_updated_at = archon_extension.get("updated_at")
+                cortex_updated_at = cortex_extension.get("updated_at")
                 local_changes.append({
                     "name": name,
-                    "extension_id": archon_extension["id"],
+                    "extension_id": cortex_extension["id"],
                     "local_hash": local["content_hash"],
-                    "archon_hash": archon_extension["content_hash"],
-                    "direction": _compute_direction(local_mtime, archon_updated_at),
+                    "cortex_hash": cortex_extension["content_hash"],
+                    "direction": _compute_direction(local_mtime, cortex_updated_at),
                     "local_mtime": local_mtime,
-                    "archon_updated_at": archon_updated_at,
+                    "cortex_updated_at": cortex_updated_at,
                 })
 
-        # Detect pending installs: extensions in Archon with pending_install status
+        # Detect pending installs: extensions in Cortex with pending_install status
         # that are NOT already present locally (skip is_required extensions)
         for sys_extension in system_extensions:
             if sys_extension["status"] != "pending_install":
                 continue
             extension_id = sys_extension["extension_id"]
-            archon_extension = next((s for s in archon_extensions if s["id"] == extension_id), None)
-            if archon_extension and archon_extension["name"] not in local_by_name:
-                if archon_extension.get("is_required"):
+            cortex_extension = next((s for s in cortex_extensions if s["id"] == extension_id), None)
+            if cortex_extension and cortex_extension["name"] not in local_by_name:
+                if cortex_extension.get("is_required"):
                     continue
                 pending_install.append({
                     "extension_id": extension_id,
-                    "name": archon_extension["name"],
-                    "content": archon_extension.get("content", ""),
+                    "name": cortex_extension["name"],
+                    "content": cortex_extension.get("content", ""),
                 })
 
         return {
@@ -171,8 +171,8 @@ class ExtensionSyncService:
     def unlink_system_from_project(self, system_id: str, project_id: str) -> bool:
         """Remove a system's association with a project.
 
-        Deletes from archon_project_system_registrations. The system remains
-        globally in archon_systems — only the project link is removed.
+        Deletes from cortex_project_system_registrations. The system remains
+        globally in cortex_systems — only the project link is removed.
         Returns True if a record was deleted, False if the association did not exist.
         """
         result = (
@@ -188,13 +188,13 @@ class ExtensionSyncService:
         """Get all systems that have synced with a project."""
         result = (
             self.supabase_client.table(REGISTRATIONS_TABLE)
-            .select("system_id, archon_systems(*)")
+            .select("system_id, cortex_systems(*)")
             .eq("project_id", project_id)
             .execute()
         )
         if not result.data:
             return []
-        return [row["archon_systems"] for row in result.data if row.get("archon_systems")]
+        return [row["cortex_systems"] for row in result.data if row.get("cortex_systems")]
 
     # ── System Extension Queries ───────────────────────────────────────────
 
@@ -212,13 +212,13 @@ class ExtensionSyncService:
     def get_system_project_extensions(self, system_id: str, project_id: str) -> list[dict[str, Any]]:
         """Get detailed extension state for a system within a project.
 
-        Joins with archon_extensions to include extension metadata alongside
+        Joins with cortex_extensions to include extension metadata alongside
         install status information.
         """
         result = (
             self.supabase_client.table(SYSTEM_EXTENSIONS_TABLE)
             .select(
-                "*, archon_extensions(id, name, display_name, description, current_version,"
+                "*, cortex_extensions(id, name, display_name, description, current_version,"
                 " content_hash, is_required, is_validated, tags)"
             )
             .eq("system_id", system_id)

@@ -93,9 +93,9 @@ class TestCreateExtension:
         versions_builder.execute.return_value = MagicMock(data=[{"id": "version-uuid-1"}])
 
         def _table(name):
-            if name == "archon_extensions":
+            if name == "cortex_extensions":
                 return extensions_builder
-            if name == "archon_extension_versions":
+            if name == "cortex_extension_versions":
                 return versions_builder
             return MagicMock()
 
@@ -220,7 +220,7 @@ class TestGetExtension:
 class TestFindByName:
     def test_finds_extension_by_name(self, service, mock_supabase):
         """find_by_name should look up an extension by its unique name."""
-        extension_row = {"id": "s1", "name": "archon-memory", "content": "# Memory"}
+        extension_row = {"id": "s1", "name": "cortex-memory", "content": "# Memory"}
 
         builder = MagicMock()
         builder.select.return_value = builder
@@ -230,11 +230,11 @@ class TestFindByName:
 
         mock_supabase.table.side_effect = lambda name: builder
 
-        result = service.find_by_name("archon-memory")
+        result = service.find_by_name("cortex-memory")
 
         assert result is not None
-        assert result["name"] == "archon-memory"
-        builder.eq.assert_called_once_with("name", "archon-memory")
+        assert result["name"] == "cortex-memory"
+        builder.eq.assert_called_once_with("name", "cortex-memory")
 
     def test_returns_none_for_unknown_name(self, service, mock_supabase):
         """find_by_name should return None when no extension matches."""
@@ -276,9 +276,9 @@ class TestUpdateExtension:
         versions_builder.execute.return_value = MagicMock(data=[{"id": "v3"}])
 
         def _table(name):
-            if name == "archon_extensions":
+            if name == "cortex_extensions":
                 return extensions_builder
-            if name == "archon_extension_versions":
+            if name == "cortex_extension_versions":
                 return versions_builder
             return MagicMock()
 
@@ -338,7 +338,7 @@ class TestDeleteExtension:
 
         service.delete_extension("s1")
 
-        mock_supabase.table.assert_called_with("archon_extensions")
+        mock_supabase.table.assert_called_with("cortex_extensions")
         builder.delete.assert_called_once()
         builder.eq.assert_called_once_with("id", "s1")
 
@@ -368,7 +368,7 @@ class TestGetVersions:
         assert result[0]["version_number"] == 2
         assert result[1]["version_number"] == 1
 
-        mock_supabase.table.assert_called_with("archon_extension_versions")
+        mock_supabase.table.assert_called_with("cortex_extension_versions")
         builder.eq.assert_called_once_with("extension_id", "s1")
         builder.order.assert_called_once_with("version_number", desc=True)
 
@@ -378,7 +378,7 @@ class TestGetVersions:
 
 class TestSaveProjectOverride:
     def test_upserts_into_project_extensions(self, service, mock_supabase):
-        """save_project_override should upsert into archon_project_extensions."""
+        """save_project_override should upsert into cortex_project_extensions."""
         override_row = {
             "project_id": "proj-1",
             "extension_id": "s1",
@@ -402,7 +402,7 @@ class TestSaveProjectOverride:
         assert result["project_id"] == "proj-1"
         assert result["extension_id"] == "s1"
 
-        mock_supabase.table.assert_called_with("archon_project_extensions")
+        mock_supabase.table.assert_called_with("cortex_project_extensions")
         builder.upsert.assert_called_once()
         upsert_data = builder.upsert.call_args[0][0]
         assert upsert_data["project_id"] == "proj-1"
@@ -432,7 +432,7 @@ class TestGetProjectExtensions:
         result = service.get_project_extensions("proj-1")
 
         assert len(result) == 2
-        mock_supabase.table.assert_called_with("archon_project_extensions")
+        mock_supabase.table.assert_called_with("cortex_project_extensions")
         builder.eq.assert_called_once_with("project_id", "proj-1")
 
 
@@ -442,10 +442,10 @@ class TestGetProjectExtensions:
 class TestCreateExtensionWithType:
     def test_creates_extension_with_command_type(self, service, mock_supabase):
         """create_extension with type='command' should include type in the insert payload."""
-        content = "# Archon Setup\n\nSome content."
+        content = "# Cortex Setup\n\nSome content."
         extension_row = {
             "id": "cmd-uuid-1",
-            "name": "archon-setup",
+            "name": "cortex-setup",
             "type": "command",
             "content": content,
             "content_hash": ExtensionService.compute_content_hash(content),
@@ -460,14 +460,14 @@ class TestCreateExtensionWithType:
         versions_builder.execute.return_value = MagicMock(data=[{"id": "v1"}])
 
         def _table(name):
-            if name == "archon_extensions":
+            if name == "cortex_extensions":
                 return extensions_builder
             return versions_builder
 
         mock_supabase.table.side_effect = _table
 
         result = service.create_extension(
-            name="archon-setup",
+            name="cortex-setup",
             description="Setup command",
             content=content,
             created_by="test",
@@ -480,10 +480,10 @@ class TestCreateExtensionWithType:
 
     def test_creates_extension_with_plugin_manifest(self, service, mock_supabase):
         """create_extension with plugin_manifest should include it in the insert payload."""
-        manifest = {"command_group": "archon", "filename": "archon-prime.md"}
+        manifest = {"command_group": "cortex", "filename": "cortex-prime.md"}
         extension_row = {
             "id": "cmd-uuid-2",
-            "name": "archon-prime",
+            "name": "cortex-prime",
             "type": "command",
             "plugin_manifest": manifest,
         }
@@ -497,14 +497,14 @@ class TestCreateExtensionWithType:
         versions_builder.execute.return_value = MagicMock(data=[{"id": "v1"}])
 
         def _table(name):
-            if name == "archon_extensions":
+            if name == "cortex_extensions":
                 return extensions_builder
             return versions_builder
 
         mock_supabase.table.side_effect = _table
 
         result = service.create_extension(
-            name="archon-prime",
+            name="cortex-prime",
             description="Prime command",
             content="# Prime",
             created_by="test",
@@ -528,7 +528,7 @@ class TestCreateExtensionWithType:
         versions_builder.execute.return_value = MagicMock(data=[{"id": "v1"}])
 
         def _table(name):
-            if name == "archon_extensions":
+            if name == "cortex_extensions":
                 return extensions_builder
             return versions_builder
 
@@ -553,7 +553,7 @@ class TestListExtensionsTypeFilter:
     def test_list_extensions_filters_by_type(self, service, mock_supabase):
         """list_extensions with type='command' should add an eq filter on type."""
         command_extensions = [
-            {"id": "c1", "name": "archon-setup", "type": "command"},
+            {"id": "c1", "name": "cortex-setup", "type": "command"},
         ]
 
         builder = MagicMock()

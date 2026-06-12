@@ -1,12 +1,12 @@
 # dockerDev Agent
 
 ## Purpose
-Handle Docker container management, networking diagnostics, and volume operations for Archon development.
+Handle Docker container management, networking diagnostics, and volume operations for Cortex development.
 
 ## Key Functions
 - Docker-compose service management
 - Network connectivity troubleshooting (host.docker.internal patterns)
-- Named volume operations with archon prefix
+- Named volume operations with cortex prefix
 - Container health monitoring
 
 ## Usage Patterns

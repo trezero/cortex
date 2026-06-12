@@ -1,0 +1,6 @@
+{
+  "name": "cortex-memory",
+  "version": "1.1.0",
+  "description": "Smart code exploration, session memory, and Cortex integration for Claude Code",
+  "author": "Cortex"
+}

@@ -9,7 +9,7 @@ class MaterializationRequest(BaseModel):
     """Request to materialize knowledge for a topic into a project repository."""
 
     topic: str = Field(description="Topic to materialize")
-    project_id: str = Field(description="Archon project ID")
+    project_id: str = Field(description="Cortex project ID")
     project_path: str = Field(description="Filesystem path to project repo")
     agent_context: str | None = Field(default=None, description="Additional context from the requesting agent")
 

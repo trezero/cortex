@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-- Archon server running (`docker compose up -d` or local)
-- Archon MCP connected in Claude Code
+- Cortex server running (`docker compose up -d` or local)
+- Cortex MCP connected in Claude Code
 - At least one project created in the UI
 - Server URL: `http://localhost:8181`
 
@@ -11,16 +11,16 @@
 
 ## Journey 1: Server Startup Auto-Seeds Skills
 
-**What it tests:** `SkillSeedingService` runs on startup and populates `archon_skills` from bundled SKILL.md files.
+**What it tests:** `SkillSeedingService` runs on startup and populates `cortex_skills` from bundled SKILL.md files.
 
 1. Restart the server:
    ```bash
-   docker compose restart archon-server
+   docker compose restart cortex-server
    # or locally: kill and re-run uv run python -m src.server.main
    ```
 2. Check server logs for the seeding line:
    ```bash
-   docker compose logs archon-server | grep "Skills seeded"
+   docker compose logs cortex-server | grep "Skills seeded"
    ```
    **Expected:** `✅ Skills seeded: N created, 0 updated, 0 unchanged` (or similar counts)
 
@@ -28,12 +28,12 @@
    ```bash
    curl http://localhost:8181/api/skills | python3 -m json.tool
    ```
-   **Expected:** JSON with a `skills` array containing at least `archon-bootstrap`, `archon-memory`, `archon-skill-sync`
+   **Expected:** JSON with a `skills` array containing at least `cortex-bootstrap`, `cortex-memory`, `cortex-skill-sync`
 
 4. Restart again (idempotency check):
    ```bash
-   docker compose restart archon-server
-   docker compose logs archon-server | grep "Skills seeded"
+   docker compose restart cortex-server
+   docker compose logs cortex-server | grep "Skills seeded"
    ```
    **Expected:** `0 created, 0 updated, N unchanged` — no duplicates created
 
@@ -61,7 +61,7 @@
 
 **What it tests:** `manage_skills(action="bootstrap")` fetches skills + registers system.
 
-**Setup:** Open Claude Code in any project with the Archon MCP connected.
+**Setup:** Open Claude Code in any project with the Cortex MCP connected.
 
 1. Ask Claude:
    > "Call manage_skills with action=bootstrap, system_fingerprint=test-machine-001, system_name=My Test Machine"
@@ -72,7 +72,7 @@
    - `install_path`: suggested path (e.g. `~/.claude/skills/`)
    - `message` describing what to do
 
-2. With project registration — also pass a valid `project_id` from your Archon project:
+2. With project registration — also pass a valid `project_id` from your Cortex project:
    > "Call manage_skills with action=bootstrap, system_fingerprint=test-machine-001, system_name=My Test Machine, project_id=<your-project-id>"
 
    **Expected:** Same as above, plus the system appears in the Skills tab of that project
@@ -85,33 +85,33 @@
 
 ---
 
-## Journey 4: archon-bootstrap SKILL (full machine bootstrap)
+## Journey 4: cortex-bootstrap SKILL (full machine bootstrap)
 
-**What it tests:** The `archon-bootstrap` SKILL.md end-to-end flow.
+**What it tests:** The `cortex-bootstrap` SKILL.md end-to-end flow.
 
-**Setup:** Claude Code with Archon MCP connected.
+**Setup:** Claude Code with Cortex MCP connected.
 
 1. Trigger the skill:
-   > "Bootstrap archon skills on this machine"
+   > "Bootstrap cortex skills on this machine"
 
-   Or: `/archon-bootstrap` if installed
+   Or: `/cortex-bootstrap` if installed
 
 2. Walk through the 7 phases — Claude should:
    - Phase 0: Check MCP health (`GET /health`)
    - Phase 1: Generate a fingerprint using `sha256sum` (Linux) or `shasum -a 256` (macOS)
    - Phase 2: Confirm system name with you
-   - Phase 3: Read `~/.claude/archon-state.json` (may not exist yet — that's fine)
+   - Phase 3: Read `~/.claude/cortex-state.json` (may not exist yet — that's fine)
    - Phase 4: Call `manage_skills(action="bootstrap", ...)`
    - Phase 5: Write each skill's content to `~/.claude/skills/<name>.md`
-   - Phase 6: Write/merge `~/.claude/archon-state.json` (system_id, system_name, fingerprint)
+   - Phase 6: Write/merge `~/.claude/cortex-state.json` (system_id, system_name, fingerprint)
    - Phase 7: Report summary
 
 3. Verify files were written:
    ```bash
    ls ~/.claude/skills/
-   cat ~/.claude/archon-state.json
+   cat ~/.claude/cortex-state.json
    ```
-   **Expected:** SKILL.md files for each skill, and `archon-state.json` with your system info
+   **Expected:** SKILL.md files for each skill, and `cortex-state.json` with your system info
 
 ---
 
@@ -119,7 +119,7 @@
 
 **What it tests:** The Remove button in `SystemSkillList` calls the remove endpoint.
 
-**Setup:** In the Archon UI, navigate to a project → Skills tab. A system must be registered with at least one installed skill.
+**Setup:** In the Cortex UI, navigate to a project → Skills tab. A system must be registered with at least one installed skill.
 
 1. Select a system from the left panel
 2. In the skill list, find an **installed** skill (shown with a status badge)
@@ -155,19 +155,19 @@
 | Unlink non-existent system | `curl -X DELETE http://localhost:8181/api/projects/bad-id/systems/bad-id` | HTTP 404 |
 | Bootstrap with no project_id | Call `manage_skills(action="bootstrap", system_fingerprint=x, system_name=y)` | Returns skills, no sync call, no 500 error |
 | Skills content idempotency | Restart server twice, check seeding logs | `0 created` on 2nd restart (hash-based skip) |
-| Biome/TS clean | `cd archon-ui-main && npx tsc --noEmit && npm run biome` | No errors |
+| Biome/TS clean | `cd cortex-ui && npx tsc --noEmit && npm run biome` | No errors |
 
 ---
 
 ## Journey 8: Postman Collection — Using the API Test Suite
 
-**What it tests:** The `postman/` directory contains a complete, executable Collections-as-Code test suite for all Archon API endpoints, replacing ad-hoc curl commands with version-controlled, repeatable Postman requests.
+**What it tests:** The `postman/` directory contains a complete, executable Collections-as-Code test suite for all Cortex API endpoints, replacing ad-hoc curl commands with version-controlled, repeatable Postman requests.
 
 ### Prerequisites
 
 - [Postman Desktop App](https://www.postman.com/downloads/) installed (v10+ recommended)
 - OR the [Postman CLI](https://learning.postman.com/docs/postman-cli/postman-cli-installation/) for terminal-based execution
-- Archon server running locally on port 8181
+- Cortex server running locally on port 8181
 
 ### 8.1: Import the Collection into Postman
 
@@ -176,7 +176,7 @@
 3. Connect your local repo folder to Postman:
    - Go to **File > Open Folder** (or drag-drop the repo root)
    - Postman auto-detects the `postman/` directory and loads the collection
-4. **Expected:** The `Archon` collection appears in the sidebar with 23 domain folders:
+4. **Expected:** The `Cortex` collection appears in the sidebar with 23 domain folders:
 
    | Folder | Endpoints | What It Covers |
    |--------|-----------|----------------|
@@ -204,11 +204,11 @@
    | LeaveOff | 3 | Session leave-off points |
    | Internal | 3 | Internal/debug endpoints |
 
-5. Select the `Archon - Local` environment from the environment dropdown
+5. Select the `Cortex - Local` environment from the environment dropdown
 
 ### 8.2: Run a Single Request
 
-1. Expand `Archon` > `Health` > `Root Health`
+1. Expand `Cortex` > `Health` > `Root Health`
 2. Click **Send**
 3. **Expected:**
    - Status: `200 OK`
@@ -233,12 +233,12 @@ Instead of manually curling each endpoint, run the entire suite:
 
 ```bash
 # Run the full collection against local environment
-postman collection run postman/collections/Archon/ \
-  --environment postman/environments/Archon\ -\ Local.environment.yaml
+postman collection run postman/collections/Cortex/ \
+  --environment postman/environments/Cortex\ -\ Local.environment.yaml
 
 # Run a specific folder only
-postman collection run postman/collections/Archon/Knowledge/ \
-  --environment postman/environments/Archon\ -\ Local.environment.yaml
+postman collection run postman/collections/Cortex/Knowledge/ \
+  --environment postman/environments/Cortex\ -\ Local.environment.yaml
 ```
 
 **Expected:** All tests pass. Failed tests show clear diagnostics about which status code or response shape was wrong.
@@ -260,11 +260,11 @@ Two environment files are provided:
 
 | File | Use Case |
 |------|----------|
-| `Archon - Local.environment.yaml` | Local dev: `baseUrl = http://localhost:8181` |
-| `Archon - CI.environment.yaml` | CI/CD: Docker service names as hosts |
+| `Cortex - Local.environment.yaml` | Local dev: `baseUrl = http://localhost:8181` |
+| `Cortex - CI.environment.yaml` | CI/CD: Docker service names as hosts |
 
 To add a custom environment (e.g., staging):
-1. Copy `Archon - Local.environment.yaml` to `Archon - Staging.environment.yaml`
+1. Copy `Cortex - Local.environment.yaml` to `Cortex - Staging.environment.yaml`
 2. Update the `baseUrl` value to your staging server
 3. Commit — the new environment appears automatically in Postman
 
@@ -283,17 +283,17 @@ Use the Postman collection:
 
 ```bash
 # New way — repeatable, with assertions, version-controlled
-postman collection run postman/collections/Archon/Projects/ \
-  --environment postman/environments/Archon\ -\ Local.environment.yaml
+postman collection run postman/collections/Cortex/Projects/ \
+  --environment postman/environments/Cortex\ -\ Local.environment.yaml
 ```
 
-Or open `postman/collections/Archon/Projects/Create Project.request.yaml` in Postman and click Send. The test script automatically verifies the response status and shape.
+Or open `postman/collections/Cortex/Projects/Create Project.request.yaml` in Postman and click Send. The test script automatically verifies the response status and shape.
 
 ### 8.8: Adding New Endpoints
 
-When a new API endpoint is added to Archon:
+When a new API endpoint is added to Cortex:
 
-1. Create a `.request.yaml` file in the appropriate folder under `postman/collections/Archon/`
+1. Create a `.request.yaml` file in the appropriate folder under `postman/collections/Cortex/`
 2. Follow the existing format — see any existing request file for the template
 3. Include an `afterResponse` test script
 4. Update the environment YAML if new variables are needed
@@ -334,12 +334,12 @@ order: 1000
 Add to your GitHub Actions workflow:
 
 ```yaml
-- name: Run Archon API Tests
+- name: Run Cortex API Tests
   uses: postmanlabs/postman-cli-action@v1
   with:
     command: >
-      collection run postman/collections/Archon/
-      --environment postman/environments/Archon\ -\ CI.environment.yaml
+      collection run postman/collections/Cortex/
+      --environment postman/environments/Cortex\ -\ CI.environment.yaml
 ```
 
 No Postman API key or account required — the CLI runs directly on the YAML files.
@@ -353,7 +353,7 @@ Full directory tree for the Postman collection:
 ```
 postman/
 ├── collections/
-│   └── Archon/
+│   └── Cortex/
 │       ├── .resources/definition.yaml          # Collection metadata + variables
 │       ├── Health/                              # 2 requests
 │       ├── Settings/                            # 10 requests
@@ -379,10 +379,10 @@ postman/
 │       ├── LeaveOff/                            # 3 requests
 │       └── Internal/                            # 3 requests
 ├── environments/
-│   ├── Archon - Local.environment.yaml          # Local dev
-│   └── Archon - CI.environment.yaml             # CI/CD
+│   ├── Cortex - Local.environment.yaml          # Local dev
+│   └── Cortex - CI.environment.yaml             # CI/CD
 └── globals/
     └── workspace.globals.yaml                   # Workspace constants
 ```
 
-**Total: 119 request files across 23 folders, covering all Archon API endpoints.**
+**Total: 119 request files across 23 folders, covering all Cortex API endpoints.**

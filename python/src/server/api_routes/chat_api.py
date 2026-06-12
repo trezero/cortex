@@ -1,5 +1,5 @@
 """
-Chat API routes for Archon
+Chat API routes for Cortex
 
 Handles:
 - Conversation management (CRUD)

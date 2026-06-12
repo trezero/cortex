@@ -105,7 +105,7 @@ class AgenticRAGStrategy:
                     query_embedding=query_embedding,
                     match_count=match_count,
                     filter_metadata=combined_filter,
-                    table_rpc="match_archon_code_examples",
+                    table_rpc="match_cortex_code_examples",
                 )
 
                 span.set_attribute("results_found", len(results))

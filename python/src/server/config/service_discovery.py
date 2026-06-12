@@ -29,25 +29,25 @@ class ServiceDiscovery:
 
     def __init__(self):
         # Get ports during initialization
-        server_port = os.getenv("ARCHON_SERVER_PORT")
-        mcp_port = os.getenv("ARCHON_MCP_PORT")
-        agents_port = os.getenv("ARCHON_AGENTS_PORT")
+        server_port = os.getenv("CORTEX_SERVER_PORT")
+        mcp_port = os.getenv("CORTEX_MCP_PORT")
+        agents_port = os.getenv("CORTEX_AGENTS_PORT")
 
         if not server_port:
             raise ValueError(
-                "ARCHON_SERVER_PORT environment variable is required. "
+                "CORTEX_SERVER_PORT environment variable is required. "
                 "Please set it in your .env file or environment. "
                 "Default value: 8181"
             )
         if not mcp_port:
             raise ValueError(
-                "ARCHON_MCP_PORT environment variable is required. "
+                "CORTEX_MCP_PORT environment variable is required. "
                 "Please set it in your .env file or environment. "
                 "Default value: 8051"
             )
         if not agents_port:
             raise ValueError(
-                "ARCHON_AGENTS_PORT environment variable is required. "
+                "CORTEX_AGENTS_PORT environment variable is required. "
                 "Please set it in your .env file or environment. "
                 "Default value: 8052"
             )
@@ -63,12 +63,12 @@ class ServiceDiscovery:
 
     # Service name mappings
     SERVICE_NAMES = {
-        "api": "archon-server",
-        "mcp": "archon-mcp",
-        "agents": "archon-agents",
-        "archon-server": "archon-server",
-        "archon-mcp": "archon-mcp",
-        "archon-agents": "archon-agents",
+        "api": "cortex-server",
+        "mcp": "cortex-mcp",
+        "agents": "cortex-agents",
+        "cortex-server": "cortex-server",
+        "cortex-mcp": "cortex-mcp",
+        "cortex-agents": "cortex-agents",
     }
 
     @staticmethod
@@ -103,7 +103,7 @@ class ServiceDiscovery:
             protocol: Protocol to use (default: "http")
 
         Returns:
-            Full service URL (e.g., "http://archon-api:8080") or None if service not configured
+            Full service URL (e.g., "http://cortex-api:8080") or None if service not configured
         """
         cache_key = f"{protocol}://{service}"
         if cache_key in self._cache:
@@ -124,8 +124,8 @@ class ServiceDiscovery:
             url = f"{protocol}://{host}:{port}"
 
         else:
-            # Local development — use ARCHON_HOST for the externally-reachable address
-            host = os.getenv("ARCHON_HOST", "localhost")
+            # Local development — use CORTEX_HOST for the externally-reachable address
+            host = os.getenv("CORTEX_HOST", "localhost")
             url = f"{protocol}://{host}:{port}"
 
         self._cache[cache_key] = url
@@ -195,7 +195,7 @@ class ServiceDiscovery:
         return {
             service: self.get_service_url(service)
             for service in self.SERVICE_NAMES.keys()
-            if not service.startswith("archon-")  # Skip duplicates
+            if not service.startswith("cortex-")  # Skip duplicates
         }
 
     @property

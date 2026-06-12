@@ -9,8 +9,8 @@ from ...utils import get_supabase_client
 
 logger = get_logger(__name__)
 
-TABLE = "archon_leaveoff_points"
-KNOWLEDGE_DIR = ".archon/knowledge"
+TABLE = "cortex_leaveoff_points"
+KNOWLEDGE_DIR = ".cortex/knowledge"
 FILENAME = "LeaveOffPoint.md"
 
 
@@ -24,7 +24,7 @@ class LeaveOffService:
         self.supabase = supabase_client or get_supabase_client()
 
     def _write_file(self, project_path: str, record: dict) -> str:
-        """Write a LeaveOffPoint.md file into the project's .archon/knowledge/ directory.
+        """Write a LeaveOffPoint.md file into the project's .cortex/knowledge/ directory.
 
         Args:
             project_path: Absolute path to the project root.

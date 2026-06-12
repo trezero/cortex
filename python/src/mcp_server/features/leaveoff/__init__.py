@@ -1,4 +1,4 @@
-"""LeaveOff Point tools for Archon MCP Server."""
+"""LeaveOff Point tools for Cortex MCP Server."""
 
 from .leaveoff_tools import register_leaveoff_tools
 

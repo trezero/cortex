@@ -28,7 +28,7 @@ class PostmanConfig:
     def validate(self):
         """Validate that required configuration is present."""
         if not self.api_key:
-            raise ValueError("POSTMAN_API_KEY not configured. Set it in Archon Settings.")
+            raise ValueError("POSTMAN_API_KEY not configured. Set it in Cortex Settings.")
         if not self.api_key.startswith("PMAK-"):
             raise ValueError("Invalid POSTMAN_API_KEY format. Keys should start with 'PMAK-'.")
 

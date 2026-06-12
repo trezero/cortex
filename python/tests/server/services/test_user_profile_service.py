@@ -108,7 +108,7 @@ class TestUpdateProfile:
         assert upsert_data["onboarding_completed"] is True
 
     def test_updates_structured_fields(self, service, mock_supabase):
-        goals = ["Learn Rust", "Ship Archon v2"]
+        goals = ["Learn Rust", "Ship Cortex v2"]
         priorities = ["Fix bug #123"]
         profile = _make_profile(long_term_goals=goals, current_priorities=priorities)
         mock_supabase.table.return_value.upsert.return_value.execute.return_value.data = [profile]

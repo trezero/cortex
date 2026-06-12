@@ -2,7 +2,7 @@
 Unit tests for SystemService.
 
 Tests machine fingerprint registration, lookup, update, and deletion
-against the archon_systems table using a mocked Supabase client.
+against the cortex_systems table using a mocked Supabase client.
 """
 
 from unittest.mock import MagicMock
@@ -29,7 +29,7 @@ SAMPLE_SYSTEM = {
     "id": "abc-123",
     "fingerprint": "fp-deadbeef",
     "name": "dev-laptop",
-    "hostname": "archon-box",
+    "hostname": "cortex-box",
     "os": "linux",
     "last_seen_at": "2026-03-04T00:00:00+00:00",
     "created_at": "2026-03-04T00:00:00+00:00",
@@ -48,7 +48,7 @@ class TestFindByFingerprint:
         result = service.find_by_fingerprint("fp-deadbeef")
 
         assert result == SAMPLE_SYSTEM
-        mock_supabase.table.assert_called_with("archon_systems")
+        mock_supabase.table.assert_called_with("cortex_systems")
         mock_supabase.table.return_value.select.assert_called_once_with("*")
         mock_supabase.table.return_value.select.return_value.eq.assert_called_once_with(
             "fingerprint", "fp-deadbeef"
@@ -74,16 +74,16 @@ class TestRegisterSystem:
         result = service.register_system(
             fingerprint="fp-deadbeef",
             name="dev-laptop",
-            hostname="archon-box",
+            hostname="cortex-box",
             os="linux",
         )
 
         assert result == SAMPLE_SYSTEM
-        mock_supabase.table.assert_called_with("archon_systems")
+        mock_supabase.table.assert_called_with("cortex_systems")
         insert_arg = mock_supabase.table.return_value.insert.call_args[0][0]
         assert insert_arg["fingerprint"] == "fp-deadbeef"
         assert insert_arg["name"] == "dev-laptop"
-        assert insert_arg["hostname"] == "archon-box"
+        assert insert_arg["hostname"] == "cortex-box"
         assert insert_arg["os"] == "linux"
 
     def test_raises_on_empty_response(self, service, mock_supabase):
@@ -124,7 +124,7 @@ class TestUpdateLastSeen:
         result = service.update_last_seen("abc-123")
 
         assert result == updated
-        mock_supabase.table.assert_called_with("archon_systems")
+        mock_supabase.table.assert_called_with("cortex_systems")
         mock_supabase.table.return_value.update.return_value.eq.assert_called_once_with("id", "abc-123")
         update_arg = mock_supabase.table.return_value.update.call_args[0][0]
         assert "last_seen_at" in update_arg
@@ -142,7 +142,7 @@ class TestListSystems:
 
         assert result == systems
         assert len(result) == 2
-        mock_supabase.table.assert_called_with("archon_systems")
+        mock_supabase.table.assert_called_with("cortex_systems")
         mock_supabase.table.return_value.select.assert_called_once_with("*")
 
     def test_returns_empty_list_when_no_systems(self, service, mock_supabase):
@@ -224,7 +224,7 @@ class TestDeleteSystem:
         result = service.delete_system("abc-123")
 
         assert result is True
-        mock_supabase.table.assert_called_with("archon_systems")
+        mock_supabase.table.assert_called_with("cortex_systems")
         mock_supabase.table.return_value.delete.return_value.eq.assert_called_once_with("id", "abc-123")
 
     def test_returns_false_when_not_found(self, service, mock_supabase):

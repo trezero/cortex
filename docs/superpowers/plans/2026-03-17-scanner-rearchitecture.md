@@ -4,7 +4,7 @@
 
 **Goal:** Replace the server-side Docker-volume-mount scanner with a client-side standalone Python script orchestrated by a Claude Code skill, enabling multi-system project scanning.
 
-**Architecture:** A standalone Python script (`archon-scanner.py`) runs locally on each machine with two modes: `--scan` (reads filesystem, outputs JSON) and `--apply` (writes config files from JSON payload). A Claude Code skill (`/scan-projects`) orchestrates the flow: download script → scan → dedup via MCP → create projects via MCP → apply configs. No Docker volume mount needed.
+**Architecture:** A standalone Python script (`cortex-scanner.py`) runs locally on each machine with two modes: `--scan` (reads filesystem, outputs JSON) and `--apply` (writes config files from JSON payload). A Claude Code skill (`/scan-projects`) orchestrates the flow: download script → scan → dedup via MCP → create projects via MCP → apply configs. No Docker volume mount needed.
 
 **Tech Stack:** Python 3.8+ (stdlib only for scanner script), FastAPI (single endpoint), Claude Code skill (markdown)
 
@@ -17,9 +17,9 @@
 ### New Files
 | File | Responsibility |
 |------|---------------|
-| `python/src/server/static/archon-scanner.py` | Standalone scanner script (~500 lines). Two modes: `--scan` outputs JSON, `--apply` writes config files. Stdlib only, runs on any machine with Python 3.8+. |
+| `python/src/server/static/cortex-scanner.py` | Standalone scanner script (~500 lines). Two modes: `--scan` outputs JSON, `--apply` writes config files. Stdlib only, runs on any machine with Python 3.8+. |
 | `python/src/server/api_routes/scanner_script_api.py` | Single FastAPI route `GET /api/scanner/script` that serves the scanner script as `text/plain`. |
-| `python/tests/test_archon_scanner.py` | Tests for the standalone scanner script. Uses temp directories, no Docker/Archon needed. |
+| `python/tests/test_cortex_scanner.py` | Tests for the standalone scanner script. Uses temp directories, no Docker/Cortex needed. |
 | `integrations/claude-code/skills/scan-projects.md` | Claude Code skill that orchestrates the entire scan-and-setup flow. |
 | `migration/0.1.0/022_drop_scanner_tables.sql` | Migration to drop the three scanner tables. |
 
@@ -28,10 +28,10 @@
 |------|-----|
 | `python/src/server/api_routes/scanner_api.py` | All scanner endpoints replaced by single script endpoint |
 | `python/src/server/services/scanner/scanner_service.py` | Logic moves to client-side script |
-| `python/src/server/services/scanner/git_detector.py` | Extracted into `archon-scanner.py` |
+| `python/src/server/services/scanner/git_detector.py` | Extracted into `cortex-scanner.py` |
 | `python/src/server/services/scanner/scan_template.py` | Templates become skill parameters |
 | `python/src/server/services/scanner/scan_report.py` | Report generation moves to skill |
-| `python/src/server/services/scanner/url_normalizer.py` | Logic duplicated into `archon-scanner.py` |
+| `python/src/server/services/scanner/url_normalizer.py` | Logic duplicated into `cortex-scanner.py` |
 | `python/src/server/services/scanner/cleanup.py` | Cleanup loop removed (tables dropped) |
 | `python/src/server/services/scanner/__init__.py` | Package removed |
 | `python/src/server/config/scanner_config.py` | No server-side config needed |
@@ -52,8 +52,8 @@
 ## Task 1: Write the Standalone Scanner Script — Scan Mode
 
 **Files:**
-- Create: `python/src/server/static/archon-scanner.py`
-- Test: `python/tests/test_archon_scanner.py`
+- Create: `python/src/server/static/cortex-scanner.py`
+- Test: `python/tests/test_cortex_scanner.py`
 
 This is the largest task. The script is a single file with two modes. We build scan mode first.
 
@@ -64,15 +64,15 @@ Create the `static/` directory first (it does not exist yet):
 mkdir -p python/src/server/static
 ```
 
-Create `python/src/server/static/archon-scanner.py`:
+Create `python/src/server/static/cortex-scanner.py`:
 
 ```python
 #!/usr/bin/env python3
-"""Archon Local Project Scanner — standalone, stdlib-only.
+"""Cortex Local Project Scanner — standalone, stdlib-only.
 
 Usage:
-    python3 archon-scanner.py --scan <directory>
-    python3 archon-scanner.py --apply --payload-file <path> [--extensions-tarball <path>]
+    python3 cortex-scanner.py --scan <directory>
+    python3 cortex-scanner.py --apply --payload-file <path> [--extensions-tarball <path>]
 """
 
 import argparse
@@ -151,24 +151,24 @@ DEPENDENCY_EXTRACTORS = {
 README_EXCERPT_LENGTH = 5000
 
 GITIGNORE_ENTRIES = [
-    "# Archon",
+    "# Cortex",
     ".claude/plugins/",
     ".claude/skills/",
-    ".claude/archon-config.json",
-    ".claude/archon-state.json",
-    ".claude/archon-memory-buffer.jsonl",
+    ".claude/cortex-config.json",
+    ".claude/cortex-state.json",
+    ".claude/cortex-memory-buffer.jsonl",
     ".claude/settings.local.json",
-    ".archon/",
+    ".cortex/",
 ]
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Archon Local Project Scanner")
+    parser = argparse.ArgumentParser(description="Cortex Local Project Scanner")
     parser.add_argument("--scan", metavar="DIR", help="Scan directory for git repos")
     parser.add_argument("--apply", action="store_true", help="Apply configs to projects")
     parser.add_argument("--payload-file", metavar="FILE", help="JSON payload file for apply mode")
     parser.add_argument("--extensions-tarball", metavar="FILE", help="Extensions tarball path")
-    parser.add_argument("--version", action="version", version=f"archon-scanner {SCANNER_VERSION}")
+    parser.add_argument("--version", action="version", version=f"cortex-scanner {SCANNER_VERSION}")
 
     args = parser.parse_args()
 
@@ -192,7 +192,7 @@ if __name__ == "__main__":
 
 - [ ] **Step 2: Write the URL normalization functions**
 
-Add to `archon-scanner.py` (before `main()`):
+Add to `cortex-scanner.py` (before `main()`):
 
 ```python
 def normalize_github_url(url):
@@ -237,7 +237,7 @@ def extract_github_owner_repo(url):
 
 - [ ] **Step 3: Write the scan_directory function with two-pass detection**
 
-Add to `archon-scanner.py`:
+Add to `cortex-scanner.py`:
 
 ```python
 def scan_directory(root_path):
@@ -328,7 +328,7 @@ def scan_directory(root_path):
 
 - [ ] **Step 4: Write the _detect_project helper**
 
-Add to `archon-scanner.py`:
+Add to `cortex-scanner.py`:
 
 ```python
 def _detect_project(project_path, directory_name, group_name=None):
@@ -384,7 +384,7 @@ def _detect_project(project_path, directory_name, group_name=None):
 
 - [ ] **Step 5: Write the metadata extraction helpers**
 
-Add to `archon-scanner.py`:
+Add to `cortex-scanner.py`:
 
 ```python
 def _parse_git_config(project):
@@ -475,7 +475,7 @@ def _read_default_branch(project):
 
 - [ ] **Step 6: Write the dependency extraction functions**
 
-Add to `archon-scanner.py`:
+Add to `cortex-scanner.py`:
 
 ```python
 def _extract_dependencies(project):
@@ -679,15 +679,15 @@ def _extract_gradle_deps(path):
 
 - [ ] **Step 7: Run scan mode tests**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && python python/src/server/static/archon-scanner.py --scan ~/projects`
+Run: `cd /home/winadmin/projects/Trinity/cortex && python python/src/server/static/cortex-scanner.py --scan ~/projects`
 
 Expected: JSON output with detected projects from the real projects directory. Verify structure matches the spec schema.
 
 - [ ] **Step 8: Commit scan mode**
 
 ```bash
-git add python/src/server/static/archon-scanner.py
-git commit -m "feat: add archon-scanner.py scan mode (client-side project detection)"
+git add python/src/server/static/cortex-scanner.py
+git commit -m "feat: add cortex-scanner.py scan mode (client-side project detection)"
 ```
 
 ---
@@ -695,16 +695,16 @@ git commit -m "feat: add archon-scanner.py scan mode (client-side project detect
 ## Task 2: Write the Standalone Scanner Script — Apply Mode
 
 **Files:**
-- Modify: `python/src/server/static/archon-scanner.py`
-- Test: `python/tests/test_archon_scanner.py`
+- Modify: `python/src/server/static/cortex-scanner.py`
+- Test: `python/tests/test_cortex_scanner.py`
 
 - [ ] **Step 1: Write the apply_configs function**
 
-Add to `archon-scanner.py` (before `main()`):
+Add to `cortex-scanner.py` (before `main()`):
 
 ```python
 def apply_configs(payload_file, extensions_tarball=None):
-    """Apply Archon config files to projects from a JSON payload."""
+    """Apply Cortex config files to projects from a JSON payload."""
     try:
         with open(payload_file, "r", encoding="utf-8") as f:
             payload = json.load(f)
@@ -781,11 +781,11 @@ def _compute_file_hash(path):
 
 - [ ] **Step 2: Write the config file writers**
 
-Add to `archon-scanner.py`:
+Add to `cortex-scanner.py`:
 
 ```python
 def _write_config_files(proj, extensions_hash):
-    """Write .claude/archon-config.json and archon-state.json."""
+    """Write .claude/cortex-config.json and cortex-state.json."""
     project_path = proj["absolute_path"]
     claude_dir = os.path.join(project_path, ".claude")
     os.makedirs(claude_dir, exist_ok=True)
@@ -794,8 +794,8 @@ def _write_config_files(proj, extensions_hash):
     fingerprint = proj.get("system_fingerprint", "")
 
     config = {
-        "archon_api_url": proj.get("archon_api_url", "http://localhost:8181"),
-        "archon_mcp_url": proj.get("archon_mcp_url", "http://localhost:8051"),
+        "cortex_api_url": proj.get("cortex_api_url", "http://localhost:8181"),
+        "cortex_mcp_url": proj.get("cortex_mcp_url", "http://localhost:8051"),
         "project_id": proj.get("project_id", ""),
         "project_title": proj.get("project_title", os.path.basename(project_path)),
         "machine_id": hashlib.md5(fingerprint.encode()).hexdigest()[:16],
@@ -807,16 +807,16 @@ def _write_config_files(proj, extensions_hash):
         config["extensions_hash"] = extensions_hash
         config["extensions_installed_at"] = now
 
-    config_path = os.path.join(claude_dir, "archon-config.json")
+    config_path = os.path.join(claude_dir, "cortex-config.json")
     with open(config_path, "w") as f:
         json.dump(config, f, indent=4)
 
     state = {
         "system_fingerprint": fingerprint,
         "system_name": proj.get("system_name", ""),
-        "archon_project_id": proj.get("project_id", ""),
+        "cortex_project_id": proj.get("project_id", ""),
     }
-    state_path = os.path.join(claude_dir, "archon-state.json")
+    state_path = os.path.join(claude_dir, "cortex-state.json")
     with open(state_path, "w") as f:
         json.dump(state, f, indent=4)
 
@@ -834,7 +834,7 @@ def _write_settings_local(project_path):
                     "hooks": [
                         {
                             "type": "command",
-                            "command": "~/.claude/plugins/archon-memory/scripts/observation_hook.sh",
+                            "command": "~/.claude/plugins/cortex-memory/scripts/observation_hook.sh",
                         }
                     ],
                 }
@@ -848,7 +848,7 @@ def _write_settings_local(project_path):
 
 
 def _update_gitignore(project_path):
-    """Append Archon entries to .gitignore if not already present."""
+    """Append Cortex entries to .gitignore if not already present."""
     gitignore_path = os.path.join(project_path, ".gitignore")
 
     existing_content = ""
@@ -858,8 +858,8 @@ def _update_gitignore(project_path):
             existing_content = f.read()
             existing_lines = {line.strip() for line in existing_content.split("\n")}
 
-    # Check if Archon block already present
-    if "# Archon" in existing_lines:
+    # Check if Cortex block already present
+    if "# Cortex" in existing_lines:
         return
 
     new_entries = [e for e in GITIGNORE_ENTRIES if e.strip() not in existing_lines]
@@ -895,17 +895,17 @@ Create a temp directory, write a test payload, and run apply:
 
 ```bash
 mkdir -p /tmp/test-scanner-apply/test-project/.git
-echo '{"projects":[{"absolute_path":"/tmp/test-scanner-apply/test-project","project_id":"test-uuid","project_title":"test-project","archon_api_url":"http://localhost:8181","archon_mcp_url":"http://localhost:8051","system_fingerprint":"abc123","system_name":"TEST"}]}' > /tmp/test-scanner-payload.json
-python3 python/src/server/static/archon-scanner.py --apply --payload-file /tmp/test-scanner-payload.json
+echo '{"projects":[{"absolute_path":"/tmp/test-scanner-apply/test-project","project_id":"test-uuid","project_title":"test-project","cortex_api_url":"http://localhost:8181","cortex_mcp_url":"http://localhost:8051","system_fingerprint":"abc123","system_name":"TEST"}]}' > /tmp/test-scanner-payload.json
+python3 python/src/server/static/cortex-scanner.py --apply --payload-file /tmp/test-scanner-payload.json
 ```
 
-Expected: JSON output with `created: 1`. Verify `.claude/archon-config.json` and `.claude/archon-state.json` exist in test project.
+Expected: JSON output with `created: 1`. Verify `.claude/cortex-config.json` and `.claude/cortex-state.json` exist in test project.
 
 - [ ] **Step 4: Commit apply mode**
 
 ```bash
-git add python/src/server/static/archon-scanner.py
-git commit -m "feat: add archon-scanner.py apply mode (writes config files)"
+git add python/src/server/static/cortex-scanner.py
+git commit -m "feat: add cortex-scanner.py apply mode (writes config files)"
 ```
 
 ---
@@ -913,14 +913,14 @@ git commit -m "feat: add archon-scanner.py apply mode (writes config files)"
 ## Task 3: Write Scanner Script Tests
 
 **Files:**
-- Create: `python/tests/test_archon_scanner.py`
+- Create: `python/tests/test_cortex_scanner.py`
 
 - [ ] **Step 1: Write scan mode tests**
 
-Create `python/tests/test_archon_scanner.py`:
+Create `python/tests/test_cortex_scanner.py`:
 
 ```python
-"""Tests for the standalone archon-scanner.py script."""
+"""Tests for the standalone cortex-scanner.py script."""
 
 import importlib.util
 import json
@@ -932,9 +932,9 @@ import pytest
 
 # Import the script as a module
 _script_path = os.path.join(
-    os.path.dirname(__file__), "..", "src", "server", "static", "archon-scanner.py"
+    os.path.dirname(__file__), "..", "src", "server", "static", "cortex-scanner.py"
 )
-_spec = importlib.util.spec_from_file_location("archon_scanner", _script_path)
+_spec = importlib.util.spec_from_file_location("cortex_scanner", _script_path)
 scanner = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(scanner)
 
@@ -1116,13 +1116,13 @@ class TestInfraMarkers:
 
 - [ ] **Step 2: Run scan tests**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/test_archon_scanner.py -v --tb=short -k "not Apply"`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/test_cortex_scanner.py -v --tb=short -k "not Apply"`
 
 Expected: All scan tests pass.
 
 - [ ] **Step 3: Write apply mode tests**
 
-Append to `python/tests/test_archon_scanner.py`:
+Append to `python/tests/test_cortex_scanner.py`:
 
 ```python
 class TestApplyConfigs:
@@ -1140,22 +1140,22 @@ class TestApplyConfigs:
                 "absolute_path": proj_dir,
                 "project_id": "test-uuid",
                 "project_title": "my-project",
-                "archon_api_url": "http://localhost:8181",
-                "archon_mcp_url": "http://localhost:8051",
+                "cortex_api_url": "http://localhost:8181",
+                "cortex_mcp_url": "http://localhost:8051",
                 "system_fingerprint": "abc123",
                 "system_name": "TEST",
             }])
             result = scanner.apply_configs(payload)
             assert result["apply_summary"]["created"] == 1
 
-            config_path = os.path.join(proj_dir, ".claude", "archon-config.json")
+            config_path = os.path.join(proj_dir, ".claude", "cortex-config.json")
             assert os.path.isfile(config_path)
             with open(config_path) as f:
                 config = json.load(f)
             assert config["project_id"] == "test-uuid"
             assert config["installed_by"] == "scanner"
 
-            state_path = os.path.join(proj_dir, ".claude", "archon-state.json")
+            state_path = os.path.join(proj_dir, ".claude", "cortex-state.json")
             assert os.path.isfile(state_path)
             with open(state_path) as f:
                 state = json.load(f)
@@ -1195,7 +1195,7 @@ class TestApplyConfigs:
 
             with open(os.path.join(proj_dir, ".gitignore")) as f:
                 content = f.read()
-            assert "# Archon" in content
+            assert "# Cortex" in content
             assert "node_modules" in content
 
     def test_gitignore_idempotent(self):
@@ -1213,7 +1213,7 @@ class TestApplyConfigs:
 
             with open(os.path.join(proj_dir, ".gitignore")) as f:
                 content = f.read()
-            assert content.count("# Archon") == 1
+            assert content.count("# Cortex") == 1
 
     def test_gitignore_no_trailing_newline(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1233,7 +1233,7 @@ class TestApplyConfigs:
                 content = f.read()
             # node_modules should NOT be corrupted
             assert "node_modules\n" in content
-            assert "node_modules# Archon" not in content
+            assert "node_modules# Cortex" not in content
 
     def test_nonexistent_path_fails_gracefully(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1259,7 +1259,7 @@ class TestApplyConfigs:
             }])
             result = scanner.apply_configs(payload, extensions_tarball="/nonexistent.tar.gz")
             assert result["apply_summary"]["created"] == 1
-            assert os.path.isfile(os.path.join(proj_dir, ".claude", "archon-config.json"))
+            assert os.path.isfile(os.path.join(proj_dir, ".claude", "cortex-config.json"))
 
     def test_extracts_extensions_tarball(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1301,9 +1301,9 @@ class TestApplyConfigs:
 
             with open(os.path.join(proj_dir, ".gitignore")) as f:
                 content = f.read()
-            # Should not have a blank line between existing content and Archon block
-            assert "node_modules\n# Archon" in content
-            assert "node_modules\n\n# Archon" not in content
+            # Should not have a blank line between existing content and Cortex block
+            assert "node_modules\n# Cortex" in content
+            assert "node_modules\n\n# Cortex" not in content
 
 
 class TestTomlParsing:
@@ -1343,15 +1343,15 @@ class TestTomlParsing:
 
 - [ ] **Step 4: Run all tests**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/test_archon_scanner.py -v --tb=short`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/test_cortex_scanner.py -v --tb=short`
 
 Expected: All tests pass.
 
 - [ ] **Step 5: Commit tests**
 
 ```bash
-git add python/tests/test_archon_scanner.py
-git commit -m "test: add comprehensive tests for archon-scanner.py"
+git add python/tests/test_cortex_scanner.py
+git commit -m "test: add comprehensive tests for cortex-scanner.py"
 ```
 
 ---
@@ -1376,7 +1376,7 @@ from fastapi.responses import PlainTextResponse
 
 router = APIRouter(prefix="/api/scanner", tags=["scanner"])
 
-SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "..", "static", "archon-scanner.py")
+SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "..", "static", "cortex-scanner.py")
 SCANNER_VERSION = "1.0"
 
 
@@ -1409,7 +1409,7 @@ app.include_router(scanner_script_router)
 
 Run: `curl -s http://localhost:8181/api/scanner/script | head -5`
 
-Expected: First 5 lines of `archon-scanner.py` (the shebang line and docstring).
+Expected: First 5 lines of `cortex-scanner.py` (the shebang line and docstring).
 
 - [ ] **Step 4: Commit**
 
@@ -1473,17 +1473,17 @@ rm -rf python/tests/server/services/scanner/
 
 - [ ] **Step 5: Verify no broken imports**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run python -c "from src.server.main import app; print('OK')"`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run python -c "from src.server.main import app; print('OK')"`
 
 Expected: `OK` — no import errors.
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run python -c "from src.mcp_server.mcp_server import mcp; print('OK')"`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run python -c "from src.mcp_server.mcp_server import mcp; print('OK')"`
 
 Expected: `OK` — no import errors.
 
 - [ ] **Step 6: Run existing tests to verify nothing broke**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/ -v --tb=short --ignore=python/tests/test_archon_scanner.py -x`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/ -v --tb=short --ignore=python/tests/test_cortex_scanner.py -x`
 
 Expected: All existing tests pass (scanner tests already removed in Step 4).
 
@@ -1509,9 +1509,9 @@ Create `migration/0.1.0/022_drop_scanner_tables.sql`:
 -- Drop scanner tables (scanner rearchitected to client-side script)
 -- These tables are no longer used — scanning and results are handled client-side.
 
-DROP TABLE IF EXISTS archon_scan_projects CASCADE;
-DROP TABLE IF EXISTS archon_scan_results CASCADE;
-DROP TABLE IF EXISTS archon_scanner_templates CASCADE;
+DROP TABLE IF EXISTS cortex_scan_projects CASCADE;
+DROP TABLE IF EXISTS cortex_scan_results CASCADE;
+DROP TABLE IF EXISTS cortex_scanner_templates CASCADE;
 ```
 
 - [ ] **Step 2: Commit**
@@ -1535,16 +1535,16 @@ Create `integrations/claude-code/skills/scan-projects.md`:
 ```markdown
 ---
 name: scan-projects
-description: Scan a local projects directory for Git repositories and bulk-onboard them into Archon. Downloads a scanner script, detects repos, creates Archon projects via MCP, and writes config files.
+description: Scan a local projects directory for Git repositories and bulk-onboard them into Cortex. Downloads a scanner script, detects repos, creates Cortex projects via MCP, and writes config files.
 ---
 
 # Scan Local Projects
 
-Bulk-onboard local Git repositories into Archon. This skill scans a directory, detects repos, creates Archon projects, and writes config files — all from the current machine.
+Bulk-onboard local Git repositories into Cortex. This skill scans a directory, detects repos, creates Cortex projects, and writes config files — all from the current machine.
 
 ## Prerequisites
-- System must be registered with Archon (run `/archon-setup` in any project first)
-- Archon stack must be running
+- System must be registered with Cortex (run `/cortex-setup` in any project first)
+- Cortex stack must be running
 
 ## Procedure
 
@@ -1552,9 +1552,9 @@ Follow these steps exactly in order. Do not skip steps.
 
 ### Step 1 — Preflight Checks
 
-1. Look for `archon-state.json` in `~/.claude/` or the current project's `.claude/` directory. Read it.
-2. Extract `system_fingerprint` and `system_name`. If the file is not found, tell the user: "System not registered. Run /archon-setup in any project first." and STOP.
-3. Look for `archon-config.json` in the same locations. Extract `archon_api_url` (default: `http://localhost:8181`) and `archon_mcp_url` (default: `http://localhost:8051`).
+1. Look for `cortex-state.json` in `~/.claude/` or the current project's `.claude/` directory. Read it.
+2. Extract `system_fingerprint` and `system_name`. If the file is not found, tell the user: "System not registered. Run /cortex-setup in any project first." and STOP.
+3. Look for `cortex-config.json` in the same locations. Extract `cortex_api_url` (default: `http://localhost:8181`) and `cortex_mcp_url` (default: `http://localhost:8051`).
 4. Detect the Python executable:
    - Try: `python3 --version`
    - If that fails, try: `python --version` and verify the output shows Python 3.x
@@ -1566,21 +1566,21 @@ Follow these steps exactly in order. Do not skip steps.
 
 ### Step 2 — Download Scanner Script
 
-1. Run: `curl -s <archon_api_url>/api/scanner/script -o <TEMP_DIR>/archon-scanner.py`
-2. If the download fails (curl error or empty file), tell the user: "Can't reach Archon at <url>. Is the Archon stack running?" and STOP.
+1. Run: `curl -s <cortex_api_url>/api/scanner/script -o <TEMP_DIR>/cortex-scanner.py`
+2. If the download fails (curl error or empty file), tell the user: "Can't reach Cortex at <url>. Is the Cortex stack running?" and STOP.
 
 ### Step 3 — Run Scan
 
 1. Ask the user: "What directory should I scan? (default: ~/projects)"
-2. Run: `<PYTHON_CMD> <TEMP_DIR>/archon-scanner.py --scan <directory>`
+2. Run: `<PYTHON_CMD> <TEMP_DIR>/cortex-scanner.py --scan <directory>`
 3. Parse the JSON output. If the output contains an `error` key, display the error and STOP.
 4. Store the full scan result for use in later steps.
 
-### Step 4 — Deduplicate Against Existing Archon Projects
+### Step 4 — Deduplicate Against Existing Cortex Projects
 
-1. Call the `find_projects` MCP tool to get all existing Archon projects.
-2. For each project in the scan results, compare its `github_url` (normalized, lowercase) against the `github_repo` field of existing Archon projects.
-3. Mark matches by setting `already_in_archon: true` and storing the `existing_project_id`.
+1. Call the `find_projects` MCP tool to get all existing Cortex projects.
+2. For each project in the scan results, compare its `github_url` (normalized, lowercase) against the `github_repo` field of existing Cortex projects.
+3. Mark matches by setting `already_in_cortex: true` and storing the `existing_project_id`.
 4. Count: how many are new, how many already exist.
 
 ### Step 5 — Present Results to User
@@ -1589,8 +1589,8 @@ Display a summary like:
 ```
 Scan complete!
 - Total repositories found: <N>
-- New (not in Archon): <N>
-- Already in Archon: <N> (<names>)
+- New (not in Cortex): <N>
+- Already in Cortex: <N> (<names>)
 - Project groups: <N>
 ```
 
@@ -1605,14 +1605,14 @@ New projects to set up:
 2. <name> — [no README, detected: python, docker]
 ...
 
-Already in Archon (will skip): <names>
+Already in Cortex (will skip): <names>
 
 Proceed with setting up these <N> projects? You can exclude any by number.
 ```
 
 Wait for user confirmation. If they exclude projects, remove them from the list. If they cancel, STOP.
 
-### Step 6 — Create Projects in Archon
+### Step 6 — Create Projects in Cortex
 
 For each confirmed new project:
 1. If the project belongs to a group and the group parent hasn't been created yet:
@@ -1637,7 +1637,7 @@ For each created project, call the `manage_extensions` MCP tool with:
 
 ### Step 8 — Download Extensions Tarball
 
-Run: `curl -s <archon_mcp_url>/archon-setup/extensions.tar.gz -o <TEMP_DIR>/archon-extensions.tar.gz`
+Run: `curl -s <cortex_mcp_url>/cortex-setup/extensions.tar.gz -o <TEMP_DIR>/cortex-extensions.tar.gz`
 
 If the download fails, warn the user: "Extensions tarball download failed. Projects will be created without extensions." Continue to Step 9.
 
@@ -1651,16 +1651,16 @@ If the download fails, warn the user: "Extensions tarball download failed. Proje
       "absolute_path": "<path>",
       "project_id": "<id from Step 6>",
       "project_title": "<directory_name>",
-      "archon_api_url": "<from Step 1>",
-      "archon_mcp_url": "<from Step 1>",
+      "cortex_api_url": "<from Step 1>",
+      "cortex_mcp_url": "<from Step 1>",
       "system_fingerprint": "<from Step 1>",
       "system_name": "<from Step 1>"
     }
   ]
 }
 ```
-2. Write the payload to `<TEMP_DIR>/archon-apply-payload.json` using the Write tool.
-3. Run: `<PYTHON_CMD> <TEMP_DIR>/archon-scanner.py --apply --payload-file <TEMP_DIR>/archon-apply-payload.json --extensions-tarball <TEMP_DIR>/archon-extensions.tar.gz`
+2. Write the payload to `<TEMP_DIR>/cortex-apply-payload.json` using the Write tool.
+3. Run: `<PYTHON_CMD> <TEMP_DIR>/cortex-scanner.py --apply --payload-file <TEMP_DIR>/cortex-apply-payload.json --extensions-tarball <TEMP_DIR>/cortex-extensions.tar.gz`
 4. Parse the JSON output for success/failure counts.
 
 ### Step 10 — Knowledge Base Ingestion
@@ -1681,13 +1681,13 @@ For large scans (20+ projects), batch these in groups of 5 with a brief pause be
 ```
 Setup complete!
 - Projects created: <N>
-- Projects skipped (already in Archon): <N>
+- Projects skipped (already in Cortex): <N>
 - Projects failed: <N>
 - README crawls queued: <N>
 
 <If any failures, list them with error messages>
 
-You can now open Claude Code in any of these projects and Archon context will be available.
+You can now open Claude Code in any of these projects and Cortex context will be available.
 ```
 ```
 
@@ -1717,7 +1717,7 @@ docker compose down && docker compose up --build -d
 
 - [ ] **Step 3: Verify clean startup**
 
-Run: `docker compose logs archon-server 2>&1 | tail -20`
+Run: `docker compose logs cortex-server 2>&1 | tail -20`
 
 Expected: No scanner-related errors. Server starts cleanly.
 
@@ -1738,13 +1738,13 @@ No new files. This task verifies the complete flow works.
 - [ ] **Step 1: Run all tests**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/test_archon_scanner.py -v --tb=short
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/test_cortex_scanner.py -v --tb=short
 ```
 
 Expected: All scanner script tests pass.
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/ -v --tb=short -x --ignore=python/tests/test_archon_scanner.py
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/ -v --tb=short -x --ignore=python/tests/test_cortex_scanner.py
 ```
 
 Expected: All existing tests pass.
@@ -1760,7 +1760,7 @@ Expected: `200`
 - [ ] **Step 3: Verify scanner script runs locally**
 
 ```bash
-python3 /tmp/archon-scanner.py --scan ~/projects 2>/dev/null | python3 -m json.tool | head -20
+python3 /tmp/cortex-scanner.py --scan ~/projects 2>/dev/null | python3 -m json.tool | head -20
 ```
 
 Expected: Valid JSON with detected projects.
@@ -1776,7 +1776,7 @@ Expected: `404` or `405` (endpoint no longer exists).
 - [ ] **Step 5: Verify Docker has no scanner volume mount**
 
 ```bash
-docker inspect archon-server --format '{{json .Mounts}}' | python3 -m json.tool
+docker inspect cortex-server --format '{{json .Mounts}}' | python3 -m json.tool
 ```
 
 Expected: No `/projects` mount in the list.
@@ -1791,7 +1791,7 @@ Expected: No `/projects` mount in the list.
 - [ ] **Step 1: Rewrite the journey test**
 
 Update `docs/userJourneys/projectScannerJourney.md` to reflect the new client-side architecture:
-- Phase 0: No Docker volume mount. Just verify Archon is running and script endpoint responds.
+- Phase 0: No Docker volume mount. Just verify Cortex is running and script endpoint responds.
 - Phase 1: User invokes `/scan-projects` skill, not MCP tool. Script runs locally.
 - Phase 2: Same (AI description generation by Claude).
 - Phase 3: Skill creates projects via MCP, script writes configs locally.

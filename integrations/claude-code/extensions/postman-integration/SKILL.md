@@ -7,7 +7,7 @@ description: Use when suggesting API calls for testing, writing test plans, crea
 
 Maintain a Postman collection and environment per project. Supports two sync modes:
 
-- **`api`** — Claude calls `manage_postman()` MCP tools → Archon pushes to Postman Cloud
+- **`api`** — Claude calls `manage_postman()` MCP tools → Cortex pushes to Postman Cloud
 - **`git`** — Claude writes `.request.yaml` files directly to the repo (Collections as Code)
 
 **Reference implementation (git mode):** `reference_repos/PostmanFastAPIDemo/postman/`
@@ -148,17 +148,17 @@ When `sync_mode` is `disabled`:
 
 ## API Mode Rules
 
-When `sync_mode` is `api`, use the Archon MCP tools. Claude never possesses the API key — Archon handles all Postman API communication server-side.
+When `sync_mode` is `api`, use the Cortex MCP tools. Claude never possesses the API key — Cortex handles all Postman API communication server-side.
 
 ### Collection Initialization
 
 If the project has no Postman collection yet:
 
 ```
-manage_postman(action="init_collection", project_id="...", project_name="Archon")
+manage_postman(action="init_collection", project_id="...", project_name="Cortex")
 ```
 
-This creates the collection in Postman Cloud and stores the UID on the Archon project.
+This creates the collection in Postman Cloud and stores the UID on the Cortex project.
 
 ### Adding Requests
 
@@ -173,7 +173,7 @@ manage_postman(
         "url": "{{base_url}}/api/projects",
         "headers": {"Content-Type": "application/json"},
         "body": {"name": "My Project", "description": "..."},
-        "description": "Creates a new Archon project",
+        "description": "Creates a new Cortex project",
         "test_script": "pm.test('Status is 201', function() { pm.response.to.have.status(201); }); var json = pm.response.json(); pm.collectionVariables.set('projectId', json.id);"
     }
 )
@@ -192,16 +192,16 @@ manage_postman(
 )
 ```
 
-**Do not manually redact API keys or passwords** when passing them to `update_environment`. The Archon backend automatically detects sensitive keys and marks them as secret in Postman.
+**Do not manually redact API keys or passwords** when passing them to `update_environment`. The Cortex backend automatically detects sensitive keys and marks them as secret in Postman.
 
 ### Collection Naming
 
-- Primary: Archon project name (e.g., `Archon`)
+- Primary: Cortex project name (e.g., `Cortex`)
 - Fallback: Git repo name — just repo name, no owner prefix
 
 ### Environment Naming
 
-Format: `{Project Name} - {System Name}` (e.g., `Archon - WIN-DEV-01`)
+Format: `{Project Name} - {System Name}` (e.g., `Cortex - WIN-DEV-01`)
 
 ---
 
@@ -229,7 +229,7 @@ postman/
     └── workspace.globals.yaml            # Optional
 ```
 
-**Project name**: Use the Archon project name if linked (from `.claude/archon-state.json`), otherwise `basename $(git rev-parse --show-toplevel)`. Never include the owner prefix.
+**Project name**: Use the Cortex project name if linked (from `.claude/cortex-state.json`), otherwise `basename $(git rev-parse --show-toplevel)`. Never include the owner prefix.
 
 ### Collection Initialization
 
@@ -266,7 +266,7 @@ $kind: http-request
 name: Create Project
 url: "{{baseUrl}}/api/projects"
 method: POST
-description: Creates a new Archon project
+description: Creates a new Cortex project
 
 headers:
   Content-Type: application/json

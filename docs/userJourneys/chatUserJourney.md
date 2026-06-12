@@ -1,20 +1,20 @@
-# Archon Chat Interface — End-to-End User Journey
+# Cortex Chat Interface — End-to-End User Journey
 
 ## User Persona
 
 **Sam** is a CTO who manages multiple projects across different domains — enterprise products
 for their company (Datacore), personal side projects, and educational apps for their kids.
-Sam uses Archon to organize knowledge, track tasks, and coordinate work across projects.
+Sam uses Cortex to organize knowledge, track tasks, and coordinate work across projects.
 Sam wants the new chat interface to help them prioritize, brainstorm, and discover synergies
 between projects — all through natural conversation.
 
-Sam works on a single machine (**WIN-AI-PC** running WSL2) with Archon deployed locally.
+Sam works on a single machine (**WIN-AI-PC** running WSL2) with Cortex deployed locally.
 
 ---
 
 ## Journey Overview
 
-This journey tests every capability of the Archon Chat Interface across five phases:
+This journey tests every capability of the Cortex Chat Interface across five phases:
 
 | Phase | Focus |
 |-------|-------|
@@ -28,10 +28,10 @@ This journey tests every capability of the Archon Chat Interface across five pha
 
 ## Prerequisites
 
-- Archon stack running: `docker compose up --build -d` (server, MCP, frontend)
+- Cortex stack running: `docker compose up --build -d` (server, MCP, frontend)
 - Agent service running: `docker compose --profile agents up -d`
 - Database migrations 025 and 026 applied
-- At least 2-3 projects in Archon with tasks and knowledge sources
+- At least 2-3 projects in Cortex with tasks and knowledge sources
 - At least one AI model API key configured (OpenAI or Anthropic)
 - Browser open to `http://localhost:3737`
 
@@ -42,7 +42,7 @@ This journey tests every capability of the Archon Chat Interface across five pha
 ### 1.1 Verify Agent Service is Running
 
 ```bash
-docker compose ps archon-agents
+docker compose ps cortex-agents
 ```
 
 | Check | Expected | P/F | Notes |
@@ -78,21 +78,21 @@ curl -s http://localhost:3737/agents/health
 
 | Check | Expected | P/F | Notes |
 |-------|----------|-----|-------|
-| Button visible | Archon logo button, 56px, bottom-right corner | | |
+| Button visible | Cortex logo button, 56px, bottom-right corner | | |
 | Button styling | Cyan border glow, full color logo (not grayed) | | |
-| Hover tooltip | Bold "Archon Chat", subtitle "Open knowledge assistant" | | |
+| Hover tooltip | Bold "Cortex Chat", subtitle "Open knowledge assistant" | | |
 | Hover effect | Button scales up slightly (105%) with amplified glow | | |
 
 ### 1.5 Floating Chat Button — Offline State
 
-1. Stop the agent service: `docker compose stop archon-agents`
+1. Stop the agent service: `docker compose stop cortex-agents`
 2. Wait ~30 seconds for the health poll to detect the change
 3. Observe the floating button
 
 | Check | Expected | P/F | Notes |
 |-------|----------|-----|-------|
 | Button dimmed | Grayscale logo, reduced opacity (60%) | | |
-| Hover tooltip | Bold "Archon Chat", subtitle "Agent service unavailable" | | |
+| Hover tooltip | Bold "Cortex Chat", subtitle "Agent service unavailable" | | |
 | Button still clickable | Yes — clicking opens sidebar in degraded mode | | |
 
 4. Restart the agent service: `docker compose --profile agents up -d`
@@ -138,15 +138,15 @@ curl -s http://localhost:8181/api/chat/categories | python3 -m json.tool
 
 ### 2.1 Open Chat Sidebar — First Time
 
-1. Click the floating Archon button (bottom-right)
+1. Click the floating Cortex button (bottom-right)
 
 | Check | Expected | P/F | Notes |
 |-------|----------|-----|-------|
 | Sidebar slides in | Panel appears from right, ~400px wide | | |
 | Backdrop | Semi-transparent black overlay on left side | | |
-| Header | Archon logo + "Archon Chat" text | | |
+| Header | Cortex logo + "Cortex Chat" text | | |
 | Onboarding shown | Welcome message with Sparkles icon | | |
-| Welcome title | "Welcome to Archon" | | |
+| Welcome title | "Welcome to Cortex" | | |
 | Welcome text | Mentions "AI project advisor", "prioritize work", "find synergies" | | |
 | Start button | "Start Chatting" with arrow icon | | |
 
@@ -186,8 +186,8 @@ curl -s http://localhost:8181/api/chat/categories | python3 -m json.tool
 | Check | Expected | P/F | Notes |
 |-------|----------|-----|-------|
 | Profile section visible | "Profile" heading with form fields | | |
-| Display Name field | Placeholder: "How should Archon address you?" | | |
-| Bio field | Placeholder: "Tell Archon about your background and expertise..." | | |
+| Display Name field | Placeholder: "How should Cortex address you?" | | |
+| Bio field | Placeholder: "Tell Cortex about your background and expertise..." | | |
 | Long-term Goals | Empty list with "Add a goal..." input | | |
 | Current Priorities | Empty list with "Add a priority..." input | | |
 
@@ -227,7 +227,7 @@ curl -s http://localhost:8181/api/chat/categories | python3 -m json.tool
 
 ### 3.1 Sidebar Chat — New Conversation
 
-1. Click the floating Archon button to open sidebar
+1. Click the floating Cortex button to open sidebar
 2. Click the chat count button (e.g., "1 chats") to see the conversation list
 
 | Check | Expected | P/F | Notes |
@@ -546,7 +546,7 @@ curl -s -X DELETE http://localhost:8181/api/chat/conversations/[id]
 
 ### 5.6 Agent Service Down — Degraded Mode
 
-1. Stop the agent service: `docker compose stop archon-agents`
+1. Stop the agent service: `docker compose stop cortex-agents`
 2. Wait ~30 seconds for health poll
 3. Open the chat sidebar
 

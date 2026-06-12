@@ -84,15 +84,15 @@ git commit -m "fix: use local README inline ingestion instead of URL crawls in /
 Replace the current Step 4 content with:
 
 ```markdown
-### Step 4 — Deduplicate Against Existing Archon Projects
+### Step 4 — Deduplicate Against Existing Cortex Projects
 
-1. Call the `find_projects` MCP tool to get all existing Archon projects.
+1. Call the `find_projects` MCP tool to get all existing Cortex projects.
 2. For each project in the scan results, compare its `github_url` (normalized, lowercase)
-   against the `github_repo` field of existing Archon projects.
+   against the `github_repo` field of existing Cortex projects.
 3. **Fallback matching:** If no `github_url` match is found, also compare by case-insensitive
    `directory_name` against existing project `title` fields. This catches projects that were
    created without a `github_repo` value (e.g., projects created manually via the UI).
-4. Mark matches by setting `already_in_archon: true` and storing the `existing_project_id`.
+4. Mark matches by setting `already_in_cortex: true` and storing the `existing_project_id`.
 5. **Intra-scan dedup:** Check for multiple scan results sharing the same non-null `github_url`.
    If found:
    - Keep the first occurrence as the primary.
@@ -103,7 +103,7 @@ Replace the current Step 4 content with:
 
 - [ ] **Step 2: Update Step 5 presentation to show duplicates**
 
-After the "Already in Archon (will skip)" line in Step 5, add:
+After the "Already in Cortex (will skip)" line in Step 5, add:
 
 ```markdown
 If intra-scan duplicates were found, show:
@@ -128,11 +128,11 @@ git commit -m "fix: add intra-scan dedup and title-based fallback matching in /s
 ## Task 3: Add Directory Validation to Scanner Apply Mode (Issue #9)
 
 **Files:**
-- Modify: `python/src/server/static/archon-scanner.py` (apply mode loop)
+- Modify: `python/src/server/static/cortex-scanner.py` (apply mode loop)
 
 - [ ] **Step 1: Find the apply function**
 
-Read the apply/config-writing logic in `archon-scanner.py` — find where it iterates over projects in the payload and writes `.claude/` files.
+Read the apply/config-writing logic in `cortex-scanner.py` — find where it iterates over projects in the payload and writes `.claude/` files.
 
 - [ ] **Step 2: Add directory existence check**
 
@@ -152,12 +152,12 @@ Ensure the `results` dict includes a `"skipped"` key (empty list by default) and
 
 - [ ] **Step 3: Test manually**
 
-Create a payload with a nonexistent path. Run `python3 archon-scanner.py --apply --payload-file <path>`. Expect: skipped count = 1, no crash, valid JSON output.
+Create a payload with a nonexistent path. Run `python3 cortex-scanner.py --apply --payload-file <path>`. Expect: skipped count = 1, no crash, valid JSON output.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add python/src/server/static/archon-scanner.py
+git add python/src/server/static/cortex-scanner.py
 git commit -m "fix: skip missing directories in scanner apply mode instead of crashing"
 ```
 
@@ -165,7 +165,7 @@ git commit -m "fix: skip missing directories in scanner apply mode instead of cr
 
 ## Task 4: REST Crawl Endpoint — Link project_id Upfront (Issue #4)
 
-**Problem:** The REST `POST /api/knowledge-items/crawl` passes `project_id` through to `DocumentStorageOperations`, but the junction table entry (`archon_project_sources`) is only created *after* crawling completes. If the crawl fails or the server crashes mid-crawl, the project-source link is never created. The inline ingestion endpoint creates a deterministic `source_id` and can upsert upfront — the crawl endpoint should do the same for the junction table.
+**Problem:** The REST `POST /api/knowledge-items/crawl` passes `project_id` through to `DocumentStorageOperations`, but the junction table entry (`cortex_project_sources`) is only created *after* crawling completes. If the crawl fails or the server crashes mid-crawl, the project-source link is never created. The inline ingestion endpoint creates a deterministic `source_id` and can upsert upfront — the crawl endpoint should do the same for the junction table.
 
 **Files:**
 - Modify: `python/src/server/api_routes/knowledge_api.py` (around line 782-828)
@@ -179,7 +179,7 @@ In `crawl_knowledge_item()`, after the `source_id` is generated (line 792) and b
 if request.project_id:
     try:
         supabase_client = get_supabase_client()
-        supabase_client.table("archon_project_sources").upsert(
+        supabase_client.table("cortex_project_sources").upsert(
             {
                 "project_id": request.project_id,
                 "source_id": source_id,
@@ -199,13 +199,13 @@ The existing link in `source_management_service.py` (line 368-382) does an upser
 - [ ] **Step 3: Test**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/python
+cd /home/winadmin/projects/Trinity/cortex/python
 uv run pytest tests/ -k "crawl" -v --no-header 2>&1 | tail -20
 ```
 
 If no existing crawl tests cover this, verify manually:
 1. Start a crawl with `project_id` set
-2. Check `archon_project_sources` immediately (before crawl completes)
+2. Check `cortex_project_sources` immediately (before crawl completes)
 3. Confirm the junction table row exists
 
 - [ ] **Step 4: Commit**
@@ -221,7 +221,7 @@ git commit -m "fix: link project_id to source upfront in REST crawl endpoint"
 
 **Problem:** Progress state is purely in-memory (`ProgressTracker._progress_states` dict). On server crash/restart, all progress is lost — clients get 404 for their progress IDs with no way to know what happened.
 
-**Approach:** Rather than a full job queue, use the existing `archon_sources` table. When a crawl starts, write a status marker. On startup, find any sources stuck in "crawling" status and mark them as failed. This gives clients a recoverable state.
+**Approach:** Rather than a full job queue, use the existing `cortex_sources` table. When a crawl starts, write a status marker. On startup, find any sources stuck in "crawling" status and mark them as failed. This gives clients a recoverable state.
 
 **Files:**
 - Modify: `python/src/server/api_routes/knowledge_api.py` (crawl start + startup)
@@ -236,7 +236,7 @@ In `crawl_knowledge_item()` (knowledge_api.py), after generating `source_id` (li
 # Mark source as "crawling" in the database for crash recovery
 try:
     supabase_client = get_supabase_client()
-    supabase_client.table("archon_sources").upsert(
+    supabase_client.table("cortex_sources").upsert(
         {
             "source_id": source_id,
             "url": str(request.url),
@@ -262,7 +262,7 @@ In `_perform_crawl_with_progress()`, after the crawl succeeds (around line 890),
 # In the except block of _perform_crawl_with_progress, after tracker.error():
 try:
     supabase_client = get_supabase_client()
-    supabase_client.table("archon_sources").update(
+    supabase_client.table("cortex_sources").update(
         {"crawl_status": "failed"}
     ).eq("source_id", URLHandler.generate_unique_source_id(str(request.url))).execute()
 except Exception:
@@ -278,7 +278,7 @@ In `python/src/server/main.py`, find the `@app.on_event("startup")` handler (or 
 try:
     from .config.database import get_supabase_client
     client = get_supabase_client()
-    result = client.table("archon_sources").update(
+    result = client.table("cortex_sources").update(
         {"crawl_status": "failed"}
     ).eq("crawl_status", "crawling").execute()
     if result.data:
@@ -290,8 +290,8 @@ except Exception as e:
 - [ ] **Step 4: Test**
 
 1. Start a crawl
-2. Kill the server mid-crawl (`docker compose restart archon-server`)
-3. After restart, query: `SELECT source_id, crawl_status FROM archon_sources WHERE crawl_status = 'failed'`
+2. Kill the server mid-crawl (`docker compose restart cortex-server`)
+3. After restart, query: `SELECT source_id, crawl_status FROM cortex_sources WHERE crawl_status = 'failed'`
 4. Confirm the interrupted crawl is marked as failed
 
 - [ ] **Step 5: Commit**
@@ -421,7 +421,7 @@ git commit -m "feat: add GET /api/progress/active endpoint for batch progress mo
 
 ## Task 8: MCP Session Recovery Guidance in Skill (Issue #3)
 
-**Problem:** When the Archon server restarts mid-scan, all MCP sessions are invalidated. MCP tool calls fail with "No valid session ID provided." The user has no guidance on how to recover.
+**Problem:** When the Cortex server restarts mid-scan, all MCP sessions are invalidated. MCP tool calls fail with "No valid session ID provided." The user has no guidance on how to recover.
 
 **Approach:** Add recovery instructions to the skill so Claude Code knows what to do. Also make the scan-projects skill's critical path (project creation) more resilient.
 
@@ -438,7 +438,7 @@ After Step 2, add:
 If at any point MCP tool calls fail with "session" errors, "connection refused", or
 timeout errors:
 
-1. Tell the user: "The Archon MCP connection was lost (server may have restarted).
+1. Tell the user: "The Cortex MCP connection was lost (server may have restarted).
    Please restart Claude Code to re-establish the MCP session, then re-run /scan-projects."
 2. STOP. Do not attempt to fall back to REST API calls — the MCP tools have different
    behavior (deterministic IDs, project linking) that REST endpoints may not replicate.
@@ -475,10 +475,10 @@ Replace the current Phase 5 with:
 | 5.1b | Source type is inline | `source_type: "inline"`, NOT `"url"` | |
 | 5.1c | Content from local disk | `documents` contains locally-read README content | |
 | 5.1d | Batched for large scans | Calls made in groups of 5 (20+ projects) | |
-| 5.1e | Knowledge sources created | Sources appear in Archon UI under Knowledge | |
+| 5.1e | Knowledge sources created | Sources appear in Cortex UI under Knowledge | |
 | 5.1f | Project linking | Each source is linked to its project (`project_id` set) | |
 
-### 5.2 Verify in Archon UI
+### 5.2 Verify in Cortex UI
 
 | # | Check | Expected | Status |
 |---|-------|----------|--------|
@@ -488,7 +488,7 @@ Replace the current Phase 5 with:
 
 ### 5.3 RAG Search Test
 
-> "Search the Archon knowledge base for information about recipe management."
+> "Search the Cortex knowledge base for information about recipe management."
 
 | # | Check | Expected | Status |
 |---|-------|----------|--------|

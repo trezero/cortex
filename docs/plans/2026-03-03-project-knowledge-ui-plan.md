@@ -46,7 +46,7 @@ def service(mock_supabase):
 
 @pytest.mark.asyncio
 async def test_get_summaries_with_project_id_filters_by_metadata(service, mock_supabase):
-    """When project_id is provided, query should filter archon_sources by metadata->>'project_id'."""
+    """When project_id is provided, query should filter cortex_sources by metadata->>'project_id'."""
     # Setup mock chain for main query
     query_mock = MagicMock()
     query_mock.eq.return_value = query_mock
@@ -245,13 +245,13 @@ git commit -m "feat: add project knowledge-sources endpoint and project_id filte
 ## Task 3: Frontend — Project Knowledge types, service, and query hooks
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/knowledge/types/index.ts`
-- Create: `archon-ui-main/src/features/projects/knowledge/services/projectKnowledgeService.ts`
-- Create: `archon-ui-main/src/features/projects/knowledge/hooks/useProjectKnowledgeQueries.ts`
+- Create: `cortex-ui/src/features/projects/knowledge/types/index.ts`
+- Create: `cortex-ui/src/features/projects/knowledge/services/projectKnowledgeService.ts`
+- Create: `cortex-ui/src/features/projects/knowledge/hooks/useProjectKnowledgeQueries.ts`
 
 **Step 1: Create the types file**
 
-Create `archon-ui-main/src/features/projects/knowledge/types/index.ts`:
+Create `cortex-ui/src/features/projects/knowledge/types/index.ts`:
 
 ```typescript
 /**
@@ -274,7 +274,7 @@ export type {
 
 **Step 2: Create the service**
 
-Create `archon-ui-main/src/features/projects/knowledge/services/projectKnowledgeService.ts`:
+Create `cortex-ui/src/features/projects/knowledge/services/projectKnowledgeService.ts`:
 
 ```typescript
 /**
@@ -305,7 +305,7 @@ export const projectKnowledgeService = {
 
 **Step 3: Create the query hooks**
 
-Create `archon-ui-main/src/features/projects/knowledge/hooks/useProjectKnowledgeQueries.ts`:
+Create `cortex-ui/src/features/projects/knowledge/hooks/useProjectKnowledgeQueries.ts`:
 
 ```typescript
 /**
@@ -337,13 +337,13 @@ export function useProjectKnowledgeSources(projectId: string | undefined) {
 
 **Step 4: Verify TypeScript compiles**
 
-Run: `cd archon-ui-main && npx tsc --noEmit 2>&1 | grep "src/features/projects/knowledge" || echo "No TypeScript errors"`
+Run: `cd cortex-ui && npx tsc --noEmit 2>&1 | grep "src/features/projects/knowledge" || echo "No TypeScript errors"`
 Expected: No errors
 
 **Step 5: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/knowledge/
+git add cortex-ui/src/features/projects/knowledge/
 git commit -m "feat: add project knowledge types, service, and query hooks"
 ```
 
@@ -352,13 +352,13 @@ git commit -m "feat: add project knowledge types, service, and query hooks"
 ## Task 4: Frontend — Project Knowledge Tab components
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/knowledge/components/ProjectSourceCard.tsx`
-- Create: `archon-ui-main/src/features/projects/knowledge/components/ProjectSourceInspector.tsx`
-- Create: `archon-ui-main/src/features/projects/knowledge/KnowledgeTab.tsx`
+- Create: `cortex-ui/src/features/projects/knowledge/components/ProjectSourceCard.tsx`
+- Create: `cortex-ui/src/features/projects/knowledge/components/ProjectSourceInspector.tsx`
+- Create: `cortex-ui/src/features/projects/knowledge/KnowledgeTab.tsx`
 
 **Step 1: Create ProjectSourceCard component**
 
-Create `archon-ui-main/src/features/projects/knowledge/components/ProjectSourceCard.tsx`:
+Create `cortex-ui/src/features/projects/knowledge/components/ProjectSourceCard.tsx`:
 
 ```typescript
 /**
@@ -440,7 +440,7 @@ export function ProjectSourceCard({ source, isSelected, onSelect }: ProjectSourc
 
 **Step 2: Create ProjectSourceInspector component**
 
-Create `archon-ui-main/src/features/projects/knowledge/components/ProjectSourceInspector.tsx`:
+Create `cortex-ui/src/features/projects/knowledge/components/ProjectSourceInspector.tsx`:
 
 This component reuses the existing `useInspectorPagination` hook, `InspectorSidebar`, and `ContentViewer` from the knowledge inspector. It renders them inline (not in a dialog).
 
@@ -629,7 +629,7 @@ export function ProjectSourceInspector({ source }: ProjectSourceInspectorProps) 
 
 **Step 3: Create KnowledgeTab component**
 
-Create `archon-ui-main/src/features/projects/knowledge/KnowledgeTab.tsx`:
+Create `cortex-ui/src/features/projects/knowledge/KnowledgeTab.tsx`:
 
 ```typescript
 /**
@@ -765,13 +765,13 @@ export function KnowledgeTab({ projectId }: KnowledgeTabProps) {
 
 **Step 4: Verify TypeScript compiles**
 
-Run: `cd archon-ui-main && npx tsc --noEmit 2>&1 | grep "src/features/projects/knowledge" || echo "No TypeScript errors"`
+Run: `cd cortex-ui && npx tsc --noEmit 2>&1 | grep "src/features/projects/knowledge" || echo "No TypeScript errors"`
 Expected: No errors (may need adjustments based on actual import paths)
 
 **Step 5: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/knowledge/
+git add cortex-ui/src/features/projects/knowledge/
 git commit -m "feat: add Knowledge tab components for project view"
 ```
 
@@ -780,7 +780,7 @@ git commit -m "feat: add Knowledge tab components for project view"
 ## Task 5: Frontend — Integrate Knowledge tab into ProjectsView
 
 **Files:**
-- Modify: `archon-ui-main/src/features/projects/views/ProjectsView.tsx:2-4,214-217,231-232,293-296,311-312`
+- Modify: `cortex-ui/src/features/projects/views/ProjectsView.tsx:2-4,214-217,231-232,293-296,311-312`
 
 **Step 1: Add import for KnowledgeTab and Library icon**
 
@@ -833,14 +833,14 @@ Same changes to the second PillNavigation items array (~line 293) and the second
 
 **Step 5: Verify TypeScript compiles and visually check**
 
-Run: `cd archon-ui-main && npx tsc --noEmit 2>&1 | grep "error" || echo "No TypeScript errors"`
+Run: `cd cortex-ui && npx tsc --noEmit 2>&1 | grep "error" || echo "No TypeScript errors"`
 
 Manually verify: Navigate to `http://localhost:3737/projects/{project_id}` and confirm the Knowledge tab appears between Docs and Tasks.
 
 **Step 6: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/views/ProjectsView.tsx
+git add cortex-ui/src/features/projects/views/ProjectsView.tsx
 git commit -m "feat: integrate Knowledge tab into project view"
 ```
 
@@ -849,14 +849,14 @@ git commit -m "feat: integrate Knowledge tab into project view"
 ## Task 6: Frontend — Add project filter to Knowledge page
 
 **Files:**
-- Modify: `archon-ui-main/src/features/knowledge/types/knowledge.ts:127-134` (add project_id to filter)
-- Modify: `archon-ui-main/src/features/knowledge/services/knowledgeService.ts:28-45` (pass project_id param)
-- Modify: `archon-ui-main/src/features/knowledge/components/KnowledgeHeader.tsx:10-32` (add project dropdown)
-- Modify: `archon-ui-main/src/features/knowledge/views/KnowledgeView.tsx:29-44` (manage project filter state)
+- Modify: `cortex-ui/src/features/knowledge/types/knowledge.ts:127-134` (add project_id to filter)
+- Modify: `cortex-ui/src/features/knowledge/services/knowledgeService.ts:28-45` (pass project_id param)
+- Modify: `cortex-ui/src/features/knowledge/components/KnowledgeHeader.tsx:10-32` (add project dropdown)
+- Modify: `cortex-ui/src/features/knowledge/views/KnowledgeView.tsx:29-44` (manage project filter state)
 
 **Step 1: Add `project_id` to KnowledgeItemsFilter type**
 
-In `archon-ui-main/src/features/knowledge/types/knowledge.ts`, modify the `KnowledgeItemsFilter` interface (line 127):
+In `cortex-ui/src/features/knowledge/types/knowledge.ts`, modify the `KnowledgeItemsFilter` interface (line 127):
 
 ```typescript
 export interface KnowledgeItemsFilter {
@@ -872,7 +872,7 @@ export interface KnowledgeItemsFilter {
 
 **Step 2: Pass `project_id` in the service**
 
-In `archon-ui-main/src/features/knowledge/services/knowledgeService.ts`, add to `getKnowledgeSummaries` (around line 38):
+In `cortex-ui/src/features/knowledge/services/knowledgeService.ts`, add to `getKnowledgeSummaries` (around line 38):
 
 ```typescript
 if (filter?.project_id) params.append("project_id", filter.project_id);
@@ -882,7 +882,7 @@ Add this line after the existing `if (filter?.search)` block.
 
 **Step 3: Add project filter props to KnowledgeHeader**
 
-In `archon-ui-main/src/features/knowledge/components/KnowledgeHeader.tsx`:
+In `cortex-ui/src/features/knowledge/components/KnowledgeHeader.tsx`:
 
 Add to the props interface:
 
@@ -918,7 +918,7 @@ Note: Per UI_STANDARDS.md section 4 (Radix UI), native `<select>` should ideally
 
 **Step 4: Wire up project filter in KnowledgeView**
 
-In `archon-ui-main/src/features/knowledge/views/KnowledgeView.tsx`:
+In `cortex-ui/src/features/knowledge/views/KnowledgeView.tsx`:
 
 Add project state and import:
 
@@ -963,12 +963,12 @@ Pass new props to KnowledgeHeader:
 
 **Step 5: Verify TypeScript compiles**
 
-Run: `cd archon-ui-main && npx tsc --noEmit 2>&1 | grep "error" || echo "No TypeScript errors"`
+Run: `cd cortex-ui && npx tsc --noEmit 2>&1 | grep "error" || echo "No TypeScript errors"`
 
 **Step 6: Commit**
 
 ```bash
-git add archon-ui-main/src/features/knowledge/types/knowledge.ts archon-ui-main/src/features/knowledge/services/knowledgeService.ts archon-ui-main/src/features/knowledge/components/KnowledgeHeader.tsx archon-ui-main/src/features/knowledge/views/KnowledgeView.tsx
+git add cortex-ui/src/features/knowledge/types/knowledge.ts cortex-ui/src/features/knowledge/services/knowledgeService.ts cortex-ui/src/features/knowledge/components/KnowledgeHeader.tsx cortex-ui/src/features/knowledge/views/KnowledgeView.tsx
 git commit -m "feat: add project filter dropdown to Knowledge page"
 ```
 
@@ -978,7 +978,7 @@ git commit -m "feat: add project filter dropdown to Knowledge page"
 
 **Step 1: Start services**
 
-Run: `make dev` (or `docker compose --profile backend up -d && cd archon-ui-main && npm run dev`)
+Run: `make dev` (or `docker compose --profile backend up -d && cd cortex-ui && npm run dev`)
 
 **Step 2: Verify project knowledge tab**
 
@@ -1007,7 +1007,7 @@ curl "http://localhost:8181/api/knowledge-items/summary?project_id=2d747998-7c66
 
 ```bash
 cd python && uv run pytest tests/ -v --timeout=30
-cd archon-ui-main && npm run test
+cd cortex-ui && npm run test
 ```
 
 **Step 6: Final commit (if any fixes needed)**

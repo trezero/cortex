@@ -92,7 +92,7 @@ class TestSourceIDGeneration:
         
         # URLs that would previously conflict
         concurrent_urls = [
-            "https://github.com/coleam00/archon",
+            "https://github.com/coleam00/cortex",
             "https://github.com/microsoft/typescript",
             "https://github.com/facebook/react",
             "https://github.com/vercel/next.js",

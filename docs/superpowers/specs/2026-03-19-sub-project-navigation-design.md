@@ -2,19 +2,19 @@
 
 ## Problem
 
-Parent projects (projects with children linked via `parent_project_id`) have no special treatment in the UI. Users cannot discover or navigate to child projects from a parent's inline detail panel. Additionally, parent-child relationships established by the scanner on one system cannot be managed or corrected from the Archon UI.
+Parent projects (projects with children linked via `parent_project_id`) have no special treatment in the UI. Users cannot discover or navigate to child projects from a parent's inline detail panel. Additionally, parent-child relationships established by the scanner on one system cannot be managed or corrected from the Cortex UI.
 
 ## Design Decisions
 
 - **Approach A** selected: horizontal scrolling card strip on the parent's inline detail area, with a management modal
-- Parent-child is an **Archon-level concept** (database), not tied to filesystem layout — a project can be a child on one system's directory structure but standalone on another
+- Parent-child is an **Cortex-level concept** (database), not tied to filesystem layout — a project can be a child on one system's directory structure but standalone on another
 - `parent_project_id` is a **single field** — one parent per project, enforced by the DB's single-level hierarchy trigger
 - Child cards use the **existing DataCard primitive** at a compact size for styling consistency
 - No new database schema — all required fields already exist
 
 ## UI Architecture Context
 
-There are no separate "project detail pages" in Archon. The project UI is a single view (`ProjectsView.tsx`) with:
+There are no separate "project detail pages" in Cortex. The project UI is a single view (`ProjectsView.tsx`) with:
 - A grid/table of projects at the top
 - An inline tab panel (PillNavigation) below the grid when a project is selected
 - Selecting a project highlights it in the grid and reveals the tab panel
@@ -97,7 +97,7 @@ When a child project is selected (visible in the inline detail area), a breadcru
 Opens a **ManageSubProjectsModal** with:
 
 - **Current children** listed with a remove (unlink) button next to each
-- **Search field** at the top to find and add existing Archon projects as children
+- **Search field** at the top to find and add existing Cortex projects as children
   - Filters out projects that already have a parent (single-parent constraint)
   - Filters out the parent itself
   - Selecting a project from results sets its `parent_project_id` to this parent
@@ -116,7 +116,7 @@ The dropdown:
 
 Deferred to a separate follow-up spec. The scan-time conflict detection (when a project is discovered under a different parent directory than its current `parent_project_id`) involves changes to the scanner script and skill logic that are orthogonal to the UI work in this spec.
 
-For now, the "Set Parent" dropdown in the Archon UI (Entry Point B) serves as the manual cleanup tool for parent conflicts.
+For now, the "Set Parent" dropdown in the Cortex UI (Entry Point B) serves as the manual cleanup tool for parent conflicts.
 
 ## Section 4: Backend & Data
 

@@ -1,5 +1,5 @@
 """
-MCP API endpoints for Archon
+MCP API endpoints for Cortex
 
 Provides status and configuration endpoints for the MCP service.
 The MCP container is managed by docker-compose, not by this API.
@@ -93,7 +93,7 @@ def get_container_status_docker() -> dict[str, Any]:
     docker_client = None
     try:
         docker_client = docker.from_env()
-        container = docker_client.containers.get("archon-mcp")
+        container = docker_client.containers.get("cortex-mcp")
 
         # Get container status
         container_status = container.status
@@ -126,7 +126,7 @@ def get_container_status_docker() -> dict[str, Any]:
             "status": "not_found",
             "uptime": None,
             "logs": [],
-            "message": "MCP container not found. Run: docker compose up -d archon-mcp",
+            "message": "MCP container not found. Run: docker compose up -d cortex-mcp",
         }
     except Exception as e:
         api_logger.error("Failed to get MCP container status via Docker", exc_info=True)
@@ -198,11 +198,11 @@ async def get_mcp_config():
             api_logger.info("Getting MCP server configuration")
 
             # Get actual MCP port from environment or use default
-            mcp_port = int(os.getenv("ARCHON_MCP_PORT", "8051"))
+            mcp_port = int(os.getenv("CORTEX_MCP_PORT", "8051"))
 
             # Configuration for streamable-http mode with actual port
             config = {
-                "host": os.getenv("ARCHON_HOST", "localhost"),
+                "host": os.getenv("CORTEX_HOST", "localhost"),
                 "port": mcp_port,
                 "transport": "streamable-http",
             }

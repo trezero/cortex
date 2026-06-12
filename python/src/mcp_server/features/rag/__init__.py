@@ -1,5 +1,5 @@
 """
-RAG (Retrieval-Augmented Generation) tools for Archon MCP Server.
+RAG (Retrieval-Augmented Generation) tools for Cortex MCP Server.
 
 This module provides tools for knowledge base operations:
 - perform_rag_query: Search knowledge base for relevant content

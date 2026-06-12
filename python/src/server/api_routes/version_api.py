@@ -9,7 +9,7 @@ import logfire
 from fastapi import APIRouter, Header, HTTPException, Response
 from pydantic import BaseModel
 
-from ..config.version import ARCHON_VERSION
+from ..config.version import CORTEX_VERSION
 from ..services.version_service import version_service
 from ..utils.etag_utils import check_etag, generate_etag
 
@@ -53,7 +53,7 @@ router = APIRouter(prefix="/api/version", tags=["version"])
 @router.get("/check", response_model=VersionCheckResponse)
 async def check_for_updates(response: Response, if_none_match: str | None = Header(None)):
     """
-    Check for available Archon updates.
+    Check for available Cortex updates.
 
     Queries GitHub releases API to determine if a newer version is available.
     Results are cached for 1 hour to avoid rate limiting.
@@ -85,7 +85,7 @@ async def check_for_updates(response: Response, if_none_match: str | None = Head
         logfire.error(f"Error checking for updates: {e}")
         # Return safe response with error
         return VersionCheckResponse(
-            current=ARCHON_VERSION,
+            current=CORTEX_VERSION,
             latest=None,
             update_available=False,
             release_url=None,
@@ -98,11 +98,11 @@ async def check_for_updates(response: Response, if_none_match: str | None = Head
 @router.get("/current", response_model=CurrentVersionResponse)
 async def get_current_version():
     """
-    Get the current Archon version.
+    Get the current Cortex version.
 
     Simple endpoint that returns the installed version without checking for updates.
     """
-    return CurrentVersionResponse(version=ARCHON_VERSION, timestamp=datetime.now())
+    return CurrentVersionResponse(version=CORTEX_VERSION, timestamp=datetime.now())
 
 
 @router.post("/clear-cache")

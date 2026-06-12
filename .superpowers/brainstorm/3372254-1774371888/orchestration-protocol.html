@@ -1,10 +1,10 @@
 <h2>Section 3: Orchestration Protocol & Execution Backend API</h2>
-<p class="subtitle">The REST + SSE contract between Archon and execution backends</p>
+<p class="subtitle">The REST + SSE contract between Cortex and execution backends</p>
 
 <div class="section">
   <h3>Backend Registration & Lifecycle</h3>
   <div class="mockup">
-    <div class="mockup-header">How Execution Backends Connect to Archon</div>
+    <div class="mockup-header">How Execution Backends Connect to Cortex</div>
     <div class="mockup-body" style="padding:24px; font-family:monospace; font-size:12px; line-height:1.8; color:#ccc;">
       <pre style="margin:0; white-space:pre-wrap;">
 <span style="color:#6f8; font-weight:bold;">REGISTRATION (one-time)</span>
@@ -17,13 +17,13 @@
      max_concurrent_nodes: 5,
      heartbeat_interval_seconds: 30
    }
-<span style="color:#0cf;">2.</span> Archon stores in execution_backends table, returns backend_id + auth_token
+<span style="color:#0cf;">2.</span> Cortex stores in execution_backends table, returns backend_id + auth_token
 <span style="color:#0cf;">3.</span> Backend stores token for subsequent API calls
 
 <span style="color:#6f8; font-weight:bold;">SSE CONNECTION (persistent)</span>
 <span style="color:#0cf;">4.</span> Backend connects: GET /api/workflows/backends/{id}/events
    Headers: Authorization: Bearer {auth_token}
-<span style="color:#0cf;">5.</span> Archon streams events:
+<span style="color:#0cf;">5.</span> Cortex streams events:
    • node_ready     — "execute this node" (includes full node definition + context)
    • workflow_cancel — "abort all nodes for this workflow run"
    • approval_resolved — "HITL gate passed, resume downstream nodes"
@@ -33,7 +33,7 @@
 <span style="color:#0cf;">6.</span> Backend sends: POST /api/workflows/backends/{id}/heartbeat
    Every 30 seconds while connected
 <span style="color:#0cf;">7.</span> If heartbeat missed for 3 intervals (90s):
-   • Archon marks backend 'unhealthy'
+   • Cortex marks backend 'unhealthy'
    • Running nodes on that backend marked 'failed' with reason 'backend_timeout'
    • evaluate_dag() re-invoked to process downstream effects</pre>
     </div>
@@ -81,9 +81,9 @@
           <div>→</div>
         </div>
 
-        <!-- Right: Archon -->
+        <!-- Right: Cortex -->
         <div style="border:2px solid rgba(0,255,100,0.3); border-radius:8px; padding:12px;">
-          <div style="color:#6f8; font-weight:bold; text-align:center; margin-bottom:12px;">Archon DAG Engine</div>
+          <div style="color:#6f8; font-weight:bold; text-align:center; margin-bottom:12px;">Cortex DAG Engine</div>
 
           <div style="background:rgba(0,255,100,0.05); padding:8px; border-radius:4px; margin-bottom:8px; font-size:11px;">
             <span style="color:#6f8;">①</span> evaluate_dag() marks node 'queued'<br>
@@ -229,7 +229,7 @@
           <tr>
             <td style="padding:6px; color:#fa0;">POST</td>
             <td style="padding:6px; color:#ccc;">/api/workflows/definitions/{id}/export</td>
-            <td style="padding:6px; color:#888;">Export as YAML file (for .archon/workflows/)</td>
+            <td style="padding:6px; color:#888;">Export as YAML file (for .cortex/workflows/)</td>
           </tr>
         </table>
       </div>
@@ -253,7 +253,7 @@
     "provider": "claude",
     "allowed_tools": ["Read", "Edit", "Write", "Bash"],
     "retry": {"max_attempts": 2, "delay_ms": 3000},
-    "mcp": ".archon/mcp-servers.json",  <span style="color:#888;">// optional MCP config</span>
+    "mcp": ".cortex/mcp-servers.json",  <span style="color:#888;">// optional MCP config</span>
     "approval_required": false
   },
   "context": {

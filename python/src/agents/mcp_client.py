@@ -25,9 +25,9 @@ def _resolve_mcp_url() -> str:
 
         base = get_mcp_url()
     except ImportError:
-        mcp_port = os.getenv("ARCHON_MCP_PORT", "8051")
+        mcp_port = os.getenv("CORTEX_MCP_PORT", "8051")
         if os.getenv("DOCKER_CONTAINER") or os.path.exists("/.dockerenv"):
-            base = f"http://archon-mcp:{mcp_port}"
+            base = f"http://cortex-mcp:{mcp_port}"
         else:
             base = f"http://localhost:{mcp_port}"
 

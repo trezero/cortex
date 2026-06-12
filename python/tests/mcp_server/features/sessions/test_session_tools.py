@@ -37,13 +37,13 @@ def registered_tools(mock_mcp):
     return mock_mcp._tools
 
 
-# ── archon_search_sessions ────────────────────────────────────────────────────
+# ── cortex_search_sessions ────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
 async def test_search_sessions_returns_results(registered_tools, mock_context):
-    """archon_search_sessions returns matching sessions as JSON."""
-    search_sessions = registered_tools["archon_search_sessions"]
+    """cortex_search_sessions returns matching sessions as JSON."""
+    search_sessions = registered_tools["cortex_search_sessions"]
 
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -68,8 +68,8 @@ async def test_search_sessions_returns_results(registered_tools, mock_context):
 
 @pytest.mark.asyncio
 async def test_search_sessions_with_project_filter(registered_tools, mock_context):
-    """archon_search_sessions passes project_id filter to API."""
-    search_sessions = registered_tools["archon_search_sessions"]
+    """cortex_search_sessions passes project_id filter to API."""
+    search_sessions = registered_tools["cortex_search_sessions"]
 
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -93,8 +93,8 @@ async def test_search_sessions_with_project_filter(registered_tools, mock_contex
 
 @pytest.mark.asyncio
 async def test_search_sessions_api_error(registered_tools, mock_context):
-    """archon_search_sessions handles API errors gracefully."""
-    search_sessions = registered_tools["archon_search_sessions"]
+    """cortex_search_sessions handles API errors gracefully."""
+    search_sessions = registered_tools["cortex_search_sessions"]
 
     mock_response = MagicMock()
     mock_response.status_code = 500
@@ -111,13 +111,13 @@ async def test_search_sessions_api_error(registered_tools, mock_context):
     assert data["success"] is False
 
 
-# ── archon_get_session ────────────────────────────────────────────────────────
+# ── cortex_get_session ────────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
 async def test_get_session_returns_session_with_observations(registered_tools, mock_context):
-    """archon_get_session returns session and observations."""
-    get_session = registered_tools["archon_get_session"]
+    """cortex_get_session returns session and observations."""
+    get_session = registered_tools["cortex_get_session"]
 
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -141,8 +141,8 @@ async def test_get_session_returns_session_with_observations(registered_tools, m
 
 @pytest.mark.asyncio
 async def test_get_session_not_found(registered_tools, mock_context):
-    """archon_get_session returns error for missing session."""
-    get_session = registered_tools["archon_get_session"]
+    """cortex_get_session returns error for missing session."""
+    get_session = registered_tools["cortex_get_session"]
 
     mock_response = MagicMock()
     mock_response.status_code = 404

@@ -181,7 +181,7 @@ class ExtensionValidationService:
             errors.append(
                 f"Invalid name format '{name}'. Must be kebab-case "
                 "(lowercase letters, digits, and hyphens; must start with a letter). "
-                "Examples: 'my-extension', 'archon-memory', 'code-review'."
+                "Examples: 'my-extension', 'cortex-memory', 'code-review'."
             )
 
     def _check_description(self, description: Any, warnings: list[str]) -> None:

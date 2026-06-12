@@ -1,5 +1,5 @@
 """
-Consolidated task management tools for Archon MCP Server.
+Consolidated task management tools for Cortex MCP Server.
 
 Reduces the number of individual CRUD operations while maintaining full functionality.
 """
@@ -228,7 +228,7 @@ def register_task_tools(mcp: FastMCP):
             assignee: String name of the assignee. Can be any agent name,
                      "User" for human assignment, or custom agent identifiers
                      created by your system (e.g., "ResearchAgent-1", "CodeReviewer").
-                     Common values: "User", "Archon", "Coding Agent"
+                     Common values: "User", "Cortex", "Coding Agent"
                      Default: "User"
             task_order: Priority 0-100 (higher = more priority)
             feature: Feature label for grouping

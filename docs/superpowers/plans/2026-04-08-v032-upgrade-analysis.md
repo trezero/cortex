@@ -1,21 +1,21 @@
-# Archon v0.3.2 Upgrade Analysis Report
+# Cortex v0.3.2 Upgrade Analysis Report
 
 **Generated:** 2026-04-08
 **Current Version:** 0.1.0 (Python/FastAPI + React)
-**Target Version:** 0.3.2 (TypeScript/Bun CLI - "Archon CLI")
+**Target Version:** 0.3.2 (TypeScript/Bun CLI - "Cortex CLI")
 **Recommendation:** DO NOT UPGRADE. The upstream is a completely different product.
 
 ---
 
 ## Executive Summary
 
-The "Update Available: v0.3.2" banner in the Archon UI is **misleading**. The upstream `coleam00/Archon` repository has undergone a **complete rewrite** — it is no longer a Python/FastAPI + React knowledge management platform. It has been rebuilt from scratch as a **TypeScript/Bun CLI tool** called "Archon CLI." There is **no common git ancestor** between our v0.1.0 tag and the v0.3.2 tag. These are fundamentally different products that happen to share a GitHub repository URL.
+The "Update Available: v0.3.2" banner in the Cortex UI is **misleading**. The upstream `coleam00/Cortex` repository has undergone a **complete rewrite** — it is no longer a Python/FastAPI + React knowledge management platform. It has been rebuilt from scratch as a **TypeScript/Bun CLI tool** called "Cortex CLI." There is **no common git ancestor** between our v0.1.0 tag and the v0.3.2 tag. These are fundamentally different products that happen to share a GitHub repository URL.
 
 **A merge or upgrade is not possible.** This report documents the findings and recommends concrete actions.
 
 ---
 
-## What Happened to Upstream Archon
+## What Happened to Upstream Cortex
 
 ### Before (v0.1.0 — our fork point)
 | Aspect | Details |
@@ -26,7 +26,7 @@ The "Update Available: v0.3.2" banner in the Archon UI is **misleading**. The up
 | **Database** | Supabase (PostgreSQL + pgvector) |
 | **Purpose** | Knowledge management platform with RAG, project management, MCP tools |
 | **Architecture** | Monolithic with vertical slice frontend |
-| **Structure** | `python/`, `archon-ui-main/`, `integrations/` |
+| **Structure** | `python/`, `cortex-ui/`, `integrations/` |
 
 ### After (v0.3.2 — current upstream)
 | Aspect | Details |
@@ -38,13 +38,13 @@ The "Update Available: v0.3.2" banner in the Archon UI is **misleading**. The up
 | **Adapters** | Slack, Telegram, Discord, Gitea |
 | **Distribution** | Homebrew, curl install script, Docker, compiled binaries |
 | **Python files** | **Zero** (0 Python files in entire repo) |
-| **Our directories** | `python/` and `archon-ui-main/` **do not exist** upstream |
+| **Our directories** | `python/` and `cortex-ui/` **do not exist** upstream |
 
 ### Evidence of Complete Rewrite
-1. **No common git ancestor** — `gh api repos/coleam00/Archon/compare/v0.1.0...v0.3.2` returns 404 ("No common ancestor")
+1. **No common git ancestor** — `gh api repos/coleam00/Cortex/compare/v0.1.0...v0.3.2` returns 404 ("No common ancestor")
 2. **Zero Python files** in the upstream repository
-3. **No `python/` or `archon-ui-main/` directories** exist upstream
-4. All releases are titled "**Archon CLI**" — a different product category
+3. **No `python/` or `cortex-ui/` directories** exist upstream
+4. All releases are titled "**Cortex CLI**" — a different product category
 5. The v0.1.0 tag appears to be the last tag before the complete rewrite; the next tag is v0.2.13, which is already the new TypeScript CLI
 
 ---
@@ -53,7 +53,7 @@ The "Update Available: v0.3.2" banner in the Archon UI is **misleading**. The up
 
 | Version | Date | Type | Notes |
 |---------|------|------|-------|
-| v0.1.0 | Pre-rewrite | Tag | Last version of Python/React Archon (our fork point) |
+| v0.1.0 | Pre-rewrite | Tag | Last version of Python/React Cortex (our fork point) |
 | v0.2.13 | 2026-04-07 | CLI Release | First available CLI release (rewrite already complete) |
 | v0.3.0 | 2026-04-08 10:15 UTC | CLI Release | Env-leak-gate polish, build fixes, cloud-init hardening |
 | v0.3.1 | 2026-04-08 12:14 UTC | Hotfix | Release workflow fix, SQLite schema migration |
@@ -147,11 +147,11 @@ Update `python/src/server/config/version.py` to use our fork's repository:
 ```python
 # Current (points to upstream — now a different product)
 GITHUB_REPO_OWNER = "coleam00"
-GITHUB_REPO_NAME = "Archon"
+GITHUB_REPO_NAME = "Cortex"
 
 # Updated (points to our fork)
 GITHUB_REPO_OWNER = "trezero"
-GITHUB_REPO_NAME = "Archon"
+GITHUB_REPO_NAME = "Cortex"
 ```
 
 This makes the version checker compare against our own releases. When we tag releases on our fork, the banner will correctly reflect our update status.
@@ -159,17 +159,17 @@ This makes the version checker compare against our own releases. When we tag rel
 **Option B: Disable the version checker entirely**
 
 If we don't plan to publish releases on our fork, disable the checker:
-- Set `ARCHON_VERSION` to a high sentinel value, or
+- Set `CORTEX_VERSION` to a high sentinel value, or
 - Add a feature flag to disable version checking in settings
 
-**Option C: Update ARCHON_VERSION to reflect our fork's maturity**
+**Option C: Update CORTEX_VERSION to reflect our fork's maturity**
 
 Our codebase has far surpassed v0.1.0. Consider bumping to a version that reflects reality (e.g., `1.0.0-trinity`) and tagging releases on our fork.
 
 #### 2. Document the Fork Status
 
 Add a note to `CLAUDE.md` or a `FORK_STATUS.md` documenting:
-- We forked from `coleam00/Archon` at v0.1.0
+- We forked from `coleam00/Cortex` at v0.1.0
 - The upstream has been rewritten as a TypeScript CLI tool
 - Our fork is the continuation of the original Python/React platform
 - Version comparisons with upstream are no longer meaningful
@@ -178,7 +178,7 @@ Add a note to `CLAUDE.md` or a `FORK_STATUS.md` documenting:
 
 #### 3. Establish Our Own Release Process
 
-- Tag meaningful milestones on the `trezero/Archon` fork
+- Tag meaningful milestones on the `trezero/Cortex` fork
 - Adopt a versioning scheme (e.g., `1.x.x-trinity` or simply `1.x.x`)
 - The version checker will then correctly detect updates within our ecosystem
 
@@ -202,7 +202,7 @@ If any upstream architectural patterns are useful, implement them from scratch i
 
 #### 6. Monitor Upstream for Conceptual Insights
 
-The upstream Archon CLI may develop useful patterns around:
+The upstream Cortex CLI may develop useful patterns around:
 - AI workflow orchestration
 - Multi-provider agent management
 - Security hardening for AI tools
@@ -228,8 +228,8 @@ Track these at a design level, not a code level.
 ### Phase 1: Fix the Banner (30 minutes)
 
 1. Update `GITHUB_REPO_OWNER` in `python/src/server/config/version.py` to `"trezero"`
-2. Bump `ARCHON_VERSION` to `"1.0.0"` (or appropriate version)
-3. Update `archon-ui-main/package.json` version to match
+2. Bump `CORTEX_VERSION` to `"1.0.0"` (or appropriate version)
+3. Update `cortex-ui/package.json` version to match
 4. Restart backend services
 5. Verify banner no longer shows
 
@@ -237,7 +237,7 @@ Track these at a design level, not a code level.
 
 1. Create a `v1.0.0` tag on our fork's main branch
 2. Write release notes summarizing our custom features
-3. Push tag to `trezero/Archon`
+3. Push tag to `trezero/Cortex`
 4. Verify version checker works against our own releases
 
 ### Phase 3: Document Fork Status (30 minutes)

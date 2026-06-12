@@ -36,7 +36,7 @@ TELEGRAM_PROJECT_ID set?
 └── No  → ~/.claude/channels/telegram/     (current global behavior, unchanged)
 ```
 
-The project ID is a short, user-chosen name (e.g., "archon", "reciperaiders") used as the directory name.
+The project ID is a short, user-chosen name (e.g., "cortex", "reciperaiders") used as the directory name.
 
 #### Project ID Constraints
 
@@ -70,13 +70,13 @@ Project IDs must be validated before use in filesystem paths:
 
 #### Per-project setup
 ```
-/telegram:configure --project archon 123456789:AAH...
+/telegram:configure --project cortex 123456789:AAH...
 ```
 
 Actions:
-1. Create `~/.claude/channels/telegram/projects/archon/`
-2. Save bot token to `~/.claude/channels/telegram/projects/archon/.env`
-3. Write `TELEGRAM_PROJECT_ID=archon` to the project's `.claude/settings.local.json` env block (for MCP server inheritance)
+1. Create `~/.claude/channels/telegram/projects/cortex/`
+2. Save bot token to `~/.claude/channels/telegram/projects/cortex/.env`
+3. Write `TELEGRAM_PROJECT_ID=cortex` to the project's `.claude/settings.local.json` env block (for MCP server inheritance)
 4. If global `access.json` exists with `allowFrom` entries, copy as initial per-project `access.json`
 5. Display status confirming per-project mode
 
@@ -128,7 +128,7 @@ Shows active mode (global or project), project ID if applicable, token status, a
 ```bash
 # 1. Create bot via @BotFather in Telegram
 # 2. In Claude Code, in the project directory:
-/telegram:configure --project archon 123456789:AAH...
+/telegram:configure --project cortex 123456789:AAH...
 # 3. DM the new bot, pair as usual:
 /telegram:access pair a4f91c
 ```
@@ -162,7 +162,7 @@ Shows active mode (global or project), project ID if applicable, token status, a
 
 ## Future Considerations (Out of Scope for PR)
 
-### Archon Integration
-- **archonSetup integration**: Optional step to configure a per-project Telegram bot during setup
+### Cortex Integration
+- **cortexSetup integration**: Optional step to configure a per-project Telegram bot during setup
 - **claudePro launcher**: Convenience command to launch Claude Code with project-specific config pre-set
-- These are Archon-specific and would be implemented separately after the upstream PR
+- These are Cortex-specific and would be implemented separately after the upstream PR

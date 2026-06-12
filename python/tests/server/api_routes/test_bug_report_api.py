@@ -70,7 +70,7 @@ def test_health_check_with_defaults(client):
         assert data["github_repo_configured"] is False
         # Verify it uses the version.py constants
         assert data["repo"] == f"{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}"
-        assert data["repo"] == "coleam00/Archon"
+        assert data["repo"] == "trezero/cortex"
 
 
 def test_health_check_with_github_token(client):
@@ -115,10 +115,10 @@ def test_manual_submission_url_uses_correct_repo(client, mock_bug_report):
         # Verify URL contains correct repository
         expected_repo = f"{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}"
         assert expected_repo in data["issue_url"]
-        assert "coleam00/Archon" in data["issue_url"]
+        assert "trezero/cortex" in data["issue_url"]
         # Ensure old repository is NOT in URL
         assert "dynamous-community" not in data["issue_url"]
-        assert "Archon-V2-Alpha" not in data["issue_url"]
+        assert "Cortex-V2-Alpha" not in data["issue_url"]
         # Verify URL contains required parameters including template
         assert "title=" in data["issue_url"]
         assert "body=" in data["issue_url"]
@@ -163,9 +163,9 @@ def test_github_service_initialization():
         # Verify service uses version.py constants as default
         expected_repo = f"{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}"
         assert service.repo == expected_repo
-        assert service.repo == "coleam00/Archon"
+        assert service.repo == "trezero/cortex"
         # Ensure old repository is NOT used
-        assert service.repo != "dynamous-community/Archon-V2-Alpha"
+        assert service.repo != "dynamous-community/Cortex-V2-Alpha"
 
 
 def test_github_service_with_custom_repo():

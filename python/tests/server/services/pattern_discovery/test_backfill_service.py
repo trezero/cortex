@@ -18,7 +18,7 @@ def service(mock_supabase):
 
 
 def _make_projects_response(projects: list) -> MagicMock:
-    """Helper to create a supabase response mock for archon_projects."""
+    """Helper to create a supabase response mock for cortex_projects."""
     response = MagicMock()
     response.data = projects
     return response

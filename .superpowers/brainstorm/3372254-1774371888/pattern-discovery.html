@@ -25,7 +25,7 @@
         <div style="border:1px solid rgba(200,100,255,0.3); border-radius:8px; padding:12px;">
           <div style="color:#c8f; font-weight:bold; margin-bottom:8px;">Stream 2: Agent Conversations</div>
           <div style="color:#aaa; font-size:11px; line-height:1.6;">
-            <strong>Source:</strong> remote_agent_messages table + Archon chat sessions<br><br>
+            <strong>Source:</strong> remote_agent_messages table + Cortex chat sessions<br><br>
             <strong>Captured data:</strong><br>
             • User request text (intent)<br>
             • Which repo / project scoped to<br>
@@ -63,7 +63,7 @@
             event_type<br><span style="color:#888; font-size:10px;">commit | conversation | workflow_run</span>
           </div>
           <div style="background:rgba(255,200,0,0.08); padding:6px; border-radius:4px; text-align:center; color:#ccc;">
-            project_id<br><span style="color:#888; font-size:10px;">FK → archon_projects</span>
+            project_id<br><span style="color:#888; font-size:10px;">FK → cortex_projects</span>
           </div>
           <div style="background:rgba(255,200,0,0.08); padding:6px; border-radius:4px; text-align:center; color:#ccc;">
             repo_url<br><span style="color:#888; font-size:10px;">cross-ref key</span>
@@ -122,7 +122,7 @@ For each cluster, compute:
 For high-scoring patterns:
   • Send cluster data to Anthropic API (sonnet):
     "Given these repeated developer actions across repos, generate a
-     reusable Archon workflow YAML definition that automates this pattern."
+     reusable Cortex workflow YAML definition that automates this pattern."
   • Validate generated YAML against schema
   • Store in discovered_patterns table with status: 'pending_review'</pre>
     </div>
@@ -136,7 +136,7 @@ For high-scoring patterns:
     <div class="mockup-body" style="padding:20px; font-size:12px;">
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
         <div style="border:1px solid rgba(0,200,255,0.2); border-radius:8px; padding:16px;">
-          <div style="color:#0cf; font-weight:bold; margin-bottom:8px;">Archon UI — Suggestions Panel</div>
+          <div style="color:#0cf; font-weight:bold; margin-bottom:8px;">Cortex UI — Suggestions Panel</div>
           <div style="color:#aaa; font-size:11px; line-height:1.6;">
             New section on the Workflows page:<br><br>
             <div style="background:rgba(0,0,0,0.3); padding:12px; border-radius:6px; margin-bottom:8px;">
@@ -162,7 +162,7 @@ For high-scoring patterns:
         </div>
 
         <div style="border:1px solid rgba(200,100,255,0.2); border-radius:8px; padding:16px;">
-          <div style="color:#c8f; font-weight:bold; margin-bottom:8px;">Archon Chat / MCP Integration</div>
+          <div style="color:#c8f; font-weight:bold; margin-bottom:8px;">Cortex Chat / MCP Integration</div>
           <div style="color:#aaa; font-size:11px; line-height:1.6;">
             When user asks: "What should I automate?"<br>
             or: "Any workflow suggestions?"<br><br>
@@ -175,7 +175,7 @@ For high-scoring patterns:
               manually. Want me to create a workflow that automates this?"
             </div>
             <br>
-            MCP tool: <code>archon:suggest_workflows</code><br>
+            MCP tool: <code>cortex:suggest_workflows</code><br>
             Returns discovered patterns as structured data<br>
             IDE agents can present suggestions inline
           </div>

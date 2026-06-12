@@ -1,5 +1,5 @@
 """
-Project Service Module for Archon
+Project Service Module for Cortex
 
 This module provides core business logic for project operations that can be
 shared between MCP tools and FastAPI endpoints. It follows the pattern of
@@ -63,7 +63,7 @@ class ProjectService:
                 project_data["tags"] = tags
 
             # Insert project
-            response = self.supabase_client.table("archon_projects").insert(project_data).execute()
+            response = self.supabase_client.table("cortex_projects").insert(project_data).execute()
 
             if not response.data:
                 logger.error("Supabase returned empty data for project creation")
@@ -101,7 +101,7 @@ class ProjectService:
             if include_content:
                 # Current behavior - maintain backward compatibility
                 response = (
-                    self.supabase_client.table("archon_projects")
+                    self.supabase_client.table("cortex_projects")
                     .select("*")
                     .order("created_at", desc=True)
                     .execute()
@@ -131,7 +131,7 @@ class ProjectService:
                 # Lightweight response for MCP - fetch all data but only return metadata + stats
                 # FIXED: N+1 query problem - now using single query
                 response = (
-                    self.supabase_client.table("archon_projects")
+                    self.supabase_client.table("cortex_projects")
                     .select("*")  # Fetch all fields in single query
                     .order("created_at", desc=True)
                     .execute()
@@ -182,8 +182,8 @@ class ProjectService:
             return {}
 
         result = (
-            self.supabase_client.table("archon_project_system_registrations")
-            .select("project_id, system_id, git_dirty, git_dirty_checked_at, archon_systems(id, name, os)")
+            self.supabase_client.table("cortex_project_system_registrations")
+            .select("project_id, system_id, git_dirty, git_dirty_checked_at, cortex_systems(id, name, os)")
             .in_("project_id", project_ids)
             .execute()
         )
@@ -191,7 +191,7 @@ class ProjectService:
         registrations: dict[str, list[dict]] = {}
         for row in result.data or []:
             pid = row["project_id"]
-            system = row.get("archon_systems") or {}
+            system = row.get("cortex_systems") or {}
             entry = {
                 "system_id": row["system_id"],
                 "system_name": system.get("name", ""),
@@ -206,7 +206,7 @@ class ProjectService:
     def update_git_status(self, project_id: str, system_id: str, git_dirty: bool) -> tuple[bool, dict[str, Any]]:
         """Update git dirty status for a project-system registration."""
         result = (
-            self.supabase_client.table("archon_project_system_registrations")
+            self.supabase_client.table("cortex_project_system_registrations")
             .update({
                 "git_dirty": git_dirty,
                 "git_dirty_checked_at": datetime.now(UTC).isoformat(),
@@ -230,7 +230,7 @@ class ProjectService:
         """
         try:
             response = (
-                self.supabase_client.table("archon_projects")
+                self.supabase_client.table("cortex_projects")
                 .select("*")
                 .eq("id", project_id)
                 .execute()
@@ -246,7 +246,7 @@ class ProjectService:
                 try:
                     # Get source IDs from project_sources table
                     sources_response = (
-                        self.supabase_client.table("archon_project_sources")
+                        self.supabase_client.table("cortex_project_sources")
                         .select("source_id, notes")
                         .eq("project_id", project["id"])
                         .execute()
@@ -265,7 +265,7 @@ class ProjectService:
                     # Fetch full source objects
                     if technical_source_ids:
                         tech_sources_response = (
-                            self.supabase_client.table("archon_sources")
+                            self.supabase_client.table("cortex_sources")
                             .select("*")
                             .in_("source_id", technical_source_ids)
                             .execute()
@@ -274,7 +274,7 @@ class ProjectService:
 
                     if business_source_ids:
                         biz_sources_response = (
-                            self.supabase_client.table("archon_sources")
+                            self.supabase_client.table("cortex_sources")
                             .select("*")
                             .in_("source_id", business_source_ids)
                             .execute()
@@ -308,7 +308,7 @@ class ProjectService:
         try:
             # First, check if project exists
             check_response = (
-                self.supabase_client.table("archon_projects")
+                self.supabase_client.table("cortex_projects")
                 .select("id")
                 .eq("id", project_id)
                 .execute()
@@ -318,7 +318,7 @@ class ProjectService:
 
             # Get task count for reporting
             tasks_response = (
-                self.supabase_client.table("archon_tasks")
+                self.supabase_client.table("cortex_tasks")
                 .select("id")
                 .eq("project_id", project_id)
                 .execute()
@@ -327,7 +327,7 @@ class ProjectService:
 
             # Check for child projects (ON DELETE SET NULL will orphan them)
             children_response = (
-                self.supabase_client.table("archon_projects")
+                self.supabase_client.table("cortex_projects")
                 .select("id, title")
                 .eq("parent_project_id", project_id)
                 .execute()
@@ -343,7 +343,7 @@ class ProjectService:
 
             # Delete the project (tasks will be deleted by cascade)
             response = (
-                self.supabase_client.table("archon_projects")
+                self.supabase_client.table("cortex_projects")
                 .delete()
                 .eq("id", project_id)
                 .execute()
@@ -378,7 +378,7 @@ class ProjectService:
         """
         try:
             response = (
-                self.supabase_client.table("archon_projects")
+                self.supabase_client.table("cortex_projects")
                 .select("features")
                 .eq("id", project_id)
                 .single()
@@ -450,7 +450,7 @@ class ProjectService:
 
             # Update the target project
             response = (
-                self.supabase_client.table("archon_projects")
+                self.supabase_client.table("cortex_projects")
                 .update(update_data)
                 .eq("id", project_id)
                 .execute()
@@ -462,7 +462,7 @@ class ProjectService:
             else:
                 # If update didn't return data, fetch the project to ensure it exists and get current state
                 get_response = (
-                    self.supabase_client.table("archon_projects")
+                    self.supabase_client.table("cortex_projects")
                     .select("*")
                     .eq("id", project_id)
                     .execute()
@@ -488,7 +488,7 @@ class ProjectService:
         """
         try:
             response = (
-                self.supabase_client.table("archon_projects")
+                self.supabase_client.table("cortex_projects")
                 .select("id, title, description, tags, parent_project_id")
                 .eq("parent_project_id", parent_id)
                 .execute()

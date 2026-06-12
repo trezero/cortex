@@ -1,1 +1,1 @@
-"""Workflow orchestration services for the Archon Control Plane."""
+"""Workflow orchestration services for the Cortex Control Plane."""
