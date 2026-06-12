@@ -1,5 +1,5 @@
 -- =====================================================
--- Add priority column to archon_tasks table
+-- Add priority column to cortex_tasks table
 -- =====================================================
 -- This migration adds a dedicated priority column to decouple
 -- task priority from task_order field:
@@ -23,16 +23,16 @@ EXCEPTION
         RAISE NOTICE 'task_priority enum already exists, skipping creation';
 END $$;
 
--- Add priority column to archon_tasks table (safe, idempotent with NOT NULL constraint)
+-- Add priority column to cortex_tasks table (safe, idempotent with NOT NULL constraint)
 DO $$ BEGIN
     -- Add column as nullable first with default
-    ALTER TABLE archon_tasks ADD COLUMN priority task_priority DEFAULT 'medium';
+    ALTER TABLE cortex_tasks ADD COLUMN priority task_priority DEFAULT 'medium';
     
     -- Ensure all existing rows have the default value (handles any NULLs)
-    UPDATE archon_tasks SET priority = 'medium' WHERE priority IS NULL;
+    UPDATE cortex_tasks SET priority = 'medium' WHERE priority IS NULL;
     
     -- Make column NOT NULL to enforce application invariants
-    ALTER TABLE archon_tasks ALTER COLUMN priority SET NOT NULL;
+    ALTER TABLE cortex_tasks ALTER COLUMN priority SET NOT NULL;
     
     RAISE NOTICE 'Added priority column with NOT NULL constraint and default value';
 EXCEPTION
@@ -40,11 +40,11 @@ EXCEPTION
         -- Column exists, ensure it's NOT NULL and has proper default
         BEGIN
             -- Ensure no NULL values exist
-            UPDATE archon_tasks SET priority = 'medium' WHERE priority IS NULL;
+            UPDATE cortex_tasks SET priority = 'medium' WHERE priority IS NULL;
             
             -- Ensure NOT NULL constraint (safe if already NOT NULL)
             BEGIN
-                ALTER TABLE archon_tasks ALTER COLUMN priority SET NOT NULL;
+                ALTER TABLE cortex_tasks ALTER COLUMN priority SET NOT NULL;
             EXCEPTION
                 WHEN OTHERS THEN
                     RAISE NOTICE 'priority column already has NOT NULL constraint';
@@ -52,7 +52,7 @@ EXCEPTION
             
             -- Ensure default value is set (safe if already set)
             BEGIN
-                ALTER TABLE archon_tasks ALTER COLUMN priority SET DEFAULT 'medium';
+                ALTER TABLE cortex_tasks ALTER COLUMN priority SET DEFAULT 'medium';
             EXCEPTION
                 WHEN OTHERS THEN
                     RAISE NOTICE 'priority column already has default value';
@@ -63,11 +63,11 @@ EXCEPTION
 END $$;
 
 -- Add index for the priority column for better query performance (safe, idempotent)
-CREATE INDEX IF NOT EXISTS idx_archon_tasks_priority ON archon_tasks(priority);
+CREATE INDEX IF NOT EXISTS idx_cortex_tasks_priority ON cortex_tasks(priority);
 
 -- Add comment to document the new column (safe, idempotent)
 DO $$ BEGIN
-    COMMENT ON COLUMN archon_tasks.priority IS 'Task priority level independent of visual ordering - used for semantic importance (low, medium, high, critical)';
+    COMMENT ON COLUMN cortex_tasks.priority IS 'Task priority level independent of visual ordering - used for semantic importance (low, medium, high, critical)';
 EXCEPTION
     WHEN undefined_column THEN 
         RAISE NOTICE 'priority column does not exist yet, skipping comment';
@@ -81,11 +81,11 @@ DECLARE
 BEGIN
     -- Only proceed if priority column exists
     IF EXISTS (SELECT 1 FROM information_schema.columns 
-               WHERE table_name = 'archon_tasks' AND column_name = 'priority') THEN
+               WHERE table_name = 'cortex_tasks' AND column_name = 'priority') THEN
         
         -- Set all existing tasks to medium priority (clean slate)
         -- Users can explicitly set priorities as needed after migration
-        UPDATE archon_tasks 
+        UPDATE cortex_tasks 
         SET priority = 'medium'::task_priority
         WHERE priority IS NULL;  -- Only update NULL values, preserve any existing priorities
         

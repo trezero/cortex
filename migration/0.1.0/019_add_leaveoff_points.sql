@@ -2,9 +2,9 @@
 -- Per-project singleton capturing current development state for session continuity.
 -- UNIQUE constraint on project_id enforces exactly one LeaveOff point per project.
 
-CREATE TABLE IF NOT EXISTS archon_leaveoff_points (
+CREATE TABLE IF NOT EXISTS cortex_leaveoff_points (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id      UUID NOT NULL UNIQUE REFERENCES archon_projects(id) ON DELETE CASCADE,
+    project_id      UUID NOT NULL UNIQUE REFERENCES cortex_projects(id) ON DELETE CASCADE,
     machine_id      TEXT,
     last_session_id UUID,
     content         TEXT NOT NULL,
@@ -16,4 +16,4 @@ CREATE TABLE IF NOT EXISTS archon_leaveoff_points (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_leaveoff_project ON archon_leaveoff_points(project_id);
+CREATE INDEX IF NOT EXISTS idx_leaveoff_project ON cortex_leaveoff_points(project_id);

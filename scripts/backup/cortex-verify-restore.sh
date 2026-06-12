@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# archon-verify-restore.sh — Lightweight restore-readiness checker for the backup server
-# Verifies that the backup server can accept an Archon-only restore into its existing Supabase.
+# cortex-verify-restore.sh — Lightweight restore-readiness checker for the backup server
+# Verifies that the backup server can accept an Cortex-only restore into its existing Supabase.
 #
-# Usage: ./archon-verify-restore.sh
+# Usage: ./cortex-verify-restore.sh
 
 set -euo pipefail
 
 BACKUP_BASE="$HOME/archon-backups"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ARCHON_DIR="${ARCHON_DIR:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+CORTEX_DIR="${CORTEX_DIR:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 DB_CONTAINER="supabase-db"
 
 PASS=0
@@ -31,7 +31,7 @@ check() {
 }
 
 echo "============================================"
-echo " Archon Restore Readiness Check"
+echo " Cortex Restore Readiness Check"
 echo "============================================"
 echo ""
 
@@ -42,16 +42,16 @@ if [[ -L "$BACKUP_BASE/latest" ]]; then
     LATEST_NAME=$(basename "$LATEST")
     check "'latest' symlink exists -> $LATEST_NAME" "PASS"
 
-    [[ -f "$LATEST/archon.dump" ]] && check "archon.dump present" "PASS" || check "archon.dump present" "FAIL"
-    [[ -f "$LATEST/env/archon.env" ]] && check "archon.env present" "PASS" || check "archon.env present" "FAIL"
+    [[ -f "$LATEST/cortex.dump" ]] && check "cortex.dump present" "PASS" || check "cortex.dump present" "FAIL"
+    [[ -f "$LATEST/env/cortex.env" ]] && check "cortex.env present" "PASS" || check "cortex.env present" "FAIL"
 
-    if [[ -f "$LATEST/archon.dump" ]]; then
-        DUMP_SIZE=$(stat -c%s "$LATEST/archon.dump")
+    if [[ -f "$LATEST/cortex.dump" ]]; then
+        DUMP_SIZE=$(stat -c%s "$LATEST/cortex.dump")
         DUMP_SIZE_MB=$((DUMP_SIZE / 1024 / 1024))
         if [[ "$DUMP_SIZE" -gt 0 ]]; then
-            check "archon.dump size: ${DUMP_SIZE_MB} MB" "PASS"
+            check "cortex.dump size: ${DUMP_SIZE_MB} MB" "PASS"
         else
-            check "archon.dump is empty!" "FAIL"
+            check "cortex.dump is empty!" "FAIL"
         fi
     fi
 
@@ -71,13 +71,13 @@ fi
 
 echo ""
 
-# 2. Check Archon repo
+# 2. Check Cortex repo
 echo "Repository:"
-if [[ -d "$ARCHON_DIR/.git" ]]; then
-    ARCHON_BRANCH=$(cd "$ARCHON_DIR" && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-    check "Archon repo exists (branch: $ARCHON_BRANCH)" "PASS"
+if [[ -d "$CORTEX_DIR/.git" ]]; then
+    CORTEX_BRANCH=$(cd "$CORTEX_DIR" && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    check "Cortex repo exists (branch: $CORTEX_BRANCH)" "PASS"
 else
-    check "Archon repo at $ARCHON_DIR" "FAIL"
+    check "Cortex repo at $CORTEX_DIR" "FAIL"
 fi
 
 echo ""
@@ -114,8 +114,8 @@ echo ""
 
 # 4. Dump validation
 echo "Dump validation:"
-if [[ -L "$BACKUP_BASE/latest" && -f "$(readlink -f "$BACKUP_BASE/latest")/archon.dump" ]]; then
-    DUMP_PATH="$(readlink -f "$BACKUP_BASE/latest")/archon.dump"
+if [[ -L "$BACKUP_BASE/latest" && -f "$(readlink -f "$BACKUP_BASE/latest")/cortex.dump" ]]; then
+    DUMP_PATH="$(readlink -f "$BACKUP_BASE/latest")/cortex.dump"
     if command -v pg_restore > /dev/null 2>&1; then
         if pg_restore --list "$DUMP_PATH" > /dev/null 2>&1; then
             TOC_COUNT=$(pg_restore --list "$DUMP_PATH" 2>/dev/null | grep -c "TABLE DATA" || true)

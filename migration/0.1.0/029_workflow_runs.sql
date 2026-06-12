@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS workflow_runs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   definition_id UUID NOT NULL REFERENCES workflow_definitions(id) ON DELETE CASCADE,
-  project_id UUID REFERENCES archon_projects(id) ON DELETE SET NULL,
+  project_id UUID REFERENCES cortex_projects(id) ON DELETE SET NULL,
   backend_id UUID,
   status TEXT NOT NULL DEFAULT 'pending',
   triggered_by TEXT,

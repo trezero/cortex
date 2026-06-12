@@ -9,22 +9,22 @@
 -- to the same domain would conflict by using domain as source_id
 -- =====================================================
 
--- Add new columns to archon_sources table
-ALTER TABLE archon_sources 
+-- Add new columns to cortex_sources table
+ALTER TABLE cortex_sources 
 ADD COLUMN IF NOT EXISTS source_url TEXT,
 ADD COLUMN IF NOT EXISTS source_display_name TEXT;
 
 -- Add indexes for the new columns for better query performance
-CREATE INDEX IF NOT EXISTS idx_archon_sources_url ON archon_sources(source_url);
-CREATE INDEX IF NOT EXISTS idx_archon_sources_display_name ON archon_sources(source_display_name);
+CREATE INDEX IF NOT EXISTS idx_cortex_sources_url ON cortex_sources(source_url);
+CREATE INDEX IF NOT EXISTS idx_cortex_sources_display_name ON cortex_sources(source_display_name);
 
 -- Add comments to document the new columns
-COMMENT ON COLUMN archon_sources.source_url IS 'The original URL that was crawled to create this source';
-COMMENT ON COLUMN archon_sources.source_display_name IS 'Human-readable name for UI display (e.g., "GitHub - microsoft/typescript")';
+COMMENT ON COLUMN cortex_sources.source_url IS 'The original URL that was crawled to create this source';
+COMMENT ON COLUMN cortex_sources.source_display_name IS 'Human-readable name for UI display (e.g., "GitHub - microsoft/typescript")';
 
 -- Backfill existing data
 -- For existing sources, copy source_id to both new fields as a fallback
-UPDATE archon_sources 
+UPDATE cortex_sources 
 SET 
     source_url = COALESCE(source_url, source_id),
     source_display_name = COALESCE(source_display_name, source_id)

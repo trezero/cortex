@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS workflow_definitions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
-  project_id UUID REFERENCES archon_projects(id) ON DELETE SET NULL,
+  project_id UUID REFERENCES cortex_projects(id) ON DELETE SET NULL,
   yaml_content TEXT NOT NULL,
   parsed_definition JSONB DEFAULT '{}',
   version INTEGER NOT NULL DEFAULT 1,

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# archon-backup.sh — Scheduled + on-demand backup of Archon-specific data
-# Only backs up archon_* tables (not the full database) plus env and Claude state.
+# cortex-backup.sh — Scheduled + on-demand backup of Cortex-specific data
+# Only backs up cortex_* tables (not the full database) plus env and Claude state.
 #
 # Usage:
-#   ./archon-backup.sh              # Standard backup
-#   ./archon-backup.sh --tag "reason"  # Tagged backup (exempt from rotation)
+#   ./cortex-backup.sh              # Standard backup
+#   ./cortex-backup.sh --tag "reason"  # Tagged backup (exempt from rotation)
 
 set -euo pipefail
 
@@ -16,12 +16,12 @@ REMOTE_BACKUP_DIR="~/archon-backups"
 LOCAL_BACKUP_DIR="$HOME/archon-backups"
 LOG_FILE="$LOCAL_BACKUP_DIR/backup.log"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ARCHON_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+CORTEX_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 LOCAL_SUPABASE_DIR="/home/winadmin/projects/localSupabase"
 GLOBAL_CLAUDE_DIR="/home/winadmin/.claude"
 # Claude Code project memory uses the absolute path with slashes replaced by dashes
-ARCHON_PATH_SLUG="$(echo "$ARCHON_DIR" | sed 's|^/||; s|/|-|g')"
-MEMORY_DIR="$GLOBAL_CLAUDE_DIR/projects/-${ARCHON_PATH_SLUG}/memory"
+CORTEX_PATH_SLUG="$(echo "$CORTEX_DIR" | sed 's|^/||; s|/|-|g')"
+MEMORY_DIR="$GLOBAL_CLAUDE_DIR/projects/-${CORTEX_PATH_SLUG}/memory"
 DB_CONTAINER="supabase-db"
 RETENTION_COUNT=28
 STALE_THRESHOLD_HOURS=12
@@ -73,36 +73,36 @@ log "========== Backup started: $BACKUP_NAME =========="
 [[ -n "$TAG" ]] && log "Tagged backup: $TAG (exempt from rotation)"
 
 # ──────────────────────────────────────────────────────────────────────
-# Step 1: Dump only archon_* tables (Archon-specific, not full database)
+# Step 1: Dump only cortex_* tables (Cortex-specific, not full database)
 # ──────────────────────────────────────────────────────────────────────
-log "Step 1: Dumping archon_* tables..."
+log "Step 1: Dumping cortex_* tables..."
 mkdir -p "$BACKUP_DIR"
 
-# Discover all archon_* tables dynamically so new tables are picked up automatically
-ARCHON_TABLES=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -t -A -c \
-    "SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'archon_%' ORDER BY tablename;")
+# Discover all cortex_* tables dynamically so new tables are picked up automatically
+CORTEX_TABLES=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -t -A -c \
+    "SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'cortex_%' ORDER BY tablename;")
 
-TABLE_COUNT=$(echo "$ARCHON_TABLES" | wc -l)
-log "  Found $TABLE_COUNT archon_* tables"
+TABLE_COUNT=$(echo "$CORTEX_TABLES" | wc -l)
+log "  Found $TABLE_COUNT cortex_* tables"
 
 # Build pg_dump -t flags for each table
 DUMP_FLAGS=""
 while IFS= read -r table; do
     [[ -z "$table" ]] && continue
     DUMP_FLAGS="$DUMP_FLAGS -t public.$table"
-done <<< "$ARCHON_TABLES"
+done <<< "$CORTEX_TABLES"
 
-if ! docker exec "$DB_CONTAINER" pg_dump -U postgres -Fc -d postgres $DUMP_FLAGS > "$BACKUP_DIR/archon.dump" 2>>"$LOG_FILE"; then
+if ! docker exec "$DB_CONTAINER" pg_dump -U postgres -Fc -d postgres $DUMP_FLAGS > "$BACKUP_DIR/cortex.dump" 2>>"$LOG_FILE"; then
     log_error "pg_dump failed"
     exit 1
 fi
 
-DUMP_SIZE=$(stat -c%s "$BACKUP_DIR/archon.dump")
+DUMP_SIZE=$(stat -c%s "$BACKUP_DIR/cortex.dump")
 DUMP_SIZE_MB=$((DUMP_SIZE / 1024 / 1024))
-log "  archon.dump: ${DUMP_SIZE_MB} MB ($DUMP_SIZE bytes)"
+log "  cortex.dump: ${DUMP_SIZE_MB} MB ($DUMP_SIZE bytes)"
 
 if [[ "$DUMP_SIZE" -eq 0 ]]; then
-    log_error "archon.dump is empty — aborting"
+    log_error "cortex.dump is empty — aborting"
     exit 1
 fi
 
@@ -116,7 +116,7 @@ docker exec "$DB_CONTAINER" psql -U postgres -d postgres -t -A -c "
     ORDER BY extname;
 " > "$BACKUP_DIR/pre-restore.sql" 2>>"$LOG_FILE"
 
-# Dump custom enum types used by archon tables
+# Dump custom enum types used by cortex tables
 docker exec "$DB_CONTAINER" psql -U postgres -d postgres -t -A -c "
     SELECT pg_catalog.pg_get_typedef(t.oid)
     FROM pg_type t
@@ -150,11 +150,11 @@ log "  pre-restore.sql: $PRE_LINES statements"
 # ──────────────────────────────────────────────────────────────────────
 log "Step 2: Collecting env files and Claude state..."
 
-# Env files — backed up for reference and Archon recovery
+# Env files — backed up for reference and Cortex recovery
 mkdir -p "$BACKUP_DIR/env"
-cp "$ARCHON_DIR/.env" "$BACKUP_DIR/env/archon.env"
+cp "$CORTEX_DIR/.env" "$BACKUP_DIR/env/cortex.env"
 cp "$LOCAL_SUPABASE_DIR/.env" "$BACKUP_DIR/env/localsupabase.env"
-[[ -f "$ARCHON_DIR/postmanSkill/.env" ]] && cp "$ARCHON_DIR/postmanSkill/.env" "$BACKUP_DIR/env/postmanskill.env"
+[[ -f "$CORTEX_DIR/postmanSkill/.env" ]] && cp "$CORTEX_DIR/postmanSkill/.env" "$BACKUP_DIR/env/postmanskill.env"
 log "  env files: $(ls "$BACKUP_DIR/env/" | wc -l) files collected"
 
 # Claude state — project level
@@ -162,19 +162,19 @@ CLAUDE_STATE_DIR="$BACKUP_DIR/claude-state"
 mkdir -p "$CLAUDE_STATE_DIR"
 
 for f in archon-state.json archon-config.json archon-memory-buffer.jsonl settings.local.json; do
-    [[ -f "$ARCHON_DIR/.claude/$f" ]] && cp "$ARCHON_DIR/.claude/$f" "$CLAUDE_STATE_DIR/"
+    [[ -f "$CORTEX_DIR/.claude/$f" ]] && cp "$CORTEX_DIR/.claude/$f" "$CLAUDE_STATE_DIR/"
 done
 
 # Claude state — directories (skills, commands, agents, plugins excluding .venv)
 for d in skills commands agents; do
-    if [[ -d "$ARCHON_DIR/.claude/$d" ]]; then
-        cp -r "$ARCHON_DIR/.claude/$d" "$CLAUDE_STATE_DIR/"
+    if [[ -d "$CORTEX_DIR/.claude/$d" ]]; then
+        cp -r "$CORTEX_DIR/.claude/$d" "$CLAUDE_STATE_DIR/"
     fi
 done
 
-if [[ -d "$ARCHON_DIR/.claude/plugins" ]]; then
+if [[ -d "$CORTEX_DIR/.claude/plugins" ]]; then
     mkdir -p "$CLAUDE_STATE_DIR/plugins"
-    rsync -a --exclude='.venv' "$ARCHON_DIR/.claude/plugins/" "$CLAUDE_STATE_DIR/plugins/"
+    rsync -a --exclude='.venv' "$CORTEX_DIR/.claude/plugins/" "$CLAUDE_STATE_DIR/plugins/"
 fi
 
 # Claude state — global settings
@@ -196,7 +196,7 @@ log "  claude-state: $CLAUDE_FILES files collected"
 log "Step 3: Verifying backup integrity..."
 
 # 3a. pg_restore --list on the dump
-TOC_OUTPUT=$(docker exec -i "$DB_CONTAINER" pg_restore --list < "$BACKUP_DIR/archon.dump" 2>>"$LOG_FILE")
+TOC_OUTPUT=$(docker exec -i "$DB_CONTAINER" pg_restore --list < "$BACKUP_DIR/cortex.dump" 2>>"$LOG_FILE")
 if [[ $? -eq 0 ]]; then
     TOC_COUNT=$(echo "$TOC_OUTPUT" | grep -c "TABLE DATA" || true)
     log "  pg_restore --list: PASS (valid archive, $TOC_COUNT table data entries)"
@@ -207,7 +207,7 @@ fi
 
 # 3b. File completeness checks
 MISSING=""
-[[ ! -s "$BACKUP_DIR/env/archon.env" ]] && MISSING="$MISSING archon.env"
+[[ ! -s "$BACKUP_DIR/env/cortex.env" ]] && MISSING="$MISSING cortex.env"
 [[ ! -s "$BACKUP_DIR/env/localsupabase.env" ]] && MISSING="$MISSING localsupabase.env"
 [[ ! -s "$CLAUDE_STATE_DIR/archon-state.json" ]] && MISSING="$MISSING archon-state.json"
 
@@ -218,7 +218,7 @@ fi
 log "  File completeness: PASS"
 
 # 3c. Size sanity vs previous backup
-PREV_DUMP=$(find "$LOCAL_BACKUP_DIR" -maxdepth 2 -name "archon.dump" -not -path "*/$BACKUP_NAME/*" -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | awk '{print $2}')
+PREV_DUMP=$(find "$LOCAL_BACKUP_DIR" -maxdepth 2 -name "cortex.dump" -not -path "*/$BACKUP_NAME/*" -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | awk '{print $2}')
 if [[ -n "$PREV_DUMP" && -f "$PREV_DUMP" ]]; then
     PREV_SIZE=$(stat -c%s "$PREV_DUMP")
     if [[ "$PREV_SIZE" -gt 0 ]]; then

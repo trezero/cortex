@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# archon-restore.sh — Restore Archon-specific data on the backup server
-# Restores only archon_* tables into the existing Supabase instance.
+# cortex-restore.sh — Restore Cortex-specific data on the backup server
+# Restores only cortex_* tables into the existing Supabase instance.
 # Does NOT touch the localSupabase .env or restart Supabase — assumes it's already running.
 #
 # Usage:
-#   ./archon-restore.sh              # Restore from "latest" backup
-#   ./archon-restore.sh 2026-03-18_120000  # Restore from specific backup
+#   ./cortex-restore.sh              # Restore from "latest" backup
+#   ./cortex-restore.sh 2026-03-18_120000  # Restore from specific backup
 
 set -euo pipefail
 
@@ -14,11 +14,11 @@ set -euo pipefail
 # ──────────────────────────────────────────────────────────────────────
 BACKUP_BASE="$HOME/archon-backups"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ARCHON_DIR="${ARCHON_DIR:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+CORTEX_DIR="${CORTEX_DIR:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 GLOBAL_CLAUDE_DIR="/home/winadmin/.claude"
 # Claude Code project memory uses the absolute path with slashes replaced by dashes
-ARCHON_PATH_SLUG="$(echo "$ARCHON_DIR" | sed 's|^/||; s|/|-|g')"
-MEMORY_DIR="$GLOBAL_CLAUDE_DIR/projects/-${ARCHON_PATH_SLUG}/memory"
+CORTEX_PATH_SLUG="$(echo "$CORTEX_DIR" | sed 's|^/||; s|/|-|g')"
+MEMORY_DIR="$GLOBAL_CLAUDE_DIR/projects/-${CORTEX_PATH_SLUG}/memory"
 DB_CONTAINER="supabase-db"
 
 # Determine which backup to restore
@@ -35,8 +35,8 @@ else
 fi
 
 echo "============================================"
-echo " Archon Restore: $BACKUP_NAME"
-echo " ARCHON_DIR: $ARCHON_DIR"
+echo " Cortex Restore: $BACKUP_NAME"
+echo " CORTEX_DIR: $CORTEX_DIR"
 echo "============================================"
 echo ""
 
@@ -51,35 +51,35 @@ if [[ ! -d "$BACKUP_DIR" ]]; then
 fi
 
 MISSING=""
-[[ ! -f "$BACKUP_DIR/archon.dump" ]] && MISSING="$MISSING archon.dump"
-[[ ! -f "$BACKUP_DIR/env/archon.env" ]] && MISSING="$MISSING env/archon.env"
+[[ ! -f "$BACKUP_DIR/cortex.dump" ]] && MISSING="$MISSING cortex.dump"
+[[ ! -f "$BACKUP_DIR/env/cortex.env" ]] && MISSING="$MISSING env/cortex.env"
 
 if [[ -n "$MISSING" ]]; then
     echo "ERROR: Missing critical files in backup:$MISSING" >&2
     exit 1
 fi
 
-DUMP_SIZE=$(stat -c%s "$BACKUP_DIR/archon.dump")
+DUMP_SIZE=$(stat -c%s "$BACKUP_DIR/cortex.dump")
 DUMP_SIZE_MB=$((DUMP_SIZE / 1024 / 1024))
-echo "  Backup valid: archon.dump (${DUMP_SIZE_MB} MB), env files present"
+echo "  Backup valid: cortex.dump (${DUMP_SIZE_MB} MB), env files present"
 
 # ──────────────────────────────────────────────────────────────────────
-# Step 2: Place Archon .env files (NOT localSupabase — it has its own)
+# Step 2: Place Cortex .env files (NOT localSupabase — it has its own)
 # ──────────────────────────────────────────────────────────────────────
-echo "[2/7] Placing Archon .env files..."
+echo "[2/7] Placing Cortex .env files..."
 
-mkdir -p "$ARCHON_DIR"
-cp "$BACKUP_DIR/env/archon.env" "$ARCHON_DIR/.env"
-echo "  $ARCHON_DIR/.env"
+mkdir -p "$CORTEX_DIR"
+cp "$BACKUP_DIR/env/cortex.env" "$CORTEX_DIR/.env"
+echo "  $CORTEX_DIR/.env"
 
 if [[ -f "$BACKUP_DIR/env/postmanskill.env" ]]; then
-    mkdir -p "$ARCHON_DIR/postmanSkill"
-    cp "$BACKUP_DIR/env/postmanskill.env" "$ARCHON_DIR/postmanSkill/.env"
-    echo "  $ARCHON_DIR/postmanSkill/.env"
+    mkdir -p "$CORTEX_DIR/postmanSkill"
+    cp "$BACKUP_DIR/env/postmanskill.env" "$CORTEX_DIR/postmanSkill/.env"
+    echo "  $CORTEX_DIR/postmanSkill/.env"
 fi
 
 # Check for host.docker.internal — may need adjustment on native Docker
-if grep -q 'host.docker.internal' "$ARCHON_DIR/.env" 2>/dev/null; then
+if grep -q 'host.docker.internal' "$CORTEX_DIR/.env" 2>/dev/null; then
     if ! docker info 2>/dev/null | grep -q "Docker Desktop"; then
         echo "  WARNING: .env references host.docker.internal. On native Docker, you may need"
         echo "           to update SUPABASE_URL to use the host's actual IP or localhost"
@@ -96,25 +96,25 @@ echo "[3/7] Restoring Claude state..."
 CLAUDE_STATE_DIR="$BACKUP_DIR/claude-state"
 
 if [[ -d "$CLAUDE_STATE_DIR" ]]; then
-    mkdir -p "$ARCHON_DIR/.claude"
+    mkdir -p "$CORTEX_DIR/.claude"
     for f in archon-state.json archon-config.json archon-memory-buffer.jsonl settings.local.json; do
         if [[ -f "$CLAUDE_STATE_DIR/$f" ]]; then
-            cp "$CLAUDE_STATE_DIR/$f" "$ARCHON_DIR/.claude/"
+            cp "$CLAUDE_STATE_DIR/$f" "$CORTEX_DIR/.claude/"
             echo "  .claude/$f"
         fi
     done
 
     for d in skills commands agents; do
         if [[ -d "$CLAUDE_STATE_DIR/$d" ]]; then
-            rm -rf "$ARCHON_DIR/.claude/$d"
-            cp -r "$CLAUDE_STATE_DIR/$d" "$ARCHON_DIR/.claude/"
+            rm -rf "$CORTEX_DIR/.claude/$d"
+            cp -r "$CLAUDE_STATE_DIR/$d" "$CORTEX_DIR/.claude/"
             echo "  .claude/$d/"
         fi
     done
 
     if [[ -d "$CLAUDE_STATE_DIR/plugins" ]]; then
-        mkdir -p "$ARCHON_DIR/.claude/plugins"
-        rsync -a --exclude='.venv' "$CLAUDE_STATE_DIR/plugins/" "$ARCHON_DIR/.claude/plugins/"
+        mkdir -p "$CORTEX_DIR/.claude/plugins"
+        rsync -a --exclude='.venv' "$CLAUDE_STATE_DIR/plugins/" "$CORTEX_DIR/.claude/plugins/"
         echo "  .claude/plugins/ (excluding .venv)"
     fi
 
@@ -148,7 +148,7 @@ else
     exit 1
 fi
 
-# Verify pgvector extension is available (needed for archon_crawled_pages embeddings)
+# Verify pgvector extension is available (needed for cortex_crawled_pages embeddings)
 HAS_VECTOR=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -t -A -c \
     "SELECT 1 FROM pg_extension WHERE extname='vector';" 2>/dev/null || echo "0")
 if [[ "$HAS_VECTOR" != "1" ]]; then
@@ -158,9 +158,9 @@ fi
 echo "  pgvector: available"
 
 # ──────────────────────────────────────────────────────────────────────
-# Step 5: Restore archon_* tables
+# Step 5: Restore cortex_* tables
 # ──────────────────────────────────────────────────────────────────────
-echo "[5/7] Restoring archon_* tables (this may take 2-3 minutes)..."
+echo "[5/7] Restoring cortex_* tables (this may take 2-3 minutes)..."
 
 # Run pre-restore SQL: creates required extensions and custom types
 if [[ -f "$BACKUP_DIR/pre-restore.sql" ]]; then
@@ -170,34 +170,34 @@ if [[ -f "$BACKUP_DIR/pre-restore.sql" ]]; then
 fi
 
 # Copy dump into container
-docker cp "$BACKUP_DIR/archon.dump" "$DB_CONTAINER:/tmp/archon.dump"
+docker cp "$BACKUP_DIR/cortex.dump" "$DB_CONTAINER:/tmp/cortex.dump"
 
 # Restore with:
-#   --clean --if-exists: drops/recreates only objects IN the dump (archon_* tables)
+#   --clean --if-exists: drops/recreates only objects IN the dump (cortex_* tables)
 #   --no-owner: skip ownership assignment (avoids "must be member of role" errors
 #               when source and target Supabase have different role configurations)
 #   --no-privileges: skip GRANT/REVOKE (same reason)
 docker exec "$DB_CONTAINER" pg_restore \
     -U postgres -d postgres --clean --if-exists --no-owner --no-privileges \
-    /tmp/archon.dump 2>&1 | \
+    /tmp/cortex.dump 2>&1 | \
     grep -E "(ERROR|FATAL)" | grep -v "does not exist" | head -20 || true
 
 # Clean up dump file in container
-docker exec "$DB_CONTAINER" rm -f /tmp/archon.dump
+docker exec "$DB_CONTAINER" rm -f /tmp/cortex.dump
 
 # Verify table count after restore
 RESTORED_COUNT=$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -t -A -c \
-    "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'archon_%';")
-echo "  Database restore complete ($RESTORED_COUNT archon_* tables)"
+    "SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'cortex_%';")
+echo "  Database restore complete ($RESTORED_COUNT cortex_* tables)"
 
 # ──────────────────────────────────────────────────────────────────────
-# Step 6: Start Archon
+# Step 6: Start Cortex
 # ──────────────────────────────────────────────────────────────────────
-echo "[6/7] Starting Archon..."
+echo "[6/7] Starting Cortex..."
 
-cd "$ARCHON_DIR"
+cd "$CORTEX_DIR"
 docker compose up -d 2>&1 | grep -v "^$" || true
-echo "  Archon containers starting..."
+echo "  Cortex containers starting..."
 
 sleep 10
 
@@ -225,8 +225,8 @@ for i in 1 2 3; do
     sleep 5
 done
 
-echo "  Archon Server (8181): $( [[ "$SERVER_OK" == true ]] && echo 'HEALTHY' || echo 'UNREACHABLE' )"
-echo "  Archon MCP    (8051): $( [[ "$MCP_OK" == true ]] && echo 'HEALTHY' || echo 'UNREACHABLE' )"
+echo "  Cortex Server (8181): $( [[ "$SERVER_OK" == true ]] && echo 'HEALTHY' || echo 'UNREACHABLE' )"
+echo "  Cortex MCP    (8051): $( [[ "$MCP_OK" == true ]] && echo 'HEALTHY' || echo 'UNREACHABLE' )"
 
 echo ""
 echo "============================================"
@@ -234,8 +234,8 @@ echo " Restore Summary"
 echo "============================================"
 echo "  Backup:        $BACKUP_NAME"
 echo "  Dump size:     ${DUMP_SIZE_MB} MB"
-echo "  Tables:        $RESTORED_COUNT archon_* tables"
-echo "  ARCHON_DIR:    $ARCHON_DIR"
+echo "  Tables:        $RESTORED_COUNT cortex_* tables"
+echo "  CORTEX_DIR:    $CORTEX_DIR"
 echo "  Server:        $( [[ "$SERVER_OK" == true ]] && echo 'OK' || echo 'FAILED' )"
 echo "  MCP:           $( [[ "$MCP_OK" == true ]] && echo 'OK' || echo 'FAILED' )"
 echo "  Restored at:   $(date '+%Y-%m-%d %H:%M:%S')"
@@ -244,7 +244,7 @@ echo "============================================"
 if [[ "$SERVER_OK" == false || "$MCP_OK" == false ]]; then
     echo ""
     echo "WARNING: Not all services are healthy. Check logs with:"
-    echo "  docker compose logs -f archon-server"
-    echo "  docker compose logs -f archon-mcp"
+    echo "  docker compose logs -f cortex-server"
+    echo "  docker compose logs -f cortex-mcp"
     exit 1
 fi

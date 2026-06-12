@@ -1,6 +1,6 @@
-# Archon Database Migrations
+# Cortex Database Migrations
 
-This folder contains database migration scripts for upgrading existing Archon installations.
+This folder contains database migration scripts for upgrading existing Cortex installations.
 
 ## Available Migration Scripts
 
@@ -8,9 +8,9 @@ This folder contains database migration scripts for upgrading existing Archon in
 **Always run this FIRST before any migration!**
 
 Creates timestamped backup tables of all your existing data:
-- ✅ Complete backup of `archon_crawled_pages`
-- ✅ Complete backup of `archon_code_examples` 
-- ✅ Complete backup of `archon_sources`
+- ✅ Complete backup of `cortex_crawled_pages`
+- ✅ Complete backup of `cortex_code_examples` 
+- ✅ Complete backup of `cortex_sources`
 - ✅ Easy restore commands provided
 - ✅ Row count verification
 
@@ -141,17 +141,17 @@ docker exec -it supabase-db psql -U postgres -d postgres -f /tmp/008_add_migrati
 
 ## After Migration
 
-1. **Restart Archon Services:**
+1. **Restart Cortex Services:**
    ```bash
    docker-compose restart
    ```
 
 2. **Verify Migration:**
-   - Check the Archon logs for any errors
+   - Check the Cortex logs for any errors
    - Try running a test crawl
    - Verify search functionality works
 
 3. **Configure New Features:**
-   - Go to Settings page in Archon UI
+   - Go to Settings page in Cortex UI
    - Configure your preferred LLM and embedding models
    - New crawls will automatically use model tracking

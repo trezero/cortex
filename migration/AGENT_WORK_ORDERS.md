@@ -8,7 +8,7 @@ Agent Work Orders is an optional microservice that executes agent-based workflow
 
 ## Prerequisites
 
-- Supabase project with the same credentials as main Archon server
+- Supabase project with the same credentials as main Cortex server
 - `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` environment variables configured
 
 ## Migrations
@@ -18,7 +18,7 @@ Agent Work Orders is an optional microservice that executes agent-based workflow
 **Purpose**: Configure GitHub repositories for agent work orders
 
 **Creates**:
-- `archon_configured_repositories` table for storing repository configurations
+- `cortex_configured_repositories` table for storing repository configurations
 - Indexes for fast repository lookups
 - RLS policies for access control
 - Validation constraints for repository URLs
@@ -37,8 +37,8 @@ Agent Work Orders is an optional microservice that executes agent-based workflow
 **Purpose**: Persistent state management for agent work orders
 
 **Creates**:
-- `archon_agent_work_orders` - Main work order state and metadata table
-- `archon_agent_work_order_steps` - Step execution history with foreign key constraints
+- `cortex_agent_work_orders` - Main work order state and metadata table
+- `cortex_agent_work_order_steps` - Step execution history with foreign key constraints
 - Indexes for fast queries (status, repository_url, created_at)
 - Database triggers for automatic timestamp management
 - RLS policies for service and authenticated access
@@ -63,11 +63,11 @@ Agent Work Orders is an optional microservice that executes agent-based workflow
 -- Check tables exist
 SELECT table_name FROM information_schema.tables
 WHERE table_schema = 'public'
-AND table_name LIKE 'archon_agent_work_order%';
+AND table_name LIKE 'cortex_agent_work_order%';
 
 -- Verify indexes
 SELECT tablename, indexname FROM pg_indexes
-WHERE tablename LIKE 'archon_agent_work_order%'
+WHERE tablename LIKE 'cortex_agent_work_order%'
 ORDER BY tablename, indexname;
 ```
 
@@ -80,7 +80,7 @@ After applying migrations, configure the agent work orders service:
 export STATE_STORAGE_TYPE=supabase
 
 # Restart the service
-docker compose restart archon-agent-work-orders
+docker compose restart cortex-agent-work-orders
 # OR
 make agent-work-orders
 ```
@@ -118,11 +118,11 @@ To remove the agent work orders state tables:
 
 ```sql
 -- Drop tables (CASCADE will also drop indexes, triggers, and policies)
-DROP TABLE IF EXISTS archon_agent_work_order_steps CASCADE;
-DROP TABLE IF EXISTS archon_agent_work_orders CASCADE;
+DROP TABLE IF EXISTS cortex_agent_work_order_steps CASCADE;
+DROP TABLE IF EXISTS cortex_agent_work_orders CASCADE;
 ```
 
-**Note**: The `update_updated_at_column()` function is shared with other Archon tables and should NOT be dropped.
+**Note**: The `update_updated_at_column()` function is shared with other Cortex tables and should NOT be dropped.
 
 ## Documentation
 

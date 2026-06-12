@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS activity_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   event_type TEXT NOT NULL,
-  project_id UUID REFERENCES archon_projects(id) ON DELETE SET NULL,
+  project_id UUID REFERENCES cortex_projects(id) ON DELETE SET NULL,
   repo_url TEXT,
   raw_content TEXT,
   action_verb TEXT,
