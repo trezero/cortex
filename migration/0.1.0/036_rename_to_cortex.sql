@@ -73,8 +73,8 @@ BEGIN
              AND (p.proname ILIKE '%archon%' OR pg_get_functiondef(p.oid) ILIKE '%archon%')
   LOOP
     def := pg_get_functiondef(r.oid);
-    newdef := replace(replace(replace(def, 'archon_', 'cortex_'),
-                              'Archon', 'Cortex'), 'archon', 'cortex');
+    newdef := replace(replace(replace(replace(def, 'archon_', 'cortex_'),
+                              'ARCHON', 'CORTEX'), 'Archon', 'Cortex'), 'archon', 'cortex');
     EXECUTE format('DROP FUNCTION %s', r.oid::regprocedure);
     EXECUTE newdef;
   END LOOP;
@@ -85,11 +85,11 @@ END $$;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 UPDATE cortex_extensions
 SET name = replace(name, 'archon', 'cortex'),
-    content = replace(replace(replace(content, 'archon-ui-main', 'cortex-ui'),
-                              'Archon', 'Cortex'), 'archon', 'cortex'),
+    content = replace(replace(replace(replace(content, 'archon-ui-main', 'cortex-ui'),
+                              'ARCHON', 'CORTEX'), 'Archon', 'Cortex'), 'archon', 'cortex'),
     content_hash = encode(digest(
-        replace(replace(replace(content, 'archon-ui-main', 'cortex-ui'),
-                'Archon', 'Cortex'), 'archon', 'cortex'), 'sha256'), 'hex')
+        replace(replace(replace(replace(content, 'archon-ui-main', 'cortex-ui'),
+                'ARCHON', 'CORTEX'), 'Archon', 'Cortex'), 'archon', 'cortex'), 'sha256'), 'hex')
 WHERE name ILIKE '%archon%' OR content ILIKE '%archon%';
 
 -- 6. Central project row: prevent duplicate-project creation after the
