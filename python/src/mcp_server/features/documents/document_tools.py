@@ -1,5 +1,5 @@
 """
-Consolidated document management tools for Archon MCP Server.
+Consolidated document management tools for Cortex MCP Server.
 
 Reduces the number of individual CRUD operations while maintaining full functionality.
 """

@@ -65,7 +65,7 @@ class TestSynthesizerDeps:
         assert deps.topic == ""
         assert deps.chunks == []
         assert deps.source_metadata == []
-        # Inherited from ArchonDependencies
+        # Inherited from CortexDependencies
         assert deps.request_id is None
 
     def test_with_chunks_and_metadata(self):

@@ -1,8 +1,8 @@
 """Extension CRUD and version management service.
 
 Handles creating, reading, updating, and deleting extensions in the
-archon_extensions table, maintaining version history in archon_extension_versions,
-and managing per-project overrides in archon_project_extensions.
+cortex_extensions table, maintaining version history in cortex_extension_versions,
+and managing per-project overrides in cortex_project_extensions.
 """
 
 import hashlib
@@ -14,9 +14,9 @@ from src.server.utils import get_supabase_client
 
 logger = get_logger(__name__)
 
-EXTENSIONS_TABLE = "archon_extensions"
-VERSIONS_TABLE = "archon_extension_versions"
-PROJECT_EXTENSIONS_TABLE = "archon_project_extensions"
+EXTENSIONS_TABLE = "cortex_extensions"
+VERSIONS_TABLE = "cortex_extension_versions"
+PROJECT_EXTENSIONS_TABLE = "cortex_project_extensions"
 
 
 class ExtensionService:
@@ -384,7 +384,7 @@ class ExtensionService:
     def set_extension_default(self, extension_id: str, is_default: bool) -> dict[str, Any]:
         """Set or clear the is_default flag on an extension.
 
-        Extensions with is_default = True are installed on every new Archon-connected application.
+        Extensions with is_default = True are installed on every new Cortex-connected application.
 
         Raises:
             ValueError: If the extension_id does not exist.

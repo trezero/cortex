@@ -6,8 +6,8 @@ from src.server.utils import get_supabase_client
 
 logger = get_logger(__name__)
 
-SESSIONS_TABLE = "archon_sessions"
-OBSERVATIONS_TABLE = "archon_session_observations"
+SESSIONS_TABLE = "cortex_sessions"
+OBSERVATIONS_TABLE = "cortex_session_observations"
 
 
 class SessionService:
@@ -31,7 +31,7 @@ class SessionService:
         Args:
             session_id: Unique session identifier (UUID or generated string).
             machine_id: SHA256 fingerprint of the machine.
-            project_id: Optional Archon project UUID.
+            project_id: Optional Cortex project UUID.
             started_at: ISO timestamp of session start.
             ended_at: ISO timestamp of session end (optional).
             summary: Human-readable summary of what happened (optional).

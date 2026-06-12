@@ -51,7 +51,7 @@ async def test_check_existing_found(service, mock_supabase):
         "project_path": "/home/user/project",
         "topic": "React hooks",
         "filename": "react-hooks.md",
-        "file_path": "/home/user/project/.archon/knowledge/react-hooks.md",
+        "file_path": "/home/user/project/.cortex/knowledge/react-hooks.md",
         "source_ids": ["src-1"],
         "original_urls": ["https://react.dev/hooks"],
         "synthesis_model": "claude-sonnet-4-20250514",
@@ -104,7 +104,7 @@ async def test_list_materializations_with_project_filter(service, mock_supabase)
         "project_path": "/home/user/project",
         "topic": "Auth patterns",
         "filename": "auth-patterns.md",
-        "file_path": "/home/user/project/.archon/knowledge/auth-patterns.md",
+        "file_path": "/home/user/project/.cortex/knowledge/auth-patterns.md",
         "source_ids": [],
         "original_urls": [],
         "synthesis_model": None,
@@ -152,7 +152,7 @@ async def test_list_materializations_with_status_filter(service, mock_supabase):
             "project_path": "/tmp/proj",
             "topic": "stale topic",
             "filename": "stale.md",
-            "file_path": "/tmp/proj/.archon/knowledge/stale.md",
+            "file_path": "/tmp/proj/.cortex/knowledge/stale.md",
             "source_ids": [],
             "original_urls": [],
             "synthesis_model": None,
@@ -196,7 +196,7 @@ async def test_create_record(service, mock_supabase):
         project_path="/home/user/project",
         topic="FastAPI middleware",
         filename="fastapi-middleware.md",
-        file_path="/home/user/project/.archon/knowledge/fastapi-middleware.md",
+        file_path="/home/user/project/.cortex/knowledge/fastapi-middleware.md",
         source_ids=["src-1", "src-2"],
         original_urls=["https://fastapi.tiangolo.com/tutorial/middleware/"],
         synthesis_model="claude-sonnet-4-20250514",
@@ -240,7 +240,7 @@ async def test_update_status(service, mock_supabase):
     await service.update_status("mat-1", "stale")
 
     # Verify the table was called and update was invoked
-    mock_supabase.table.assert_called_with("archon_materialization_history")
+    mock_supabase.table.assert_called_with("cortex_materialization_history")
 
 
 # ── delete_record ───────────────────────────────────────────────
@@ -263,7 +263,7 @@ async def test_delete_record(service, mock_supabase):
 
     await service.delete_record("mat-1")
 
-    mock_supabase.table.assert_called_with("archon_materialization_history")
+    mock_supabase.table.assert_called_with("cortex_materialization_history")
 
 
 # ── get_record ──────────────────────────────────────────────────
@@ -279,7 +279,7 @@ async def test_get_record_found(service, mock_supabase):
         "project_path": "/home/user/project",
         "topic": "Docker compose",
         "filename": "docker-compose.md",
-        "file_path": "/home/user/project/.archon/knowledge/docker-compose.md",
+        "file_path": "/home/user/project/.cortex/knowledge/docker-compose.md",
         "source_ids": ["src-3"],
         "original_urls": ["https://docs.docker.com/compose/"],
         "synthesis_model": "claude-sonnet-4-20250514",

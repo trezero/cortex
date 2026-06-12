@@ -7,7 +7,7 @@ from fastapi.responses import PlainTextResponse
 
 router = APIRouter(prefix="/api/scanner", tags=["scanner"])
 
-SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "..", "static", "archon-scanner.py")
+SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "..", "static", "cortex-scanner.py")
 SCANNER_VERSION = "1.0"
 
 

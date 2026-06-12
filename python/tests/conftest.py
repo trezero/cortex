@@ -1,4 +1,4 @@
-"""Simple test configuration for Archon - Essential tests only."""
+"""Simple test configuration for Cortex - Essential tests only."""
 
 import os
 from unittest.mock import MagicMock, patch
@@ -13,9 +13,9 @@ os.environ["TESTING"] = "true"
 os.environ["SUPABASE_URL"] = "https://test.supabase.co"
 os.environ["SUPABASE_SERVICE_KEY"] = "test-key"
 # Set required port environment variables for ServiceDiscovery
-os.environ["ARCHON_SERVER_PORT"] = "8181"
-os.environ["ARCHON_MCP_PORT"] = "8051"
-os.environ["ARCHON_AGENTS_PORT"] = "8052"
+os.environ["CORTEX_SERVER_PORT"] = "8181"
+os.environ["CORTEX_MCP_PORT"] = "8051"
+os.environ["CORTEX_AGENTS_PORT"] = "8052"
 
 # Global patches that need to be active during module imports and app initialization
 # This ensures that any code that runs during FastAPI app startup is mocked
@@ -50,9 +50,9 @@ def ensure_test_environment():
     os.environ["TESTING"] = "true"
     os.environ["SUPABASE_URL"] = "https://test.supabase.co"
     os.environ["SUPABASE_SERVICE_KEY"] = "test-key"
-    os.environ["ARCHON_SERVER_PORT"] = "8181"
-    os.environ["ARCHON_MCP_PORT"] = "8051"
-    os.environ["ARCHON_AGENTS_PORT"] = "8052"
+    os.environ["CORTEX_SERVER_PORT"] = "8181"
+    os.environ["CORTEX_MCP_PORT"] = "8051"
+    os.environ["CORTEX_AGENTS_PORT"] = "8052"
     yield
     
 

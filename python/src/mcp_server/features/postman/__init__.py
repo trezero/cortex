@@ -1,4 +1,4 @@
-"""Postman integration tools for Archon MCP Server."""
+"""Postman integration tools for Cortex MCP Server."""
 
 from .postman_tools import register_postman_tools
 

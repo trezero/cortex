@@ -46,7 +46,7 @@ def register_leaveoff_tools(mcp: FastMCP):
                 - "update": Create or overwrite the LeaveOff Point. Requires content and next_steps.
                 - "get": Retrieve the current LeaveOff Point for the project.
                 - "delete": Remove the LeaveOff Point for the project.
-            project_id: The Archon project ID.
+            project_id: The Cortex project ID.
             content: (update only) Summary of current work state and what was accomplished.
             next_steps: (update only) Ordered list of actionable next steps for the next session.
             component: (update only) The component or area of the codebase being worked on.

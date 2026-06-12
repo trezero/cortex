@@ -382,7 +382,7 @@ class ModelDiscoveryAndStoreRequest(BaseModel):
 
 
 class StoredModelInfo(BaseModel):
-    """Stored model information with Archon compatibility assessment."""
+    """Stored model information with Cortex compatibility assessment."""
     name: str
     host: str
     model_type: str  # 'chat', 'embedding', 'multimodal'
@@ -390,7 +390,7 @@ class StoredModelInfo(BaseModel):
     context_length: int | None
     parameters: str | None
     capabilities: list[str]
-    archon_compatibility: str  # 'full', 'partial', 'limited'
+    cortex_compatibility: str  # 'full', 'partial', 'limited'
     compatibility_features: list[str]
     limitations: list[str]
     performance_rating: str | None  # 'high', 'medium', 'low'
@@ -411,10 +411,10 @@ class ModelListResponse(BaseModel):
 @router.post("/models/discover-and-store", response_model=ModelListResponse)
 async def discover_and_store_models_endpoint(request: ModelDiscoveryAndStoreRequest) -> ModelListResponse:
     """
-    Discover models from Ollama instances, assess Archon compatibility, and store in database.
+    Discover models from Ollama instances, assess Cortex compatibility, and store in database.
     
     This endpoint fetches detailed model information from configured Ollama instances,
-    evaluates their compatibility with Archon features, and stores the results for
+    evaluates their compatibility with Cortex features, and stores the results for
     use in the model selection modal.
     """
     try:
@@ -438,8 +438,8 @@ async def discover_and_store_models_endpoint(request: ModelDiscoveryAndStoreRequ
                 instances_checked += 1
 
                 for model in models:
-                    # Assess Archon compatibility
-                    compatibility_info = _assess_archon_compatibility(model)
+                    # Assess Cortex compatibility
+                    compatibility_info = _assess_cortex_compatibility(model)
 
                     stored_model = StoredModelInfo(
                         name=model.name,
@@ -449,7 +449,7 @@ async def discover_and_store_models_endpoint(request: ModelDiscoveryAndStoreRequ
                         context_length=_extract_context_length(model),
                         parameters=_extract_parameters(model),
                         capabilities=model.capabilities if hasattr(model, 'capabilities') else [],
-                        archon_compatibility=compatibility_info['level'],
+                        cortex_compatibility=compatibility_info['level'],
                         compatibility_features=compatibility_info['features'],
                         limitations=compatibility_info['limitations'],
                         performance_rating=_assess_performance_rating(model),
@@ -464,7 +464,7 @@ async def discover_and_store_models_endpoint(request: ModelDiscoveryAndStoreRequ
                 logger.warning(f"Failed to discover models from {instance_url}: {e}")
                 continue
 
-        # Store models in archon_settings
+        # Store models in cortex_settings
         models_data = {
             "models": [model.dict() for model in stored_models],
             "last_discovery": datetime.now().isoformat(),
@@ -472,8 +472,8 @@ async def discover_and_store_models_endpoint(request: ModelDiscoveryAndStoreRequ
             "total_count": len(stored_models)
         }
 
-        # Upsert into archon_settings table
-        result = supabase.table("archon_settings").upsert({
+        # Upsert into cortex_settings table
+        result = supabase.table("cortex_settings").upsert({
             "key": "ollama_discovered_models",
             "value": json.dumps(models_data),
             "category": "ollama",
@@ -510,8 +510,8 @@ async def get_stored_models_endpoint() -> ModelListResponse:
         from ..utils import get_supabase_client
         supabase = get_supabase_client()
 
-        # Get stored models from archon_settings
-        result = supabase.table("archon_settings").select("value").eq("key", "ollama_discovered_models").execute()
+        # Get stored models from cortex_settings
+        result = supabase.table("cortex_settings").select("value").eq("key", "ollama_discovered_models").execute()
         models_setting = result.data[0]["value"] if result.data else None
 
         if not models_setting:
@@ -554,7 +554,7 @@ async def get_stored_models_endpoint() -> ModelListResponse:
                         context_length=model.get('context_length'),
                         parameters=model.get('parameters'),
                         capabilities=model.get('capabilities', []),
-                        archon_compatibility=model.get('archon_compatibility', 'unknown'),
+                        cortex_compatibility=model.get('cortex_compatibility', 'unknown'),
                         compatibility_features=model.get('compatibility_features', []),
                         limitations=model.get('limitations', []),
                         performance_rating=model.get('performance_rating'),
@@ -599,8 +599,8 @@ async def _warm_model_cache(instance_urls: list[str]) -> None:
 
 
 # Helper functions for model assessment and analysis
-async def _assess_archon_compatibility_with_testing(model, instance_url: str) -> dict[str, Any]:
-    """Assess Archon compatibility for a given model using actual capability testing."""
+async def _assess_cortex_compatibility_with_testing(model, instance_url: str) -> dict[str, Any]:
+    """Assess Cortex compatibility for a given model using actual capability testing."""
     model_name = model.name.lower()
     capabilities = getattr(model, 'capabilities', [])
     
@@ -650,8 +650,8 @@ async def _assess_archon_compatibility_with_testing(model, instance_url: str) ->
     }
 
 
-def _assess_archon_compatibility(model) -> dict[str, Any]:
-    """Legacy compatibility assessment for backward compatibility. Consider using _assess_archon_compatibility_with_testing for new code."""
+def _assess_cortex_compatibility(model) -> dict[str, Any]:
+    """Legacy compatibility assessment for backward compatibility. Consider using _assess_cortex_compatibility_with_testing for new code."""
     model_name = model.name.lower()
     capabilities = getattr(model, 'capabilities', [])
 
@@ -1076,7 +1076,7 @@ async def discover_models_with_real_details(request: ModelDiscoveryAndStoreReque
                                 context_length=current_context or max_context,
                                 parameters=param_string,
                                 capabilities=capabilities if capabilities else [],
-                                archon_compatibility=compatibility['level'],
+                                cortex_compatibility=compatibility['level'],
                                 compatibility_features=compatibility['features'],
                                 limitations=compatibility['limitations'],
                                 performance_rating=None,
@@ -1117,7 +1117,7 @@ async def discover_models_with_real_details(request: ModelDiscoveryAndStoreReque
         logger.info(f"Storing {len(embedding_models_with_dims)} embedding models with dimensions: {[(m['name'], m.get('embedding_dimensions')) for m in embedding_models_with_dims]}")
 
         # Update the stored models
-        result = supabase.table("archon_settings").update({
+        result = supabase.table("cortex_settings").update({
             "value": json.dumps(models_data),
             "description": "Real Ollama model data from API endpoints",
             "updated_at": datetime.now().isoformat()

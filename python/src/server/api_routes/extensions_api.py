@@ -1,4 +1,4 @@
-"""Extensions management API endpoints for Archon.
+"""Extensions management API endpoints for Cortex.
 
 Handles:
 - Extension CRUD operations with version management
@@ -412,7 +412,7 @@ async def set_extension_default(extension_id: str, request: SetExtensionDefaultR
     """Toggle is_default on a single extension.
 
     Extensions with is_default=True are included in the default template installed
-    on every new Archon-connected application.
+    on every new Cortex-connected application.
     """
     try:
         logfire.info(f"Setting is_default | extension_id={extension_id} | is_default={request.is_default}")
@@ -435,7 +435,7 @@ async def sync_system(project_id: str, request: SyncSystemRequest):
 
     Registers the system globally (or updates last_seen), associates it with
     the project so it appears in the Skills tab, then compares the system's
-    local extensions against the Archon registry and returns a full sync report.
+    local extensions against the Cortex registry and returns a full sync report.
     """
     try:
         logfire.info(f"Syncing system | project_id={project_id} | fingerprint={request.fingerprint}")
@@ -469,7 +469,7 @@ async def sync_system(project_id: str, request: SyncSystemRequest):
         sync_service.register_system_for_project(system_id, project_id)
 
         # Fetch full extension registry (content needed for pending_install items)
-        archon_extensions = extension_service.list_extensions_full()
+        cortex_extensions = extension_service.list_extensions_full()
 
         # Fetch existing system-project install records
         system_extensions = sync_service.get_system_extensions(system_id, project_id)
@@ -477,14 +477,14 @@ async def sync_system(project_id: str, request: SyncSystemRequest):
         # Compute sync report
         report = sync_service.compute_sync_report(
             local_extensions=request.local_extensions,
-            archon_extensions=archon_extensions,
+            cortex_extensions=cortex_extensions,
             system_extensions=system_extensions,
         )
 
         # Persist "installed" status for extensions that are in sync locally
-        archon_by_name: dict[str, dict[str, Any]] = {e["name"]: e for e in archon_extensions}
+        cortex_by_name: dict[str, dict[str, Any]] = {e["name"]: e for e in cortex_extensions}
         for name in report["in_sync"]:
-            ext = archon_by_name.get(name)
+            ext = cortex_by_name.get(name)
             if ext:
                 sync_service.set_install_status(
                     system_id=system_id,
@@ -580,8 +580,8 @@ async def get_project_systems(project_id: str):
 async def unlink_system_from_project(project_id: str, system_id: str):
     """Remove a system's association with a project.
 
-    The system remains in the global archon_systems table — only the
-    project-level link in archon_project_system_registrations is removed.
+    The system remains in the global cortex_systems table — only the
+    project-level link in cortex_project_system_registrations is removed.
     """
     try:
         logfire.info(f"Unlinking system | project_id={project_id} | system_id={system_id}")

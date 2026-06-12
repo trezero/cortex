@@ -321,7 +321,7 @@ class DiscoveryService:
 
             # Set safe User-Agent header
             headers = {
-                'User-Agent': 'Archon-Discovery/1.0 (SSRF-Protected)'
+                'User-Agent': 'Cortex-Discovery/1.0 (SSRF-Protected)'
             }
 
             # Create a session with limited redirects
@@ -397,7 +397,7 @@ class DiscoveryService:
 
             # Set safe User-Agent header
             headers = {
-                'User-Agent': 'Archon-Discovery/1.0 (SSRF-Protected)'
+                'User-Agent': 'Cortex-Discovery/1.0 (SSRF-Protected)'
             }
 
             resp = requests.get(robots_url, timeout=30, stream=True, verify=True, headers=headers)
@@ -461,7 +461,7 @@ class DiscoveryService:
 
             # Set safe User-Agent header
             headers = {
-                'User-Agent': 'Archon-Discovery/1.0 (SSRF-Protected)'
+                'User-Agent': 'Cortex-Discovery/1.0 (SSRF-Protected)'
             }
 
             resp = requests.get(base_url, timeout=30, stream=True, verify=True, headers=headers)

@@ -118,13 +118,13 @@ class MCPErrorFormatter:
         # Categorize common exceptions
         if isinstance(exception, httpx.ConnectTimeout):
             error_type = "connection_timeout"
-            suggestion = "Check if the Archon server is running and accessible at the configured URL"
+            suggestion = "Check if the Cortex server is running and accessible at the configured URL"
         elif isinstance(exception, httpx.ReadTimeout):
             error_type = "read_timeout"
             suggestion = "The operation is taking longer than expected. Try again or check server logs"
         elif isinstance(exception, httpx.ConnectError):
             error_type = "connection_error"
-            suggestion = "Ensure the Archon server is running on the correct port"
+            suggestion = "Ensure the Cortex server is running on the correct port"
         elif isinstance(exception, httpx.RequestError):
             error_type = "request_error"
             suggestion = "Check network connectivity and server configuration"

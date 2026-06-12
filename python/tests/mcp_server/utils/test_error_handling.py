@@ -107,8 +107,8 @@ def test_from_exception_connection():
     assert result_data["success"] is False
     assert result_data["error"]["type"] == "connection_error"
     assert "Failed to connect" in result_data["error"]["message"]
-    # The actual suggestion is "Ensure the Archon server is running on the correct port"
-    assert "archon server" in result_data["error"]["suggestion"].lower()
+    # The actual suggestion is "Ensure the Cortex server is running on the correct port"
+    assert "cortex server" in result_data["error"]["suggestion"].lower()
 
 
 def test_from_exception_request_error():

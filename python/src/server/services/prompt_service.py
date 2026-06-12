@@ -1,5 +1,5 @@
 """
-Prompt Service Module for Archon
+Prompt Service Module for Cortex
 
 This module provides a singleton service for managing AI agent prompts.
 Prompts are loaded from the database at startup and cached in memory for
@@ -37,7 +37,7 @@ class PromptService:
             logger.info("Loading prompts from database...")
             supabase = get_supabase_client()
 
-            response = supabase.table("archon_prompts").select("*").execute()
+            response = supabase.table("cortex_prompts").select("*").execute()
 
             if response.data:
                 self._prompts = {

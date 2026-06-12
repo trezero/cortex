@@ -1,5 +1,5 @@
 """
-API package for Archon - modular FastAPI endpoints
+API package for Cortex - modular FastAPI endpoints
 
 This package organizes the API into logical modules:
 - settings_api: Settings and credentials management

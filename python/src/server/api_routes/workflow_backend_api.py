@@ -132,7 +132,7 @@ async def deregister_backend(backend_id: str):
         raise HTTPException(status_code=500, detail={"error": str(e)})
 
 
-# -- Callback endpoints (remote-agent -> Archon) --
+# -- Callback endpoints (remote-agent -> Cortex) --
 
 @router.post("/nodes/{node_id}/state")
 async def node_state_callback(

@@ -25,42 +25,42 @@ class TestPortConfiguration:
     def test_service_discovery_requires_all_ports(self):
         """Test that ServiceDiscovery requires all port environment variables."""
         # Clear port environment variables
-        for key in ["ARCHON_SERVER_PORT", "ARCHON_MCP_PORT", "ARCHON_AGENTS_PORT"]:
+        for key in ["CORTEX_SERVER_PORT", "CORTEX_MCP_PORT", "CORTEX_AGENTS_PORT"]:
             os.environ.pop(key, None)
 
         # Import should fail without environment variables
-        with pytest.raises(ValueError, match="ARCHON_SERVER_PORT environment variable is required"):
+        with pytest.raises(ValueError, match="CORTEX_SERVER_PORT environment variable is required"):
             from src.server.config.service_discovery import ServiceDiscovery
 
             ServiceDiscovery()
 
     def test_service_discovery_requires_mcp_port(self):
         """Test that ServiceDiscovery requires MCP port."""
-        os.environ["ARCHON_SERVER_PORT"] = "8181"
-        os.environ.pop("ARCHON_MCP_PORT", None)
-        os.environ["ARCHON_AGENTS_PORT"] = "8052"
+        os.environ["CORTEX_SERVER_PORT"] = "8181"
+        os.environ.pop("CORTEX_MCP_PORT", None)
+        os.environ["CORTEX_AGENTS_PORT"] = "8052"
 
-        with pytest.raises(ValueError, match="ARCHON_MCP_PORT environment variable is required"):
+        with pytest.raises(ValueError, match="CORTEX_MCP_PORT environment variable is required"):
             from src.server.config.service_discovery import ServiceDiscovery
 
             ServiceDiscovery()
 
     def test_service_discovery_requires_agents_port(self):
         """Test that ServiceDiscovery requires agents port."""
-        os.environ["ARCHON_SERVER_PORT"] = "8181"
-        os.environ["ARCHON_MCP_PORT"] = "8051"
-        os.environ.pop("ARCHON_AGENTS_PORT", None)
+        os.environ["CORTEX_SERVER_PORT"] = "8181"
+        os.environ["CORTEX_MCP_PORT"] = "8051"
+        os.environ.pop("CORTEX_AGENTS_PORT", None)
 
-        with pytest.raises(ValueError, match="ARCHON_AGENTS_PORT environment variable is required"):
+        with pytest.raises(ValueError, match="CORTEX_AGENTS_PORT environment variable is required"):
             from src.server.config.service_discovery import ServiceDiscovery
 
             ServiceDiscovery()
 
     def test_service_discovery_with_all_ports(self):
         """Test that ServiceDiscovery works with all ports set."""
-        os.environ["ARCHON_SERVER_PORT"] = "9191"
-        os.environ["ARCHON_MCP_PORT"] = "9051"
-        os.environ["ARCHON_AGENTS_PORT"] = "9052"
+        os.environ["CORTEX_SERVER_PORT"] = "9191"
+        os.environ["CORTEX_MCP_PORT"] = "9051"
+        os.environ["CORTEX_AGENTS_PORT"] = "9052"
 
         from src.server.config.service_discovery import ServiceDiscovery
 
@@ -71,78 +71,78 @@ class TestPortConfiguration:
         assert sd.DEFAULT_PORTS["agents"] == 9052
 
     def test_mcp_server_requires_port(self):
-        """Test that MCP server requires ARCHON_MCP_PORT."""
-        os.environ.pop("ARCHON_MCP_PORT", None)
+        """Test that MCP server requires CORTEX_MCP_PORT."""
+        os.environ.pop("CORTEX_MCP_PORT", None)
 
         # We can't directly import mcp_server.py as it will raise at module level
         # So we test the specific logic
-        with pytest.raises(ValueError, match="ARCHON_MCP_PORT environment variable is required"):
-            mcp_port = os.getenv("ARCHON_MCP_PORT")
+        with pytest.raises(ValueError, match="CORTEX_MCP_PORT environment variable is required"):
+            mcp_port = os.getenv("CORTEX_MCP_PORT")
             if not mcp_port:
                 raise ValueError(
-                    "ARCHON_MCP_PORT environment variable is required. "
+                    "CORTEX_MCP_PORT environment variable is required. "
                     "Please set it in your .env file or environment. "
                     "Default value: 8051"
                 )
 
     def test_main_server_requires_port(self):
-        """Test that main server requires ARCHON_SERVER_PORT when run directly."""
-        os.environ.pop("ARCHON_SERVER_PORT", None)
+        """Test that main server requires CORTEX_SERVER_PORT when run directly."""
+        os.environ.pop("CORTEX_SERVER_PORT", None)
 
         # Test the logic that would be in main.py
-        with pytest.raises(ValueError, match="ARCHON_SERVER_PORT environment variable is required"):
-            server_port = os.getenv("ARCHON_SERVER_PORT")
+        with pytest.raises(ValueError, match="CORTEX_SERVER_PORT environment variable is required"):
+            server_port = os.getenv("CORTEX_SERVER_PORT")
             if not server_port:
                 raise ValueError(
-                    "ARCHON_SERVER_PORT environment variable is required. "
+                    "CORTEX_SERVER_PORT environment variable is required. "
                     "Please set it in your .env file or environment. "
                     "Default value: 8181"
                 )
 
     def test_agents_server_requires_port(self):
-        """Test that agents server requires ARCHON_AGENTS_PORT."""
-        os.environ.pop("ARCHON_AGENTS_PORT", None)
+        """Test that agents server requires CORTEX_AGENTS_PORT."""
+        os.environ.pop("CORTEX_AGENTS_PORT", None)
 
         # Test the logic that would be in agents/server.py
-        with pytest.raises(ValueError, match="ARCHON_AGENTS_PORT environment variable is required"):
-            agents_port = os.getenv("ARCHON_AGENTS_PORT")
+        with pytest.raises(ValueError, match="CORTEX_AGENTS_PORT environment variable is required"):
+            agents_port = os.getenv("CORTEX_AGENTS_PORT")
             if not agents_port:
                 raise ValueError(
-                    "ARCHON_AGENTS_PORT environment variable is required. "
+                    "CORTEX_AGENTS_PORT environment variable is required. "
                     "Please set it in your .env file or environment. "
                     "Default value: 8052"
                 )
 
     def test_agent_chat_api_requires_agents_port(self):
-        """Test that agent_chat_api requires ARCHON_AGENTS_PORT for service calls."""
-        os.environ.pop("ARCHON_AGENTS_PORT", None)
+        """Test that agent_chat_api requires CORTEX_AGENTS_PORT for service calls."""
+        os.environ.pop("CORTEX_AGENTS_PORT", None)
 
         # Test the logic that would be in agent_chat_api
-        with pytest.raises(ValueError, match="ARCHON_AGENTS_PORT environment variable is required"):
-            agents_port = os.getenv("ARCHON_AGENTS_PORT")
+        with pytest.raises(ValueError, match="CORTEX_AGENTS_PORT environment variable is required"):
+            agents_port = os.getenv("CORTEX_AGENTS_PORT")
             if not agents_port:
                 raise ValueError(
-                    "ARCHON_AGENTS_PORT environment variable is required. "
+                    "CORTEX_AGENTS_PORT environment variable is required. "
                     "Please set it in your .env file or environment."
                 )
 
-    def test_config_requires_port_or_archon_mcp_port(self):
-        """Test that config.py requires PORT or ARCHON_MCP_PORT."""
+    def test_config_requires_port_or_cortex_mcp_port(self):
+        """Test that config.py requires PORT or CORTEX_MCP_PORT."""
         from src.server.config.config import ConfigurationError
 
         os.environ.pop("PORT", None)
-        os.environ.pop("ARCHON_MCP_PORT", None)
+        os.environ.pop("CORTEX_MCP_PORT", None)
 
         # Test the logic from config.py
         with pytest.raises(
-            ConfigurationError, match="PORT or ARCHON_MCP_PORT environment variable is required"
+            ConfigurationError, match="PORT or CORTEX_MCP_PORT environment variable is required"
         ):
             port_str = os.getenv("PORT")
             if not port_str:
-                port_str = os.getenv("ARCHON_MCP_PORT")
+                port_str = os.getenv("CORTEX_MCP_PORT")
                 if not port_str:
                     raise ConfigurationError(
-                        "PORT or ARCHON_MCP_PORT environment variable is required. "
+                        "PORT or CORTEX_MCP_PORT environment variable is required. "
                         "Please set it in your .env file or environment. "
                         "Default value: 8051"
                     )
@@ -150,9 +150,9 @@ class TestPortConfiguration:
     def test_custom_port_values(self):
         """Test that services use custom port values when set."""
         # Set custom ports
-        os.environ["ARCHON_SERVER_PORT"] = "9999"
-        os.environ["ARCHON_MCP_PORT"] = "8888"
-        os.environ["ARCHON_AGENTS_PORT"] = "7777"
+        os.environ["CORTEX_SERVER_PORT"] = "9999"
+        os.environ["CORTEX_MCP_PORT"] = "8888"
+        os.environ["CORTEX_AGENTS_PORT"] = "7777"
 
         from src.server.config.service_discovery import ServiceDiscovery
 
@@ -175,9 +175,9 @@ class TestPortValidation:
 
     def test_invalid_port_values(self):
         """Test that invalid port values are rejected."""
-        os.environ["ARCHON_SERVER_PORT"] = "not-a-number"
-        os.environ["ARCHON_MCP_PORT"] = "8051"
-        os.environ["ARCHON_AGENTS_PORT"] = "8052"
+        os.environ["CORTEX_SERVER_PORT"] = "not-a-number"
+        os.environ["CORTEX_MCP_PORT"] = "8051"
+        os.environ["CORTEX_AGENTS_PORT"] = "8052"
 
         with pytest.raises(ValueError):
             from src.server.config.service_discovery import ServiceDiscovery
@@ -195,9 +195,9 @@ class TestPortValidation:
         ]
 
         for port_value, should_succeed in test_cases:
-            os.environ["ARCHON_SERVER_PORT"] = port_value
-            os.environ["ARCHON_MCP_PORT"] = "8051"
-            os.environ["ARCHON_AGENTS_PORT"] = "8052"
+            os.environ["CORTEX_SERVER_PORT"] = port_value
+            os.environ["CORTEX_MCP_PORT"] = "8051"
+            os.environ["CORTEX_AGENTS_PORT"] = "8052"
 
             if should_succeed:
                 # Should not raise

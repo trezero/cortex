@@ -17,7 +17,7 @@ class ApprovalContext(BaseModel):
     a2ui_payload: list[dict[str, Any]] | None = None
     channels: list[str] = Field(default_factory=lambda: ["ui"])
     project_name: str | None = None
-    archon_url: str | None = None
+    cortex_url: str | None = None
 
 
 class ApprovalChannel(Protocol):

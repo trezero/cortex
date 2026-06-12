@@ -41,13 +41,13 @@ class TestGetStatus:
 
 class TestCreateCollection:
     def test_creates_collection(self, client, mock_postman_service):
-        response = client.post("/api/postman/collections", json={"project_name": "Archon"})
+        response = client.post("/api/postman/collections", json={"project_name": "Cortex"})
         assert response.status_code == 200
         assert response.json()["collection_uid"] == "col-123"
 
     def test_skips_when_not_api_mode(self, client, mock_postman_service):
         mock_postman_service.get_sync_mode = AsyncMock(return_value="git")
-        response = client.post("/api/postman/collections", json={"project_name": "Archon"})
+        response = client.post("/api/postman/collections", json={"project_name": "Cortex"})
         assert response.status_code == 200
         assert response.json()["status"] == "skipped"
 

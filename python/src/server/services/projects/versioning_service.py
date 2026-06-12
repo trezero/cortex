@@ -1,5 +1,5 @@
 """
-Versioning Service Module for Archon
+Versioning Service Module for Cortex
 
 This module provides core business logic for document versioning operations
 that can be shared between MCP tools and FastAPI endpoints.
@@ -42,7 +42,7 @@ class VersioningService:
         try:
             # Get current highest version number for this project/field
             existing_versions = (
-                self.supabase_client.table("archon_document_versions")
+                self.supabase_client.table("cortex_document_versions")
                 .select("version_number")
                 .eq("project_id", project_id)
                 .eq("field_name", field_name)
@@ -69,7 +69,7 @@ class VersioningService:
             }
 
             result = (
-                self.supabase_client.table("archon_document_versions")
+                self.supabase_client.table("cortex_document_versions")
                 .insert(version_data)
                 .execute()
             )
@@ -98,7 +98,7 @@ class VersioningService:
         try:
             # Build query
             query = (
-                self.supabase_client.table("archon_document_versions")
+                self.supabase_client.table("cortex_document_versions")
                 .select("*")
                 .eq("project_id", project_id)
             )
@@ -135,7 +135,7 @@ class VersioningService:
         try:
             # Query for specific version
             result = (
-                self.supabase_client.table("archon_document_versions")
+                self.supabase_client.table("cortex_document_versions")
                 .select("*")
                 .eq("project_id", project_id)
                 .eq("field_name", field_name)
@@ -170,7 +170,7 @@ class VersioningService:
         try:
             # Get the version to restore
             version_result = (
-                self.supabase_client.table("archon_document_versions")
+                self.supabase_client.table("cortex_document_versions")
                 .select("*")
                 .eq("project_id", project_id)
                 .eq("field_name", field_name)
@@ -188,7 +188,7 @@ class VersioningService:
 
             # Get current content to create backup
             current_project = (
-                self.supabase_client.table("archon_projects")
+                self.supabase_client.table("cortex_projects")
                 .select(field_name)
                 .eq("id", project_id)
                 .execute()
@@ -213,7 +213,7 @@ class VersioningService:
             update_data = {field_name: content_to_restore, "updated_at": datetime.now().isoformat()}
 
             restore_result = (
-                self.supabase_client.table("archon_projects")
+                self.supabase_client.table("cortex_projects")
                 .update(update_data)
                 .eq("id", project_id)
                 .execute()

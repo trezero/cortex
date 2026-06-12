@@ -39,20 +39,20 @@ class DatabaseMetricsService:
 
             # Sources count
             sources_result = (
-                self.supabase.table("archon_sources").select("*", count="exact").execute()
+                self.supabase.table("cortex_sources").select("*", count="exact").execute()
             )
             metrics["sources_count"] = sources_result.count if sources_result.count else 0
 
             # Crawled pages count
             pages_result = (
-                self.supabase.table("archon_crawled_pages").select("*", count="exact").execute()
+                self.supabase.table("cortex_crawled_pages").select("*", count="exact").execute()
             )
             metrics["pages_count"] = pages_result.count if pages_result.count else 0
 
             # Code examples count
             try:
                 code_examples_result = (
-                    self.supabase.table("archon_code_examples").select("*", count="exact").execute()
+                    self.supabase.table("cortex_code_examples").select("*", count="exact").execute()
                 )
                 metrics["code_examples_count"] = (
                     code_examples_result.count if code_examples_result.count else 0
@@ -92,7 +92,7 @@ class DatabaseMetricsService:
 
             # Get knowledge type distribution
             knowledge_types_result = (
-                self.supabase.table("archon_sources").select("metadata->knowledge_type").execute()
+                self.supabase.table("cortex_sources").select("metadata->knowledge_type").execute()
             )
 
             if knowledge_types_result.data:
@@ -104,7 +104,7 @@ class DatabaseMetricsService:
 
             # Get recent activity
             recent_sources = (
-                self.supabase.table("archon_sources")
+                self.supabase.table("cortex_sources")
                 .select("source_id, created_at")
                 .order("created_at", desc=True)
                 .limit(5)

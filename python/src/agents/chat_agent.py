@@ -1,4 +1,4 @@
-"""ChatAgent — the AI brain for the Archon chat interface."""
+"""ChatAgent — the AI brain for the Cortex chat interface."""
 from __future__ import annotations
 
 import json
@@ -9,14 +9,14 @@ from typing import Any
 
 from pydantic_ai import Agent, RunContext
 
-from .base_agent import ArchonDependencies
+from .base_agent import CortexDependencies
 from .mcp_client import get_mcp_client
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ChatDependencies(ArchonDependencies):
+class ChatDependencies(CortexDependencies):
     """Dependencies injected per chat request."""
 
     conversation_id: str = ""
@@ -50,7 +50,7 @@ def create_chat_agent(model: str = "openai:gpt-4o") -> Agent[ChatDependencies, s
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
         parts = [
-            "You are Archon, an AI assistant that helps manage and prioritize projects.",
+            "You are Cortex, an AI assistant that helps manage and prioritize projects.",
             "You have access to the user's projects, tasks, knowledge base, and session history.",
             "Be concise, actionable, and helpful. When recommending priorities, explain your reasoning.",
             f"\nCurrent date/time: {now}",

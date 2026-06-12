@@ -24,7 +24,7 @@ class GenerationService:
     async def generate_workflow_yaml(self, pattern: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
         """Generate a YAML workflow definition from a scored pattern.
 
-        Sends pattern details to Sonnet to produce an Archon-compatible YAML workflow.
+        Sends pattern details to Sonnet to produce an Cortex-compatible YAML workflow.
         """
         try:
             client = self._get_client()
@@ -56,7 +56,7 @@ class GenerationService:
         action_verb = pattern.get("action_verb", "")
         target_object = pattern.get("target_object", "")
 
-        return f"""Generate an Archon workflow YAML definition for this discovered pattern.
+        return f"""Generate an Cortex workflow YAML definition for this discovered pattern.
 
 Pattern: {intent_key or f"{action_verb} {target_object}"}
 Sequence: {sequence}

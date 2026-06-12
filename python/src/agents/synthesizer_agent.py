@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
 
-from .base_agent import ArchonDependencies, BaseAgent
+from .base_agent import CortexDependencies, BaseAgent
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class SourceInfo:
 
 
 @dataclass
-class SynthesizerDeps(ArchonDependencies):
+class SynthesizerDeps(CortexDependencies):
     """Dependencies for the synthesizer agent."""
 
     topic: str = ""

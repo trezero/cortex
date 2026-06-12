@@ -35,7 +35,7 @@ RunStatus = Literal[
 BackendStatus = Literal["healthy", "unhealthy", "disconnected"]
 
 
-# -- Dispatch payload (Archon → remote-agent) --
+# -- Dispatch payload (Cortex → remote-agent) --
 
 class DispatchPayload(BaseModel):
     """Sent to the remote-agent to start a workflow execution."""
@@ -44,9 +44,9 @@ class DispatchPayload(BaseModel):
     trigger_context: dict[str, Any] = Field(default_factory=dict)
     node_id_map: dict[str, str] = Field(
         default_factory=dict,
-        description="Maps YAML node IDs to Archon DB UUIDs",
+        description="Maps YAML node IDs to Cortex DB UUIDs",
     )
-    callback_url: str = Field(description="Base URL for state callbacks back to Archon")
+    callback_url: str = Field(description="Base URL for state callbacks back to Cortex")
 
 
 class ResumePayload(BaseModel):
@@ -56,7 +56,7 @@ class ResumePayload(BaseModel):
     comment: str | None = None
 
 
-# -- Callback payloads (remote-agent → Archon) --
+# -- Callback payloads (remote-agent → Cortex) --
 
 class NodeStateCallback(BaseModel):
     """Received from the remote-agent when a node changes state."""
@@ -75,7 +75,7 @@ class NodeProgressCallback(BaseModel):
 class ApprovalRequestCallback(BaseModel):
     """Received from the remote-agent when a node hits an approval gate."""
     workflow_run_id: str
-    workflow_node_id: str = Field(description="Archon DB UUID for the workflow_nodes row")
+    workflow_node_id: str = Field(description="Cortex DB UUID for the workflow_nodes row")
     yaml_node_id: str = Field(description="Human-readable YAML node ID")
     approval_type: str
     node_output: str

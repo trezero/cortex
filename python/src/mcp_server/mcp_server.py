@@ -1,5 +1,5 @@
 """
-MCP Server for Archon (Microservices Version)
+MCP Server for Cortex (Microservices Version)
 
 This is the MCP server that uses HTTP calls to other services
 instead of importing heavy dependencies directly. This significantly reduces
@@ -70,11 +70,11 @@ _shared_context = None
 
 server_host = "0.0.0.0"  # Listen on all interfaces
 
-# Require ARCHON_MCP_PORT to be set
-mcp_port = os.getenv("ARCHON_MCP_PORT")
+# Require CORTEX_MCP_PORT to be set
+mcp_port = os.getenv("CORTEX_MCP_PORT")
 if not mcp_port:
     raise ValueError(
-        "ARCHON_MCP_PORT environment variable is required. "
+        "CORTEX_MCP_PORT environment variable is required. "
         "Please set it in your .env file or environment. "
         "Default value: 8051"
     )
@@ -82,7 +82,7 @@ server_port = int(mcp_port)
 
 
 @dataclass
-class ArchonContext:
+class CortexContext:
     """
     Context for MCP server.
     No heavy dependencies - just service client for HTTP calls.
@@ -104,7 +104,7 @@ class ArchonContext:
             self.startup_time = time.time()
 
 
-async def perform_health_checks(context: ArchonContext):
+async def perform_health_checks(context: CortexContext):
     """Perform health checks on dependent services via HTTP."""
     try:
         # Check dependent services
@@ -131,7 +131,7 @@ async def perform_health_checks(context: ArchonContext):
 
 
 @asynccontextmanager
-async def lifespan(server: FastMCP) -> AsyncIterator[ArchonContext]:
+async def lifespan(server: FastMCP) -> AsyncIterator[CortexContext]:
     """
     Lifecycle manager - no heavy dependencies.
     """
@@ -165,7 +165,7 @@ async def lifespan(server: FastMCP) -> AsyncIterator[ArchonContext]:
             logger.info("✓ Service client initialized")
 
             # Create context
-            context = ArchonContext(service_client=service_client)
+            context = CortexContext(service_client=service_client)
 
             # Perform initial health check
             await perform_health_checks(context)
@@ -190,10 +190,10 @@ async def lifespan(server: FastMCP) -> AsyncIterator[ArchonContext]:
 
 # Define MCP instructions for Claude Code and other clients
 MCP_INSTRUCTIONS = """
-# Archon MCP Server Instructions
+# Cortex MCP Server Instructions
 
 ## 🚨 CRITICAL RULES (ALWAYS FOLLOW)
-1. **Task Management**: ALWAYS use Archon MCP tools for task management.
+1. **Task Management**: ALWAYS use Cortex MCP tools for task management.
    - Combine with your local TODO tools for granular tracking
 
 2. **Research First**: Before implementing, use rag_search_knowledge_base and rag_search_code_examples
@@ -354,12 +354,12 @@ Omit `project_id` to search across all sources.
 # Initialize the main FastMCP server with fixed configuration
 try:
     logger.info("🏗️ MCP SERVER INITIALIZATION:")
-    logger.info("   Server Name: archon-mcp-server")
+    logger.info("   Server Name: cortex-mcp-server")
     logger.info("   Description: MCP server using HTTP calls")
 
     mcp = FastMCP(
-        "archon-mcp-server",
-        description="MCP server for Archon - uses HTTP calls to other services",
+        "cortex-mcp-server",
+        description="MCP server for Cortex - uses HTTP calls to other services",
         instructions=MCP_INSTRUCTIONS,
         lifespan=lifespan,
         host=server_host,
@@ -732,26 +732,26 @@ def _get_setup_urls(request: Request) -> tuple[str, str]:
     carries the external hostname (e.g. '192.168.1.10:3737').
     We extract just the hostname and combine with the known service ports
     so users outside Docker get reachable URLs.
-    Falls back to ARCHON_HOST env var (the externally-reachable address).
+    Falls back to CORTEX_HOST env var (the externally-reachable address).
     """
     forwarded_host = request.headers.get("x-forwarded-host", "")
     if forwarded_host:
         hostname = forwarded_host.split(":")[0]
     else:
-        hostname = request.url.hostname or os.environ.get("ARCHON_HOST", "localhost")
+        hostname = request.url.hostname or os.environ.get("CORTEX_HOST", "localhost")
 
-    mcp_port = os.environ.get("ARCHON_MCP_PORT", "8051")
-    api_port = os.environ.get("ARCHON_SERVER_PORT", "8181")
+    mcp_port = os.environ.get("CORTEX_MCP_PORT", "8051")
+    api_port = os.environ.get("CORTEX_SERVER_PORT", "8181")
     return f"http://{hostname}:{api_port}", f"http://{hostname}:{mcp_port}"
 
 
-async def http_archon_setup_sh(request: Request) -> PlainTextResponse:
-    """Serve archonSetup.sh with API and MCP URLs baked in."""
+async def http_cortex_setup_sh(request: Request) -> PlainTextResponse:
+    """Serve cortexSetup.sh with API and MCP URLs baked in."""
     api_url, mcp_url = _get_setup_urls(request)
     script = _render_setup_sh(api_url, mcp_url)
     return PlainTextResponse(
         script,
-        headers={"Content-Disposition": 'attachment; filename="archonSetup.sh"'},
+        headers={"Content-Disposition": 'attachment; filename="cortexSetup.sh"'},
     )
 
 
@@ -765,18 +765,18 @@ async def http_agent_work_orders_setup_sh(request: Request) -> PlainTextResponse
     )
 
 
-async def http_archon_setup_bat(request: Request) -> PlainTextResponse:
-    """Serve archonSetup.bat with API and MCP URLs baked in."""
+async def http_cortex_setup_bat(request: Request) -> PlainTextResponse:
+    """Serve cortexSetup.bat with API and MCP URLs baked in."""
     api_url, mcp_url = _get_setup_urls(request)
     script = _render_setup_bat(api_url, mcp_url)
     return PlainTextResponse(
         script,
-        headers={"Content-Disposition": 'attachment; filename="archonSetup.bat"'},
+        headers={"Content-Disposition": 'attachment; filename="cortexSetup.bat"'},
     )
 
 
-async def http_archon_setup_md(request: Request) -> PlainTextResponse:
-    """Serve the /archon-setup Claude Code slash command."""
+async def http_cortex_setup_md(request: Request) -> PlainTextResponse:
+    """Serve the /cortex-setup Claude Code slash command."""
     content = _render_setup_md()
     return PlainTextResponse(content)
 
@@ -788,7 +788,7 @@ async def http_scan_projects_md(request: Request) -> PlainTextResponse:
 
 
 async def http_claude_md_snippet(request: Request) -> PlainTextResponse:
-    """Serve the recommended Archon CLAUDE.md rules snippet."""
+    """Serve the recommended Cortex CLAUDE.md rules snippet."""
     for parent in Path(__file__).resolve().parents:
         candidate = parent / "integrations" / "claude-code" / "claude-md-snippet.md"
         if candidate.exists():
@@ -797,20 +797,20 @@ async def http_claude_md_snippet(request: Request) -> PlainTextResponse:
 
 
 def _render_setup_sh(api_url: str, mcp_url: str) -> str:
-    """Generate archonSetup.sh with API and MCP URLs injected."""
+    """Generate cortexSetup.sh with API and MCP URLs injected."""
     from urllib.parse import urlparse
 
     for parent in Path(__file__).resolve().parents:
-        candidate = parent / "integrations" / "claude-code" / "setup" / "archonSetup.sh"
+        candidate = parent / "integrations" / "claude-code" / "setup" / "cortexSetup.sh"
         if candidate.exists():
             content = candidate.read_text()
-            content = content.replace("{{ARCHON_API_URL}}", api_url)
-            content = content.replace("{{ARCHON_MCP_URL}}", mcp_url)
+            content = content.replace("{{CORTEX_API_URL}}", api_url)
+            content = content.replace("{{CORTEX_MCP_URL}}", mcp_url)
             # Inject serving hostname as the default for the manual-entry fallback prompt
             default_host = urlparse(mcp_url).hostname or "localhost"
             content = content.replace("{{DEFAULT_HOST}}", default_host)
             return content
-    raise FileNotFoundError("archonSetup.sh template not found")
+    raise FileNotFoundError("cortexSetup.sh template not found")
 
 
 def _render_agent_work_orders_setup_sh(api_url: str, mcp_url: str) -> str:
@@ -819,29 +819,29 @@ def _render_agent_work_orders_setup_sh(api_url: str, mcp_url: str) -> str:
         candidate = parent / "integrations" / "claude-code" / "setup" / "agentWorkOrderSetup.sh"
         if candidate.exists():
             content = candidate.read_text()
-            content = content.replace("{{ARCHON_API_URL}}", api_url)
-            content = content.replace("{{ARCHON_MCP_URL}}", mcp_url)
+            content = content.replace("{{CORTEX_API_URL}}", api_url)
+            content = content.replace("{{CORTEX_MCP_URL}}", mcp_url)
             return content
     raise FileNotFoundError("agentWorkOrderSetup.sh template not found")
 
 
 def _render_setup_bat(api_url: str, mcp_url: str) -> str:
-    """Generate archonSetup.bat with API and MCP URLs injected."""
+    """Generate cortexSetup.bat with API and MCP URLs injected."""
     for parent in Path(__file__).resolve().parents:
-        candidate = parent / "integrations" / "claude-code" / "setup" / "archonSetup.bat"
+        candidate = parent / "integrations" / "claude-code" / "setup" / "cortexSetup.bat"
         if candidate.exists():
             content = candidate.read_text()
-            content = content.replace("{{ARCHON_API_URL}}", api_url)
-            content = content.replace("{{ARCHON_MCP_URL}}", mcp_url)
+            content = content.replace("{{CORTEX_API_URL}}", api_url)
+            content = content.replace("{{CORTEX_MCP_URL}}", mcp_url)
             # Ensure Windows CRLF line endings — cmd.exe fails with Unix LF
             content = content.replace("\r\n", "\n").replace("\n", "\r\n")
             return content
-    raise FileNotFoundError("archonSetup.bat template not found")
+    raise FileNotFoundError("cortexSetup.bat template not found")
 
 
 def _render_setup_md() -> str:
-    """Return the /archon-setup Claude Code slash command content."""
-    return _render_command_md("archon-setup.md")
+    """Return the /cortex-setup Claude Code slash command content."""
+    return _render_command_md("cortex-setup.md")
 
 
 def _render_command_md(filename: str) -> str:
@@ -854,9 +854,9 @@ def _render_command_md(filename: str) -> str:
 
 
 async def http_plugin_manifest(request: Request) -> JSONResponse:
-    """Return the archon-memory plugin manifest."""
+    """Return the cortex-memory plugin manifest."""
     for parent in Path(__file__).resolve().parents:
-        candidate = parent / "integrations" / "claude-code" / "plugins" / "archon-memory" / ".claude-plugin" / "plugin.json"
+        candidate = parent / "integrations" / "claude-code" / "plugins" / "cortex-memory" / ".claude-plugin" / "plugin.json"
         if candidate.exists():
             import json
             data = json.loads(candidate.read_text())
@@ -865,7 +865,7 @@ async def http_plugin_manifest(request: Request) -> JSONResponse:
 
 
 async def http_download_plugin(request: Request):
-    """Return the archon-memory plugin as a compressed tar archive.
+    """Return the cortex-memory plugin as a compressed tar archive.
 
     Excludes development artifacts (.venv, .pytest_cache, __pycache__, .git)
     so the tarball is small and won't overwrite the client's virtual environment.
@@ -883,16 +883,16 @@ async def http_download_plugin(request: Request):
         return tarinfo
 
     for parent in Path(__file__).resolve().parents:
-        plugin_dir = parent / "integrations" / "claude-code" / "plugins" / "archon-memory"
+        plugin_dir = parent / "integrations" / "claude-code" / "plugins" / "cortex-memory"
         if plugin_dir.is_dir():
             buf = io.BytesIO()
             with tarfile.open(fileobj=buf, mode="w:gz") as tar:
-                tar.add(plugin_dir, arcname="archon-memory", filter=_tar_filter)
+                tar.add(plugin_dir, arcname="cortex-memory", filter=_tar_filter)
             buf.seek(0)
             return Response(
                 content=buf.read(),
                 media_type="application/gzip",
-                headers={"Content-Disposition": 'attachment; filename="archon-memory.tar.gz"'},
+                headers={"Content-Disposition": 'attachment; filename="cortex-memory.tar.gz"'},
             )
     return JSONResponse({"error": "plugin not found"}, status_code=404)
 
@@ -901,7 +901,7 @@ async def http_download_extensions(request: Request):
     """Return default extensions as a compressed tar archive (skills/{name}/SKILL.md).
 
     Only extensions with is_default=True are included so that new project setups
-    receive only the curated default set configured in Archon Settings.
+    receive only the curated default set configured in Cortex Settings.
     """
     import io
     import tarfile
@@ -1016,17 +1016,17 @@ async def http_download_commands(request: Request):
 
 # Register setup endpoints
 try:
-    mcp.custom_route("/archon-setup.sh", methods=["GET"])(http_archon_setup_sh)
-    mcp.custom_route("/archon-setup.bat", methods=["GET"])(http_archon_setup_bat)
-    mcp.custom_route("/archon-setup.md", methods=["GET"])(http_archon_setup_md)
+    mcp.custom_route("/cortex-setup.sh", methods=["GET"])(http_cortex_setup_sh)
+    mcp.custom_route("/cortex-setup.bat", methods=["GET"])(http_cortex_setup_bat)
+    mcp.custom_route("/cortex-setup.md", methods=["GET"])(http_cortex_setup_md)
     mcp.custom_route("/scan-projects.md", methods=["GET"])(http_scan_projects_md)
-    mcp.custom_route("/archon-setup/agent-work-orders-setup.sh", methods=["GET"])(http_agent_work_orders_setup_sh)
+    mcp.custom_route("/cortex-setup/agent-work-orders-setup.sh", methods=["GET"])(http_agent_work_orders_setup_sh)
     logger.info("✓ Setup file endpoints registered")
-    mcp.custom_route("/archon-setup/plugin-manifest", methods=["GET"])(http_plugin_manifest)
-    mcp.custom_route("/archon-setup/plugin/archon-memory.tar.gz", methods=["GET"])(http_download_plugin)
-    mcp.custom_route("/archon-setup/extensions.tar.gz", methods=["GET"])(http_download_extensions)
-    mcp.custom_route("/archon-setup/commands.tar.gz", methods=["GET"])(http_download_commands)
-    mcp.custom_route("/archon-setup/claude-md-snippet.md", methods=["GET"])(http_claude_md_snippet)
+    mcp.custom_route("/cortex-setup/plugin-manifest", methods=["GET"])(http_plugin_manifest)
+    mcp.custom_route("/cortex-setup/plugin/cortex-memory.tar.gz", methods=["GET"])(http_download_plugin)
+    mcp.custom_route("/cortex-setup/extensions.tar.gz", methods=["GET"])(http_download_extensions)
+    mcp.custom_route("/cortex-setup/commands.tar.gz", methods=["GET"])(http_download_commands)
+    mcp.custom_route("/cortex-setup/claude-md-snippet.md", methods=["GET"])(http_claude_md_snippet)
     logger.info("✓ Plugin and extension distribution endpoints registered")
 except Exception as e:
     logger.error(f"✗ Failed to register setup endpoints: {e}")
@@ -1036,9 +1036,9 @@ def main():
     """Main entry point for the MCP server."""
     try:
         # Initialize Logfire first
-        setup_logfire(service_name="archon-mcp-server")
+        setup_logfire(service_name="cortex-mcp-server")
 
-        logger.info("🚀 Starting Archon MCP Server")
+        logger.info("🚀 Starting Cortex MCP Server")
         logger.info("   Mode: Streamable HTTP")
         logger.info(f"   URL: http://{server_host}:{server_port}/mcp")
 

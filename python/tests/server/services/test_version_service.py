@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from src.server.config.version import ARCHON_VERSION
+from src.server.config.version import CORTEX_VERSION
 from src.server.services.version_service import VersionService
 
 
@@ -28,17 +28,17 @@ def mock_release_data():
     """Mock GitHub release data."""
     return {
         "tag_name": "v0.2.0",
-        "name": "Archon v0.2.0",
-        "html_url": "https://github.com/coleam00/Archon/releases/tag/v0.2.0",
+        "name": "Cortex v0.2.0",
+        "html_url": "https://github.com/coleam00/Cortex/releases/tag/v0.2.0",
         "body": "## Release Notes\n\nNew features and bug fixes",
         "published_at": "2025-01-01T00:00:00Z",
         "author": {"login": "coleam00"},
         "assets": [
             {
-                "name": "archon-v0.2.0.zip",
+                "name": "cortex-v0.2.0.zip",
                 "size": 1024000,
                 "download_count": 100,
-                "browser_download_url": "https://github.com/coleam00/Archon/releases/download/v0.2.0/archon-v0.2.0.zip",
+                "browser_download_url": "https://github.com/coleam00/Cortex/releases/download/v0.2.0/cortex-v0.2.0.zip",
                 "content_type": "application/zip",
             }
         ],
@@ -141,7 +141,7 @@ async def test_check_for_updates_new_version_available(version_service, mock_rel
     with patch.object(version_service, "get_latest_release", return_value=mock_release_data):
         result = await version_service.check_for_updates()
 
-        assert result["current"] == ARCHON_VERSION
+        assert result["current"] == CORTEX_VERSION
         assert result["latest"] == "0.2.0"
         assert result["update_available"] is True
         assert result["release_url"] == mock_release_data["html_url"]
@@ -154,13 +154,13 @@ async def test_check_for_updates_new_version_available(version_service, mock_rel
 @pytest.mark.asyncio
 async def test_check_for_updates_same_version(version_service):
     """Test when current version is up to date."""
-    mock_data = {"tag_name": f"v{ARCHON_VERSION}", "html_url": "test_url", "body": "notes"}
+    mock_data = {"tag_name": f"v{CORTEX_VERSION}", "html_url": "test_url", "body": "notes"}
 
     with patch.object(version_service, "get_latest_release", return_value=mock_data):
         result = await version_service.check_for_updates()
 
-        assert result["current"] == ARCHON_VERSION
-        assert result["latest"] == ARCHON_VERSION
+        assert result["current"] == CORTEX_VERSION
+        assert result["latest"] == CORTEX_VERSION
         assert result["update_available"] is False
 
 
@@ -170,7 +170,7 @@ async def test_check_for_updates_no_release(version_service):
     with patch.object(version_service, "get_latest_release", return_value=None):
         result = await version_service.check_for_updates()
 
-        assert result["current"] == ARCHON_VERSION
+        assert result["current"] == CORTEX_VERSION
         assert result["latest"] is None
         assert result["update_available"] is False
         assert result["release_url"] is None

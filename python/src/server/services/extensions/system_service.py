@@ -1,6 +1,6 @@
 """System registration service for machine fingerprint tracking.
 
-Manages the archon_systems table, which records each machine that
+Manages the cortex_systems table, which records each machine that
 interacts with the extensions management system.  A system is identified
 by a unique fingerprint derived from hardware/OS attributes.
 """
@@ -12,7 +12,7 @@ from ...config.logfire_config import get_logger
 
 logger = get_logger(__name__)
 
-TABLE = "archon_systems"
+TABLE = "cortex_systems"
 
 
 class SystemService:

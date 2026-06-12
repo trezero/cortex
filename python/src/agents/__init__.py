@@ -1,5 +1,5 @@
 """
-Agents module for PydanticAI-powered agents in the Archon system.
+Agents module for PydanticAI-powered agents in the Cortex system.
 
 This module contains various specialized agents for different tasks:
 - DocumentAgent: Processes and validates project documentation

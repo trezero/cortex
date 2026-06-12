@@ -8,7 +8,7 @@ import logfire
 from fastapi import APIRouter, Header, HTTPException, Response
 from pydantic import BaseModel
 
-from ..config.version import ARCHON_VERSION
+from ..config.version import CORTEX_VERSION
 from ..services.migration_service import migration_service
 from ..utils.etag_utils import check_etag, generate_etag
 
@@ -118,7 +118,7 @@ async def get_migration_history(response: Response, if_none_match: str | None = 
                 for m in applied
             ],
             "total_count": len(applied),
-            "current_version": ARCHON_VERSION,
+            "current_version": CORTEX_VERSION,
         }
 
         # Generate ETag for response

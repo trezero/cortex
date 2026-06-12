@@ -25,7 +25,7 @@ class BackfillService:
     async def backfill_all_projects(self, lookback_days: int = DEFAULT_LOOKBACK_DAYS) -> tuple[bool, dict[str, Any]]:
         """Backfill activity events from all registered projects' git history.
 
-        Reads archon_projects to find repos, runs capture_git_commits for each,
+        Reads cortex_projects to find repos, runs capture_git_commits for each,
         then normalizes all pending events.
 
         Args:
@@ -35,7 +35,7 @@ class BackfillService:
             (success, result) tuple with total_captured, normalized, and per-project results.
         """
         try:
-            response = self.supabase_client.table("archon_projects").select("id, title, github_repo").execute()
+            response = self.supabase_client.table("cortex_projects").select("id, title, github_repo").execute()
             projects = response.data or []
 
             total_captured = 0

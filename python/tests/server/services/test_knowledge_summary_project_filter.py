@@ -20,7 +20,7 @@ def service(mock_supabase):
 
 @pytest.mark.asyncio
 async def test_get_summaries_with_project_id_filters_by_metadata(service, mock_supabase):
-    """When project_id is provided, query should filter archon_sources by metadata->>'project_id'."""
+    """When project_id is provided, query should filter cortex_sources by metadata->>'project_id'."""
     # Setup mock chain for main query
     query_mock = MagicMock()
     query_mock.eq.return_value = query_mock

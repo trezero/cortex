@@ -108,7 +108,7 @@ async def list_pages(
         client = get_supabase_client()
 
         # Build query - select only summary fields (no full_content)
-        query = client.table("archon_page_metadata").select(
+        query = client.table("cortex_page_metadata").select(
             "id, url, section_title, section_order, word_count, char_count, chunk_count"
         ).eq("source_id", source_id)
 
@@ -150,7 +150,7 @@ async def get_page_by_url(url: str = Query(..., description="The URL of the page
         client = get_supabase_client()
 
         # Query by URL
-        result = client.table("archon_page_metadata").select("*").eq("url", url).single().execute()
+        result = client.table("cortex_page_metadata").select("*").eq("url", url).single().execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail=f"Page not found for URL: {url}")
@@ -182,7 +182,7 @@ async def get_page_by_id(page_id: str):
         client = get_supabase_client()
 
         # Query by ID
-        result = client.table("archon_page_metadata").select("*").eq("id", page_id).single().execute()
+        result = client.table("cortex_page_metadata").select("*").eq("id", page_id).single().execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail=f"Page not found: {page_id}")

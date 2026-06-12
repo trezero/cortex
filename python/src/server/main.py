@@ -1,7 +1,7 @@
 """
-FastAPI Backend for Archon Knowledge Engine
+FastAPI Backend for Cortex Knowledge Engine
 
-This is the main entry point for the Archon backend API.
+This is the main entry point for the Cortex backend API.
 It uses a modular approach with separate API modules for different functionality.
 
 Modules:
@@ -85,7 +85,7 @@ async def lifespan(app: FastAPI):
     _initialization_complete = False
 
     # Startup
-    logger.info("🚀 Starting Archon backend...")
+    logger.info("🚀 Starting Cortex backend...")
 
     try:
         # Validate configuration FIRST - check for anon vs service key
@@ -98,7 +98,7 @@ async def lifespan(app: FastAPI):
 
         # Now that credentials are loaded, we can properly initialize logging
         # This must happen AFTER credentials so LOGFIRE_ENABLED is set from database
-        setup_logfire(service_name="archon-backend")
+        setup_logfire(service_name="cortex-backend")
 
         # Now we can safely use the logger
         logger.info("✅ Credentials initialized")
@@ -158,7 +158,7 @@ async def lifespan(app: FastAPI):
 
         # Mark initialization as complete
         _initialization_complete = True
-        api_logger.info("🎉 Archon backend started successfully!")
+        api_logger.info("🎉 Cortex backend started successfully!")
 
     except Exception as e:
         api_logger.error("❌ Failed to start backend", exc_info=True)
@@ -168,7 +168,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     _initialization_complete = False
-    api_logger.info("🛑 Shutting down Archon backend...")
+    api_logger.info("🛑 Shutting down Cortex backend...")
 
     try:
         # MCP Client cleanup not needed
@@ -188,8 +188,8 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI application
 app = FastAPI(
-    title="Archon Knowledge Engine API",
-    description="Backend API for the Archon knowledge management and project automation platform",
+    title="Cortex Knowledge Engine API",
+    description="Backend API for the Cortex knowledge management and project automation platform",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -257,7 +257,7 @@ app.include_router(pattern_discovery_router)
 async def root():
     """Root endpoint returning API information."""
     return {
-        "name": "Archon Knowledge Engine API",
+        "name": "Cortex Knowledge Engine API",
         "version": "1.0.0",
         "description": "Backend API for knowledge management and project automation",
         "status": "healthy",
@@ -276,7 +276,7 @@ async def health_check(response: Response):
         response.status_code = 503  # Service Unavailable
         return {
             "status": "initializing",
-            "service": "archon-backend",
+            "service": "cortex-backend",
             "timestamp": datetime.now().isoformat(),
             "message": "Backend is starting up, credentials loading...",
             "ready": False,
@@ -288,7 +288,7 @@ async def health_check(response: Response):
         response.status_code = 503  # Service Unavailable
         return {
             "status": "migration_required",
-            "service": "archon-backend",
+            "service": "cortex-backend",
             "timestamp": datetime.now().isoformat(),
             "ready": False,
             "migration_required": True,
@@ -299,7 +299,7 @@ async def health_check(response: Response):
 
     return {
         "status": "healthy",
-        "service": "archon-backend",
+        "service": "cortex-backend",
         "timestamp": datetime.now().isoformat(),
         "ready": True,
         "credentials_loaded": True,
@@ -337,7 +337,7 @@ async def _check_database_schema():
         client = get_supabase_client()
 
         # Try to query the new columns directly - if they exist, schema is up to date
-        client.table('archon_sources').select('source_url, source_display_name').limit(1).execute()
+        client.table('cortex_sources').select('source_url, source_display_name').limit(1).execute()
 
         # Cache successful result permanently
         _schema_check_cache["valid"] = True
@@ -377,7 +377,7 @@ async def _check_database_schema():
             # Table doesn't exist - this is a critical setup issue
             result = {
                 "valid": False,
-                "message": "Required table missing (archon_sources). Run initial migrations before starting."
+                "message": "Required table missing (cortex_sources). Run initial migrations before starting."
             }
             # Cache failed result with timestamp
             _schema_check_cache["valid"] = False
@@ -398,11 +398,11 @@ def main():
     """Main entry point for running the server."""
     import uvicorn
 
-    # Require ARCHON_SERVER_PORT to be set
-    server_port = os.getenv("ARCHON_SERVER_PORT")
+    # Require CORTEX_SERVER_PORT to be set
+    server_port = os.getenv("CORTEX_SERVER_PORT")
     if not server_port:
         raise ValueError(
-            "ARCHON_SERVER_PORT environment variable is required. "
+            "CORTEX_SERVER_PORT environment variable is required. "
             "Please set it in your .env file or environment. "
             "Default value: 8181"
         )

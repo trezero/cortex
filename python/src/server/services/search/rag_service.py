@@ -210,7 +210,7 @@ class RAGService:
             # Query page by page_id if available, otherwise by URL
             if data["page_id"]:
                 page_info = (
-                    self.supabase_client.table("archon_page_metadata")
+                    self.supabase_client.table("cortex_page_metadata")
                     .select("id, url, section_title, word_count")
                     .eq("id", data["page_id"])
                     .maybe_single()
@@ -219,7 +219,7 @@ class RAGService:
             else:
                 # Regular pages - exact URL match
                 page_info = (
-                    self.supabase_client.table("archon_page_metadata")
+                    self.supabase_client.table("cortex_page_metadata")
                     .select("id, url, section_title, word_count")
                     .eq("url", data["url"])
                     .maybe_single()

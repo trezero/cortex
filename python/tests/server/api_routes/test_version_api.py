@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from src.server.config.version import ARCHON_VERSION
+from src.server.config.version import CORTEX_VERSION
 from src.server.main import app
 
 
@@ -22,15 +22,15 @@ def client():
 def mock_version_data():
     """Mock version check data."""
     return {
-        "current": ARCHON_VERSION,
+        "current": CORTEX_VERSION,
         "latest": "0.2.0",
         "update_available": True,
-        "release_url": "https://github.com/coleam00/Archon/releases/tag/v0.2.0",
+        "release_url": "https://github.com/coleam00/Cortex/releases/tag/v0.2.0",
         "release_notes": "New features and bug fixes",
         "published_at": datetime(2025, 1, 1, 0, 0, 0),
         "check_error": None,
         "author": "coleam00",
-        "assets": [{"name": "archon.zip", "size": 1024000}],
+        "assets": [{"name": "cortex.zip", "size": 1024000}],
     }
 
 
@@ -43,7 +43,7 @@ def test_check_for_updates_success(client, mock_version_data):
 
         assert response.status_code == 200
         data = response.json()
-        assert data["current"] == ARCHON_VERSION
+        assert data["current"] == CORTEX_VERSION
         assert data["latest"] == "0.2.0"
         assert data["update_available"] is True
         assert data["release_url"] == mock_version_data["release_url"]
@@ -52,8 +52,8 @@ def test_check_for_updates_success(client, mock_version_data):
 def test_check_for_updates_no_update(client):
     """Test when no update is available."""
     mock_data = {
-        "current": ARCHON_VERSION,
-        "latest": ARCHON_VERSION,
+        "current": CORTEX_VERSION,
+        "latest": CORTEX_VERSION,
         "update_available": False,
         "release_url": None,
         "release_notes": None,
@@ -68,8 +68,8 @@ def test_check_for_updates_no_update(client):
 
         assert response.status_code == 200
         data = response.json()
-        assert data["current"] == ARCHON_VERSION
-        assert data["latest"] == ARCHON_VERSION
+        assert data["current"] == CORTEX_VERSION
+        assert data["latest"] == CORTEX_VERSION
         assert data["update_available"] is False
 
 
@@ -106,7 +106,7 @@ def test_check_for_updates_error_handling(client):
 
         assert response.status_code == 200  # Should still return 200
         data = response.json()
-        assert data["current"] == ARCHON_VERSION
+        assert data["current"] == CORTEX_VERSION
         assert data["latest"] is None
         assert data["update_available"] is False
         assert data["check_error"] == "API error"
@@ -118,7 +118,7 @@ def test_get_current_version(client):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["version"] == ARCHON_VERSION
+    assert data["version"] == CORTEX_VERSION
     assert "timestamp" in data
 
 

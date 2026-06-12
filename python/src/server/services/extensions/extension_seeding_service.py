@@ -1,4 +1,4 @@
-"""Seed bundled SKILL.md and plugin files into the archon_extensions database table on startup.
+"""Seed bundled SKILL.md and plugin files into the cortex_extensions database table on startup.
 
 On each server start this service scans:
   - integrations/claude-code/extensions/ for SKILL.md extension definition files
@@ -41,7 +41,7 @@ def _parse_frontmatter(content: str) -> dict[str, str]:
 
 
 class ExtensionSeedingService:
-    """Upserts bundled SKILL.md files into the archon_extensions registry."""
+    """Upserts bundled SKILL.md files into the cortex_extensions registry."""
 
     def __init__(self, extension_service: ExtensionService | None = None) -> None:
         self.extension_service = extension_service or ExtensionService()
@@ -262,7 +262,7 @@ class ExtensionSeedingService:
                 name,
                 description,
                 content,
-                created_by="archon-seeder",
+                created_by="cortex-seeder",
                 type="command",
                 plugin_manifest=command_metadata,
             )
@@ -279,7 +279,7 @@ class ExtensionSeedingService:
             existing["id"],
             content,
             new_version=existing["current_version"] + 1,
-            updated_by="archon-seeder",
+            updated_by="cortex-seeder",
             description=description or None,
         )
         logger.info(f"Updated command extension: {name} -> v{existing['current_version'] + 1}")
@@ -324,7 +324,7 @@ class ExtensionSeedingService:
                 "current_version": 1,
                 "type": "plugin",
                 "plugin_manifest": manifest,
-                "created_by": "archon-seeder",
+                "created_by": "cortex-seeder",
                 "created_at": now,
                 "updated_at": now,
             }
@@ -340,7 +340,7 @@ class ExtensionSeedingService:
                 "version_number": 1,
                 "content": content,
                 "content_hash": content_hash,
-                "created_by": "archon-seeder",
+                "created_by": "cortex-seeder",
                 "created_at": now,
             }
             self.extension_service.supabase_client.table(VERSIONS_TABLE).insert(version_data).execute()
@@ -357,7 +357,7 @@ class ExtensionSeedingService:
             existing["id"],
             content,
             new_version=existing["current_version"] + 1,
-            updated_by="archon-seeder",
+            updated_by="cortex-seeder",
             description=description or None,
         )
         logger.info(f"Updated plugin extension: {name} -> v{existing['current_version'] + 1}")
@@ -388,7 +388,7 @@ class ExtensionSeedingService:
                 name,
                 description,
                 content,
-                created_by="archon-seeder",
+                created_by="cortex-seeder",
             )
             logger.info(f"Created extension: {name}")
             counts["created"] += 1
@@ -403,7 +403,7 @@ class ExtensionSeedingService:
             existing["id"],
             content,
             new_version=existing["current_version"] + 1,
-            updated_by="archon-seeder",
+            updated_by="cortex-seeder",
             description=description or None,
         )
         logger.info(f"Updated extension: {name} -> v{existing['current_version'] + 1}")

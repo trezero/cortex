@@ -46,12 +46,12 @@ class TestDispatchPayload:
             yaml_content="name: test\nnodes:\n  - id: step1\n    command: create-branch",
             trigger_context={"user_request": "Add rate limiting"},
             node_id_map={"step1": "uuid-1"},
-            callback_url="http://archon:8181/api/workflows",
+            callback_url="http://cortex:8181/api/workflows",
         )
         data = payload.model_dump()
         assert data["workflow_run_id"] == "wr_abc123"
         assert data["node_id_map"]["step1"] == "uuid-1"
-        assert data["callback_url"] == "http://archon:8181/api/workflows"
+        assert data["callback_url"] == "http://cortex:8181/api/workflows"
 
 
 class TestNodeStateCallback:

@@ -1,7 +1,7 @@
 """
 Page Storage Operations
 
-Handles the storage of complete documentation pages in the archon_page_metadata table.
+Handles the storage of complete documentation pages in the cortex_page_metadata table.
 Pages are stored BEFORE chunking to maintain full context for agent retrieval.
 """
 
@@ -19,7 +19,7 @@ class PageStorageOperations:
     """
     Handles page storage operations for crawled content.
 
-    Pages are stored in the archon_page_metadata table with full content and metadata.
+    Pages are stored in the cortex_page_metadata table with full content and metadata.
     This enables agents to retrieve complete documentation pages instead of just chunks.
     """
 
@@ -40,7 +40,7 @@ class PageStorageOperations:
         crawl_type: str,
     ) -> dict[str, str]:
         """
-        Store pages in archon_page_metadata table from regular crawl results.
+        Store pages in cortex_page_metadata table from regular crawl results.
 
         Args:
             crawl_results: List of crawled documents with url, markdown, title, etc.
@@ -92,10 +92,10 @@ class PageStorageOperations:
         if pages_to_insert:
             try:
                 safe_logfire_info(
-                    f"Upserting {len(pages_to_insert)} pages into archon_page_metadata table"
+                    f"Upserting {len(pages_to_insert)} pages into cortex_page_metadata table"
                 )
                 result = (
-                    self.supabase_client.table("archon_page_metadata")
+                    self.supabase_client.table("cortex_page_metadata")
                     .upsert(pages_to_insert, on_conflict="url")
                     .execute()
                 )
@@ -105,7 +105,7 @@ class PageStorageOperations:
                     url_to_page_id[page["url"]] = page["id"]
 
                 safe_logfire_info(
-                    f"Successfully stored {len(url_to_page_id)}/{len(pages_to_insert)} pages in archon_page_metadata"
+                    f"Successfully stored {len(url_to_page_id)}/{len(pages_to_insert)} pages in cortex_page_metadata"
                 )
 
             except APIError as e:
@@ -191,10 +191,10 @@ class PageStorageOperations:
         if pages_to_insert:
             try:
                 safe_logfire_info(
-                    f"Upserting {len(pages_to_insert)} section pages into archon_page_metadata"
+                    f"Upserting {len(pages_to_insert)} section pages into cortex_page_metadata"
                 )
                 result = (
-                    self.supabase_client.table("archon_page_metadata")
+                    self.supabase_client.table("cortex_page_metadata")
                     .upsert(pages_to_insert, on_conflict="url")
                     .execute()
                 )
@@ -232,7 +232,7 @@ class PageStorageOperations:
             chunk_count: Number of chunks created from this page
         """
         try:
-            self.supabase_client.table("archon_page_metadata").update(
+            self.supabase_client.table("cortex_page_metadata").update(
                 {"chunk_count": chunk_count}
             ).eq("id", page_id).execute()
 

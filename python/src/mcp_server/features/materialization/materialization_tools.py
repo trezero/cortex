@@ -19,11 +19,11 @@ def register_materialization_tools(mcp: FastMCP):
     async def materialize_knowledge(ctx: Context, topic: str, project_id: str, project_path: str) -> str:
         """Materialize knowledge from the Vector DB into a local project repo.
         Searches the RAG knowledge base, synthesizes results into Markdown,
-        and writes to .archon/knowledge/ directory.
+        and writes to .cortex/knowledge/ directory.
 
         Args:
             topic: The knowledge topic to materialize
-            project_id: The Archon project ID
+            project_id: The Cortex project ID
             project_path: Filesystem path to the project repo
         """
         try:

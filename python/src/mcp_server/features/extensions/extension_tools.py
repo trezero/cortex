@@ -1,5 +1,5 @@
 """
-Extensions management tools for Archon MCP Server.
+Extensions management tools for Cortex MCP Server.
 
 Provides two consolidated tools:
 - find_extensions: List, search, and get extension details
@@ -544,7 +544,7 @@ async def _handle_bootstrap(
 ) -> str:
     """Register the system and return extension metadata (content delivered via HTTP tarball)."""
     # Fetch only default extensions — these are the ones the setup script installs
-    # via /archon-setup/extensions.tar.gz. Fetching all would misrepresent local state.
+    # via /cortex-setup/extensions.tar.gz. Fetching all would misrepresent local state.
     response = await client.get(
         urljoin(api_url, "/api/extensions"),
         params={"include_content": False, "is_default": True},

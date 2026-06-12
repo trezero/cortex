@@ -1,5 +1,5 @@
 """
-Task Service Module for Archon
+Task Service Module for Cortex
 
 This module provides core business logic for task operations that can be
 shared between MCP tools and FastAPI endpoints.
@@ -94,7 +94,7 @@ class TaskService:
             if task_order > 0:
                 # Get all tasks in the same project and status with task_order >= new task's order
                 existing_tasks_response = (
-                    self.supabase_client.table("archon_tasks")
+                    self.supabase_client.table("cortex_tasks")
                     .select("id, task_order")
                     .eq("project_id", project_id)
                     .eq("status", task_status)
@@ -108,7 +108,7 @@ class TaskService:
                     # Increment task_order for all affected tasks
                     for existing_task in existing_tasks_response.data:
                         new_order = existing_task["task_order"] + 1
-                        self.supabase_client.table("archon_tasks").update({
+                        self.supabase_client.table("cortex_tasks").update({
                             "task_order": new_order,
                             "updated_at": datetime.now().isoformat(),
                         }).eq("id", existing_task["id"]).execute()
@@ -130,7 +130,7 @@ class TaskService:
             if feature:
                 task_data["feature"] = feature
 
-            response = self.supabase_client.table("archon_tasks").insert(task_data).execute()
+            response = self.supabase_client.table("cortex_tasks").insert(task_data).execute()
 
             if response.data:
                 task = response.data[0]
@@ -183,14 +183,14 @@ class TaskService:
             # Start with base query
             if exclude_large_fields:
                 # Select all fields except large JSONB ones
-                query = self.supabase_client.table("archon_tasks").select(
+                query = self.supabase_client.table("cortex_tasks").select(
                     "id, project_id, parent_task_id, title, description, "
                     "status, assignee, task_order, priority, feature, archived, "
                     "archived_at, archived_by, created_at, updated_at, "
                     "sources, code_examples"  # Still fetch for counting, but will process differently
                 )
             else:
-                query = self.supabase_client.table("archon_tasks").select("*")
+                query = self.supabase_client.table("cortex_tasks").select("*")
 
             # Track filters for debugging
             filters_applied = []
@@ -345,7 +345,7 @@ class TaskService:
         """
         try:
             response = (
-                self.supabase_client.table("archon_tasks").select("*").eq("id", task_id).execute()
+                self.supabase_client.table("cortex_tasks").select("*").eq("id", task_id).execute()
             )
 
             if response.data:
@@ -404,7 +404,7 @@ class TaskService:
 
             # Update task
             response = (
-                self.supabase_client.table("archon_tasks")
+                self.supabase_client.table("cortex_tasks")
                 .update(update_data)
                 .eq("id", task_id)
                 .execute()
@@ -434,7 +434,7 @@ class TaskService:
         try:
             # First, check if task exists and is not already archived
             task_response = (
-                self.supabase_client.table("archon_tasks").select("*").eq("id", task_id).execute()
+                self.supabase_client.table("cortex_tasks").select("*").eq("id", task_id).execute()
             )
             if not task_response.data:
                 return False, {"error": f"Task with ID {task_id} not found"}
@@ -453,7 +453,7 @@ class TaskService:
 
             # Archive the main task
             response = (
-                self.supabase_client.table("archon_tasks")
+                self.supabase_client.table("cortex_tasks")
                 .update(archive_data)
                 .eq("id", task_id)
                 .execute()
@@ -484,7 +484,7 @@ class TaskService:
 
             # Query all non-archived tasks grouped by project_id and status
             response = (
-                self.supabase_client.table("archon_tasks")
+                self.supabase_client.table("cortex_tasks")
                 .select("project_id, status")
                 .or_("archived.is.null,archived.is.false")
                 .execute()

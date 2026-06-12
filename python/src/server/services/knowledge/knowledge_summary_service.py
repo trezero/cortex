@@ -55,7 +55,7 @@ class KnowledgeSummaryService:
             safe_logfire_info(f"Fetching knowledge summaries | page={page} | per_page={per_page}")
             
             # Build base query - select only needed fields, including source_url
-            query = self.supabase.from_("archon_sources").select(
+            query = self.supabase.from_("cortex_sources").select(
                 "source_id, title, summary, metadata, source_url, created_at, updated_at"
             )
             
@@ -73,7 +73,7 @@ class KnowledgeSummaryService:
                 query = query.eq("metadata->>project_id", project_id)
 
             # Get total count
-            count_query = self.supabase.from_("archon_sources").select(
+            count_query = self.supabase.from_("cortex_sources").select(
                 "*", count="exact", head=True
             )
             
@@ -190,7 +190,7 @@ class KnowledgeSummaryService:
             # For now, use individual queries but optimize later with raw SQL
             for source_id in source_ids:
                 result = (
-                    self.supabase.from_("archon_crawled_pages")
+                    self.supabase.from_("cortex_crawled_pages")
                     .select("id", count="exact", head=True)
                     .eq("source_id", source_id)
                     .execute()
@@ -219,7 +219,7 @@ class KnowledgeSummaryService:
             # For now, use individual queries but can optimize with raw SQL later
             for source_id in source_ids:
                 result = (
-                    self.supabase.from_("archon_code_examples")
+                    self.supabase.from_("cortex_code_examples")
                     .select("id", count="exact", head=True)
                     .eq("source_id", source_id)
                     .execute()
@@ -245,7 +245,7 @@ class KnowledgeSummaryService:
         try:
             # Get all first URLs in one query
             result = (
-                self.supabase.from_("archon_crawled_pages")
+                self.supabase.from_("cortex_crawled_pages")
                 .select("source_id, url")
                 .in_("source_id", source_ids)
                 .order("created_at", desc=False)

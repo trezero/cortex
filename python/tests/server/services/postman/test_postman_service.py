@@ -63,11 +63,11 @@ class TestGetOrCreateCollection:
         with patch.object(service, "_get_client") as mock_client_fn:
             mock_client = MagicMock()
             mock_client.list_collections.return_value = [
-                {"name": "Archon", "uid": "col-123"}
+                {"name": "Cortex", "uid": "col-123"}
             ]
             mock_client_fn.return_value = mock_client
 
-            uid = await service.get_or_create_collection("Archon")
+            uid = await service.get_or_create_collection("Cortex")
             assert uid == "col-123"
             mock_client.create_collection.assert_not_called()
 
@@ -79,7 +79,7 @@ class TestGetOrCreateCollection:
             mock_client.create_collection.return_value = {"uid": "col-new"}
             mock_client_fn.return_value = mock_client
 
-            uid = await service.get_or_create_collection("Archon")
+            uid = await service.get_or_create_collection("Cortex")
             assert uid == "col-new"
             mock_client.create_collection.assert_called_once()
 

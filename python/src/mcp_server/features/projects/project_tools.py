@@ -1,5 +1,5 @@
 """
-Consolidated project management tools for Archon MCP Server.
+Consolidated project management tools for Cortex MCP Server.
 
 Reduces the number of individual CRUD operations while maintaining full functionality.
 """

@@ -1,5 +1,5 @@
 """
-Source Linking Service Module for Archon
+Source Linking Service Module for Cortex
 
 This module provides centralized logic for managing project-source relationships,
 handling both technical and business source associations.
@@ -31,7 +31,7 @@ class SourceLinkingService:
         """
         try:
             response = (
-                self.supabase_client.table("archon_project_sources")
+                self.supabase_client.table("cortex_project_sources")
                 .select("source_id, notes")
                 .eq("project_id", project_id)
                 .execute()
@@ -81,14 +81,14 @@ class SourceLinkingService:
             # Update technical sources if provided
             if technical_sources is not None:
                 # Remove existing technical sources
-                self.supabase_client.table("archon_project_sources").delete().eq(
+                self.supabase_client.table("cortex_project_sources").delete().eq(
                     "project_id", project_id
                 ).eq("notes", "technical").execute()
 
                 # Add new technical sources
                 for source_id in technical_sources:
                     try:
-                        self.supabase_client.table("archon_project_sources").insert({
+                        self.supabase_client.table("cortex_project_sources").insert({
                             "project_id": project_id,
                             "source_id": source_id,
                             "notes": "technical",
@@ -101,14 +101,14 @@ class SourceLinkingService:
             # Update business sources if provided
             if business_sources is not None:
                 # Remove existing business sources
-                self.supabase_client.table("archon_project_sources").delete().eq(
+                self.supabase_client.table("cortex_project_sources").delete().eq(
                     "project_id", project_id
                 ).eq("notes", "business").execute()
 
                 # Add new business sources
                 for source_id in business_sources:
                     try:
-                        self.supabase_client.table("archon_project_sources").insert({
+                        self.supabase_client.table("cortex_project_sources").insert({
                             "project_id": project_id,
                             "source_id": source_id,
                             "notes": "business",

@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from src.server.config.version import ARCHON_VERSION
+from src.server.config.version import CORTEX_VERSION
 from src.server.main import app
 from src.server.services.migration_service import MigrationRecord, PendingMigration
 
@@ -71,7 +71,7 @@ def mock_migration_status(mock_applied_migrations, mock_pending_migrations):
         ],
         "has_pending": True,
         "bootstrap_required": False,
-        "current_version": ARCHON_VERSION,
+        "current_version": CORTEX_VERSION,
         "pending_count": 2,
         "applied_count": 2,
     }
@@ -86,7 +86,7 @@ def test_get_migration_status_success(client, mock_migration_status):
 
         assert response.status_code == 200
         data = response.json()
-        assert data["current_version"] == ARCHON_VERSION
+        assert data["current_version"] == CORTEX_VERSION
         assert data["has_pending"] is True
         assert data["bootstrap_required"] is False
         assert data["pending_count"] == 2
@@ -102,7 +102,7 @@ def test_get_migration_status_bootstrap_required(client):
         "applied_migrations": [],
         "has_pending": True,
         "bootstrap_required": True,
-        "current_version": ARCHON_VERSION,
+        "current_version": CORTEX_VERSION,
         "pending_count": 5,
         "applied_count": 0,
     }
@@ -139,7 +139,7 @@ def test_get_migration_history_success(client, mock_applied_migrations):
         assert response.status_code == 200
         data = response.json()
         assert data["total_count"] == 2
-        assert data["current_version"] == ARCHON_VERSION
+        assert data["current_version"] == CORTEX_VERSION
         assert len(data["migrations"]) == 2
         assert data["migrations"][0]["migration_name"] == "001_initial"
 

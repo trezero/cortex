@@ -19,7 +19,7 @@ from .indexer_service import IndexerService
 
 logger = get_logger(__name__)
 
-TABLE = "archon_materialization_history"
+TABLE = "cortex_materialization_history"
 
 
 class MaterializationService:
@@ -124,7 +124,7 @@ class MaterializationService:
 
         Args:
             topic: The knowledge topic to materialize.
-            project_id: Archon project ID.
+            project_id: Cortex project ID.
             project_path: Filesystem path to the project repository.
             progress_id: Optional progress tracker ID for status updates.
             agent_context: Optional context from the requesting agent.
@@ -202,7 +202,7 @@ class MaterializationService:
             source_urls = synthesized.source_urls or [s.url for s in source_map.values() if s.url]
             source_ids = list(source_map.keys())
             frontmatter = {
-                "archon_source": "vector_archive",
+                "cortex_source": "vector_archive",
                 "materialized_at": datetime.now(UTC).isoformat(),
                 "topic": topic,
                 "source_urls": source_urls,
@@ -218,7 +218,7 @@ class MaterializationService:
             await self.indexer.update_index(project_path)
 
             # Step 9: Finalize DB record (pending -> active)
-            file_path = f".archon/knowledge/{filename}"
+            file_path = f".cortex/knowledge/{filename}"
             now = datetime.now(UTC).isoformat()
             self.supabase.table(TABLE).update({
                 "filename": filename,

@@ -1,5 +1,5 @@
 """
-Tests for archon-scanner.py — the standalone local project scanner.
+Tests for cortex-scanner.py — the standalone local project scanner.
 
 Imports the script as a module using importlib so no package restructuring
 is required.
@@ -19,9 +19,9 @@ import pytest
 # ---------------------------------------------------------------------------
 
 _script_path = os.path.join(
-    os.path.dirname(__file__), "..", "src", "server", "static", "archon-scanner.py"
+    os.path.dirname(__file__), "..", "src", "server", "static", "cortex-scanner.py"
 )
-_spec = importlib.util.spec_from_file_location("archon_scanner", _script_path)
+_spec = importlib.util.spec_from_file_location("cortex_scanner", _script_path)
 scanner = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(scanner)
 
@@ -60,7 +60,7 @@ class TestScanEmpty:
             assert result["summary"]["total_found"] == 0
 
     def test_nonexistent_directory(self):
-        result = scanner.scan_directory("/tmp/__nonexistent_archon_test_dir__")
+        result = scanner.scan_directory("/tmp/__nonexistent_cortex_test_dir__")
         assert "error" in result
 
 
@@ -353,8 +353,8 @@ class TestApplyConfigs:
             "project_id": "test-project-id-123",
             "system_fingerprint": "test-fingerprint",
             "system_name": "test-machine",
-            "archon_api_url": "http://localhost:8181",
-            "archon_mcp_url": "http://localhost:8051",
+            "cortex_api_url": "http://localhost:8181",
+            "cortex_mcp_url": "http://localhost:8051",
         }
         entry.update(extra)
         return entry
@@ -370,16 +370,16 @@ class TestApplyConfigs:
             assert result["apply_summary"]["created"] == 1
             assert result["apply_summary"]["failed"] == 0
 
-            # archon-config.json
-            config_path = os.path.join(project_path, ".claude", "archon-config.json")
+            # cortex-config.json
+            config_path = os.path.join(project_path, ".claude", "cortex-config.json")
             assert os.path.isfile(config_path)
             with open(config_path) as f:
                 config = json.load(f)
             assert config["project_id"] == "test-project-id-123"
             assert config["installed_by"] == "scanner"
 
-            # archon-state.json
-            state_path = os.path.join(project_path, ".claude", "archon-state.json")
+            # cortex-state.json
+            state_path = os.path.join(project_path, ".claude", "cortex-state.json")
             assert os.path.isfile(state_path)
             with open(state_path) as f:
                 state = json.load(f)
@@ -418,8 +418,8 @@ class TestApplyConfigs:
             # Original entries must be preserved
             assert "*.pyc" in content
             assert "__pycache__/" in content
-            # Archon block must be added
-            assert "# Archon" in content
+            # Cortex block must be added
+            assert "# Cortex" in content
 
     def test_gitignore_idempotent(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -436,8 +436,8 @@ class TestApplyConfigs:
             with open(gitignore_path) as f:
                 content = f.read()
 
-            # Only one "# Archon" block should exist
-            assert content.count("# Archon") == 1
+            # Only one "# Cortex" block should exist
+            assert content.count("# Cortex") == 1
 
     def test_gitignore_no_trailing_newline(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -455,10 +455,10 @@ class TestApplyConfigs:
             with open(gitignore_path) as f:
                 content = f.read()
 
-            # "*.log" must remain intact (not corrupted by the Archon block)
+            # "*.log" must remain intact (not corrupted by the Cortex block)
             assert "*.log" in content
-            assert "# Archon" in content
-            # The original entry must be on its own line, not merged with # Archon
+            assert "# Cortex" in content
+            # The original entry must be on its own line, not merged with # Cortex
             lines = content.splitlines()
             log_line = next((l for l in lines if "*.log" in l), None)
             assert log_line is not None
@@ -479,9 +479,9 @@ class TestApplyConfigs:
             with open(gitignore_path) as f:
                 content = f.read()
 
-            # Should not produce a double blank line between existing content and Archon block
+            # Should not produce a double blank line between existing content and Cortex block
             assert "\n\n\n" not in content
-            assert "# Archon" in content
+            assert "# Cortex" in content
 
     def test_nonexistent_path_fails_gracefully(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -512,7 +512,7 @@ class TestApplyConfigs:
 
             # Config files should still be written
             assert result["apply_summary"]["created"] == 1
-            config_path = os.path.join(project_path, ".claude", "archon-config.json")
+            config_path = os.path.join(project_path, ".claude", "cortex-config.json")
             assert os.path.isfile(config_path)
 
     def test_extracts_extensions_tarball(self):

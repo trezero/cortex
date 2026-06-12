@@ -1,5 +1,5 @@
 """
-Simple feature management tools for Archon MCP Server.
+Simple feature management tools for Cortex MCP Server.
 
 Provides tools to retrieve and manage project features.
 """

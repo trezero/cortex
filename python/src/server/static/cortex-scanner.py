@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 """
-archon-scanner.py — Archon Local Project Scanner
+cortex-scanner.py — Cortex Local Project Scanner
 
 Usage:
-    python3 archon-scanner.py --scan <directory>
+    python3 cortex-scanner.py --scan <directory>
         Scan a directory for Git repositories and output JSON to stdout.
 
-    python3 archon-scanner.py --scan <directory> --apply
+    python3 cortex-scanner.py --scan <directory> --apply
         Scan and apply configuration to discovered projects.
 
-    python3 archon-scanner.py --payload-file <path>
+    python3 cortex-scanner.py --payload-file <path>
         Apply configuration from a pre-generated payload JSON file.
 
-    python3 archon-scanner.py --extensions-tarball <path>
+    python3 cortex-scanner.py --extensions-tarball <path>
         Install extensions from a tarball.
 
-    python3 archon-scanner.py --version
+    python3 cortex-scanner.py --version
         Print scanner version.
 
 This script runs on the user's machine (NOT inside Docker). It uses Python
@@ -27,7 +27,7 @@ import sys
 if sys.version_info < (3, 10):
     print(
         f"WARNING: Python {sys.version_info.major}.{sys.version_info.minor} detected. "
-        "Python 3.10+ is recommended for the Archon scanner.\n"
+        "Python 3.10+ is recommended for the Cortex scanner.\n"
         "Install Python 3.10: https://www.python.org/downloads/",
         file=sys.stderr,
     )
@@ -90,10 +90,10 @@ DEPENDENCY_EXTRACTORS = {
 README_EXCERPT_LENGTH = 5000
 
 GITIGNORE_ENTRIES = [
-    "# Archon", ".claude/plugins/", ".claude/skills/",
-    ".claude/archon-config.json", ".claude/archon-state.json",
-    ".claude/archon-memory-buffer.jsonl", ".claude/settings.local.json",
-    ".mcp.json", ".archon/",
+    "# Cortex", ".claude/plugins/", ".claude/skills/",
+    ".claude/cortex-config.json", ".claude/cortex-state.json",
+    ".claude/cortex-memory-buffer.jsonl", ".claude/settings.local.json",
+    ".mcp.json", ".cortex/",
 ]
 
 
@@ -751,7 +751,7 @@ def _compute_file_hash(path: str) -> str:
 
 def _write_config_files(proj: dict, extensions_hash: str | None) -> None:
     """
-    Write .claude/archon-config.json and .claude/archon-state.json into the project directory.
+    Write .claude/cortex-config.json and .claude/cortex-state.json into the project directory.
 
     Creates .claude/ if it does not exist.
     """
@@ -765,9 +765,9 @@ def _write_config_files(proj: dict, extensions_hash: str | None) -> None:
     now_iso = datetime.now(timezone.utc).isoformat()
     project_title = proj.get("project_title") or os.path.basename(project_path)
 
-    archon_config = {
-        "archon_api_url": proj.get("archon_api_url", ""),
-        "archon_mcp_url": proj.get("archon_mcp_url", ""),
+    cortex_config = {
+        "cortex_api_url": proj.get("cortex_api_url", ""),
+        "cortex_mcp_url": proj.get("cortex_mcp_url", ""),
         "project_id": project_id,
         "project_title": project_title,
         "machine_id": machine_id,
@@ -776,31 +776,31 @@ def _write_config_files(proj: dict, extensions_hash: str | None) -> None:
         "installed_by": "scanner",
     }
     if extensions_hash:
-        archon_config["extensions_hash"] = extensions_hash
-        archon_config["extensions_installed_at"] = now_iso
+        cortex_config["extensions_hash"] = extensions_hash
+        cortex_config["extensions_installed_at"] = now_iso
 
-    config_path = os.path.join(claude_dir, "archon-config.json")
+    config_path = os.path.join(claude_dir, "cortex-config.json")
     with open(config_path, "w", encoding="utf-8") as f:
-        json.dump(archon_config, f, indent=4)
+        json.dump(cortex_config, f, indent=4)
 
-    archon_state: dict = {
+    cortex_state: dict = {
         "system_fingerprint": system_fingerprint,
         "system_name": proj.get("system_name", ""),
-        "archon_project_id": project_id,
+        "cortex_project_id": project_id,
     }
     system_id = proj.get("system_id")
     if system_id:
-        archon_state["system_id"] = system_id
+        cortex_state["system_id"] = system_id
 
-    state_path = os.path.join(claude_dir, "archon-state.json")
+    state_path = os.path.join(claude_dir, "cortex-state.json")
     with open(state_path, "w", encoding="utf-8") as f:
-        json.dump(archon_state, f, indent=4)
+        json.dump(cortex_state, f, indent=4)
 
 
 def _write_mcp_json(project_path: str, mcp_url: str) -> None:
-    """Write .mcp.json with the Archon MCP server configuration.
+    """Write .mcp.json with the Cortex MCP server configuration.
 
-    This enables Claude Code to connect to the Archon MCP server when
+    This enables Claude Code to connect to the Cortex MCP server when
     opening the project, matching what `claude mcp add --transport http`
     would produce.
     """
@@ -816,7 +816,7 @@ def _write_mcp_json(project_path: str, mcp_url: str) -> None:
             existing = {}
 
     servers = existing.setdefault("mcpServers", {})
-    servers["archon"] = {
+    servers["cortex"] = {
         "type": "http",
         "url": f"{mcp_url}/mcp",
     }
@@ -827,7 +827,7 @@ def _write_mcp_json(project_path: str, mcp_url: str) -> None:
 
 
 def _write_settings_local(project_path: str) -> None:
-    """Write .claude/settings.local.json with the Archon observation hook."""
+    """Write .claude/settings.local.json with the Cortex observation hook."""
     claude_dir = os.path.join(project_path, ".claude")
     os.makedirs(claude_dir, exist_ok=True)
 
@@ -839,7 +839,7 @@ def _write_settings_local(project_path: str) -> None:
                     "hooks": [
                         {
                             "type": "command",
-                            "command": 'test -f "$HOME/.claude/plugins/archon-memory/scripts/observation_hook.py" && "$HOME/.claude/plugins/archon-memory/.venv/bin/python" "$HOME/.claude/plugins/archon-memory/scripts/observation_hook.py" || true',
+                            "command": 'test -f "$HOME/.claude/plugins/cortex-memory/scripts/observation_hook.py" && "$HOME/.claude/plugins/cortex-memory/.venv/bin/python" "$HOME/.claude/plugins/cortex-memory/scripts/observation_hook.py" || true',
                         }
                     ],
                 }
@@ -854,9 +854,9 @@ def _write_settings_local(project_path: str) -> None:
 
 def _update_gitignore(project_path: str) -> None:
     """
-    Append Archon entries to .gitignore if not already present.
+    Append Cortex entries to .gitignore if not already present.
 
-    Idempotent: skips if '# Archon' is already in the file.
+    Idempotent: skips if '# Cortex' is already in the file.
     Ensures existing last line is not corrupted by prepending a newline when needed.
     """
     gitignore_path = os.path.join(project_path, ".gitignore")
@@ -867,7 +867,7 @@ def _update_gitignore(project_path: str) -> None:
             existing_content = f.read()
 
     # Idempotency check
-    if "# Archon" in existing_content:
+    if "# Cortex" in existing_content:
         return
 
     entries_block = "\n".join(GITIGNORE_ENTRIES) + "\n"
@@ -902,7 +902,7 @@ def _install_extensions(project_path: str, tarball_path: str) -> None:
 
 def apply_configs(payload: dict, extensions_tarball: str | None = None) -> dict:
     """
-    Apply Archon configuration to projects listed in payload.
+    Apply Cortex configuration to projects listed in payload.
 
     Writes config files, settings.local.json, updates .gitignore, and optionally
     installs extensions from a tarball into each project directory.
@@ -938,8 +938,8 @@ def apply_configs(payload: dict, extensions_tarball: str | None = None) -> dict:
             _write_config_files(proj, extensions_hash)
             _write_settings_local(project_path)
 
-            # Write .mcp.json so Claude Code auto-connects to Archon MCP
-            mcp_url = proj.get("archon_mcp_url", "")
+            # Write .mcp.json so Claude Code auto-connects to Cortex MCP
+            mcp_url = proj.get("cortex_mcp_url", "")
             if mcp_url:
                 _write_mcp_json(project_path, mcp_url)
 
@@ -980,7 +980,7 @@ def apply_configs(payload: dict, extensions_tarball: str | None = None) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Archon Local Project Scanner",
+        description="Cortex Local Project Scanner",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -994,7 +994,7 @@ def main() -> None:
         "--apply",
         action="store_true",
         default=False,
-        help="After scanning, apply Archon configuration to discovered projects.",
+        help="After scanning, apply Cortex configuration to discovered projects.",
     )
     parser.add_argument(
         "--payload-file",
@@ -1004,12 +1004,12 @@ def main() -> None:
     parser.add_argument(
         "--extensions-tarball",
         metavar="PATH",
-        help="Install Archon extensions from a tarball.",
+        help="Install Cortex extensions from a tarball.",
     )
     parser.add_argument(
         "--version",
         action="version",
-        version=f"archon-scanner {SCANNER_VERSION}",
+        version=f"cortex-scanner {SCANNER_VERSION}",
     )
 
     args = parser.parse_args()

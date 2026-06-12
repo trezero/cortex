@@ -1,4 +1,4 @@
-"""Session memory API endpoints for Archon.
+"""Session memory API endpoints for Cortex.
 
 Handles:
 - Session creation (batch: session row + observations)

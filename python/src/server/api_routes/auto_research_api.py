@@ -1,4 +1,4 @@
-"""Auto-research API endpoints for Archon.
+"""Auto-research API endpoints for Cortex.
 
 Handles:
 - Listing available eval suites

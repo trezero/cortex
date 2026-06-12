@@ -1,5 +1,5 @@
 """
-Base Agent class for all PydanticAI agents in the Archon system.
+Base Agent class for all PydanticAI agents in the Cortex system.
 
 This provides common functionality and dependency injection for all agents.
 """
@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ArchonDependencies:
-    """Base dependencies for all Archon agents."""
+class CortexDependencies:
+    """Base dependencies for all Cortex agents."""
 
     request_id: str | None = None
     user_id: str | None = None
@@ -27,7 +27,7 @@ class ArchonDependencies:
 
 
 # Type variables for generic agent typing
-DepsT = TypeVar("DepsT", bound=ArchonDependencies)
+DepsT = TypeVar("DepsT", bound=CortexDependencies)
 OutputT = TypeVar("OutputT")
 
 
@@ -140,7 +140,7 @@ class RateLimitHandler:
 
 class BaseAgent(ABC, Generic[DepsT, OutputT]):
     """
-    Base class for all PydanticAI agents in the Archon system.
+    Base class for all PydanticAI agents in the Cortex system.
 
     Provides common functionality like:
     - Error handling and retries

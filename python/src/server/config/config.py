@@ -42,7 +42,7 @@ class RAGStrategyConfig:
 class MCPMonitoringConfig:
     """Configuration for MCP server monitoring strategy.
 
-    Controls how archon-server monitors MCP server status - via HTTP health checks
+    Controls how cortex-server monitors MCP server status - via HTTP health checks
     (secure, default) or Docker socket (legacy, security risk).
 
     Attributes:
@@ -217,10 +217,10 @@ def load_environment_config() -> EnvironmentConfig:
     port_str = os.getenv("PORT")
     if not port_str:
         # This appears to be for MCP configuration based on default 8051
-        port_str = os.getenv("ARCHON_MCP_PORT")
+        port_str = os.getenv("CORTEX_MCP_PORT")
         if not port_str:
             raise ConfigurationError(
-                "PORT or ARCHON_MCP_PORT environment variable is required. "
+                "PORT or CORTEX_MCP_PORT environment variable is required. "
                 "Please set it in your .env file or environment. "
                 "Default value: 8051"
             )

@@ -18,7 +18,7 @@ def _make_record(**overrides) -> MaterializationRecord:
         "project_path": "/tmp/proj",
         "topic": "auth patterns",
         "filename": "auth-patterns.md",
-        "file_path": ".archon/knowledge/auth-patterns.md",
+        "file_path": ".cortex/knowledge/auth-patterns.md",
         "source_ids": ["src-1"],
         "original_urls": ["https://example.com"],
         "synthesis_model": "gpt-4o-mini",
@@ -44,7 +44,7 @@ def test_execute_materialization_success():
         instance.materialize = AsyncMock(
             return_value=MaterializationResult(
                 success=True,
-                file_path=".archon/knowledge/auth-patterns.md",
+                file_path=".cortex/knowledge/auth-patterns.md",
                 filename="auth-patterns.md",
                 word_count=500,
                 summary="Auth overview",

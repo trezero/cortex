@@ -469,8 +469,8 @@ async def test_manage_extensions_bootstrap_basic(registered_tools, mock_context)
     mock_extensions_response.status_code = 200
     mock_extensions_response.json.return_value = {
         "extensions": [
-            {"name": "archon-memory", "display_name": "Archon Memory"},
-            {"name": "archon-bootstrap", "display_name": "Archon Bootstrap"},
+            {"name": "cortex-memory", "display_name": "Cortex Memory"},
+            {"name": "cortex-bootstrap", "display_name": "Cortex Bootstrap"},
         ]
     }
 
@@ -499,7 +499,7 @@ async def test_manage_extensions_bootstrap_basic(registered_tools, mock_context)
         data = json.loads(result)
         assert data["success"] is True
         assert len(data["extensions"]) == 2
-        assert data["extensions"][0]["name"] == "archon-memory"
+        assert data["extensions"][0]["name"] == "cortex-memory"
         assert "content" not in data["extensions"][0], "Bootstrap should not return extension content"
         assert data["system"]["id"] == "sys-1"
         assert data["system"]["is_new"] is True
@@ -514,7 +514,7 @@ async def test_manage_extensions_bootstrap_no_project(registered_tools, mock_con
     mock_extensions_response = MagicMock()
     mock_extensions_response.status_code = 200
     mock_extensions_response.json.return_value = {
-        "extensions": [{"name": "archon-memory", "display_name": "Archon Memory"}]
+        "extensions": [{"name": "cortex-memory", "display_name": "Cortex Memory"}]
     }
 
     with patch("src.mcp_server.features.extensions.extension_tools.httpx.AsyncClient") as mock_client:

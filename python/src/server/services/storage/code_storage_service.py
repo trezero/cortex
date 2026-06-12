@@ -1164,7 +1164,7 @@ async def add_code_examples_to_supabase(
     unique_urls = list(set(urls))
     for url in unique_urls:
         try:
-            client.table("archon_code_examples").delete().eq("url", url).execute()
+            client.table("cortex_code_examples").delete().eq("url", url).execute()
         except Exception as e:
             search_logger.error(f"Error deleting existing code examples for {url}: {e}")
 
@@ -1345,7 +1345,7 @@ async def add_code_examples_to_supabase(
 
         for retry in range(max_retries):
             try:
-                client.table("archon_code_examples").insert(batch_data).execute()
+                client.table("cortex_code_examples").insert(batch_data).execute()
                 # Success - break out of retry loop
                 break
             except Exception as e:
@@ -1364,7 +1364,7 @@ async def add_code_examples_to_supabase(
                     successful_inserts = 0
                     for record in batch_data:
                         try:
-                            client.table("archon_code_examples").insert(record).execute()
+                            client.table("cortex_code_examples").insert(record).execute()
                             successful_inserts += 1
                         except Exception as individual_error:
                             search_logger.error(

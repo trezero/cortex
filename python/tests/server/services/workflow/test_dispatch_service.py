@@ -73,9 +73,9 @@ class TestDispatchToBackend:
                 backend=backend,
                 node_id_map={"step-one": "n1", "step-two": "n2"},
                 trigger_context={"user_request": "test"},
-                callback_url="http://archon:8181/api/workflows",
+                callback_url="http://cortex:8181/api/workflows",
             )
             assert success is True
             mock_client.post.assert_called_once()
             call_url = mock_client.post.call_args[0][0]
-            assert "archon/workflows/execute" in call_url
+            assert "cortex/workflows/execute" in call_url

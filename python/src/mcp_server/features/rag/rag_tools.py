@@ -1,5 +1,5 @@
 """
-RAG Module for Archon MCP Server (HTTP-based version)
+RAG Module for Cortex MCP Server (HTTP-based version)
 
 This module provides tools for:
 - RAG query and search
@@ -406,7 +406,7 @@ def register_rag_tools(mcp: FastMCP):
                 Each document must have "title" and "content". "path" is optional.
             url: URL to crawl (required for add with source_type="url")
             tags: Tags for categorization, e.g. ["project-name", "docs"]
-            project_id: Associate source with an Archon project for scoped searches
+            project_id: Associate source with an Cortex project for scoped searches
             knowledge_type: Classification (default: "technical")
             extract_code_examples: Extract and index code blocks (default: true)
             source_id: Source ID for append/sync/delete (from rag_get_available_sources)

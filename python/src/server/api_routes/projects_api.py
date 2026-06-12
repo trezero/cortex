@@ -1,5 +1,5 @@
 """
-Projects API endpoints for Archon
+Projects API endpoints for Cortex
 
 Handles:
 - Project management (CRUD operations)
@@ -82,7 +82,7 @@ class CreateTaskRequest(BaseModel):
     title: str = Field(..., description="Task title")
     description: str | None = Field(None, description="Optional task description")
     status: str | None = Field("todo", description="Initial task status (todo, doing, review, done)")
-    assignee: str | None = Field("User", description="Task assignee (User, Archon, AI IDE Agent)")
+    assignee: str | None = Field("User", description="Task assignee (User, Cortex, AI IDE Agent)")
     task_order: int | None = Field(0, description="Sort order within the task list")
     priority: str | None = Field("medium", description="Task priority (low, medium, high)")
     feature: str | None = Field(None, description="Feature tag for grouping tasks")

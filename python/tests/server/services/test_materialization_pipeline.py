@@ -45,7 +45,7 @@ EXISTING_RECORD = MaterializationRecord(
     project_path="/home/user/project",
     topic="React hooks",
     filename="react-hooks.md",
-    file_path=".archon/knowledge/react-hooks.md",
+    file_path=".cortex/knowledge/react-hooks.md",
     source_ids=["src-1"],
     original_urls=["https://react.dev/hooks"],
     synthesis_model="openai:gpt-4.1-nano",
@@ -220,7 +220,7 @@ async def test_materialize_full_pipeline_success(service, mock_supabase):
         )
 
     assert result.success is True
-    assert result.file_path == ".archon/knowledge/test-topic.md"
+    assert result.file_path == ".cortex/knowledge/test-topic.md"
     assert result.filename == "test-topic.md"
     assert result.word_count == 250
     assert result.summary == "A summary of the topic."
@@ -231,7 +231,7 @@ async def test_materialize_full_pipeline_success(service, mock_supabase):
     mock_indexer.update_index.assert_awaited_once_with("/home/user/project")
 
     # Verify the finalize update was called on the table
-    mock_supabase.table.assert_called_with("archon_materialization_history")
+    mock_supabase.table.assert_called_with("cortex_materialization_history")
     table_builder.update.assert_called_once()
     update_payload = table_builder.update.call_args[0][0]
     assert update_payload["status"] == "active"

@@ -22,13 +22,13 @@ ENV PYTHONPATH="/app:$PYTHONPATH"
 ENV PYTHONUNBUFFERED=1
 
 # Expose Agents port
-ARG ARCHON_AGENTS_PORT=8052
-ENV ARCHON_AGENTS_PORT=${ARCHON_AGENTS_PORT}
-EXPOSE ${ARCHON_AGENTS_PORT}
+ARG CORTEX_AGENTS_PORT=8052
+ENV CORTEX_AGENTS_PORT=${CORTEX_AGENTS_PORT}
+EXPOSE ${CORTEX_AGENTS_PORT}
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD sh -c "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:${ARCHON_AGENTS_PORT}/health')\""
+    CMD sh -c "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:${CORTEX_AGENTS_PORT}/health')\""
 
 # Run the Agents service
-CMD sh -c "python -m uvicorn src.agents.server:app --host 0.0.0.0 --port ${ARCHON_AGENTS_PORT}"
+CMD sh -c "python -m uvicorn src.agents.server:app --host 0.0.0.0 --port ${CORTEX_AGENTS_PORT}"

@@ -70,9 +70,9 @@ async def tool_get_session_history(query: str | None = None) -> str:
     """Search recent session history across machines."""
     client = await get_mcp_client()
     if query:
-        result = await client.call_tool("archon_search_sessions", query=query)
+        result = await client.call_tool("cortex_search_sessions", query=query)
     else:
-        result = await client.call_tool("archon_search_sessions")
+        result = await client.call_tool("cortex_search_sessions")
     return _to_json(result)
 
 
@@ -106,7 +106,7 @@ async def tool_get_prioritization_context() -> str:
     client = await get_mcp_client()
 
     projects_result = await client.call_tool("find_projects")
-    sessions_result = await client.call_tool("archon_search_sessions")
+    sessions_result = await client.call_tool("cortex_search_sessions")
 
     # Fetch in-progress and todo tasks for urgency context
     doing_tasks = await client.call_tool("find_tasks", filter_by="status", filter_value="doing")
