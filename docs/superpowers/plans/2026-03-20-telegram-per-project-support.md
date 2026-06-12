@@ -301,7 +301,7 @@ In the `pair <code>` section, update step 7 — both the `mkdir` and the file wr
 - [ ] **Step 3: Update status display**
 
 In the "No args — status" section, add:
-- Show active mode: "Per-project: archon" or "Global"
+- Show active mode: "Per-project: cortex" or "Global"
 - Show state dir path
 
 - [ ] **Step 4: Commit**
@@ -432,7 +432,7 @@ git commit -m "docs: add per-project bot setup guide to README"
 
 - [ ] **Step 3: Test two projects simultaneously**
 
-1. Open Terminal 1: `cd ~/projects/Trinity/archon && claude --channels plugin:telegram@claude-plugins-official`
+1. Open Terminal 1: `cd ~/projects/Trinity/cortex && claude --channels plugin:telegram@claude-plugins-official`
 2. Open Terminal 2: a different project with a different bot token configured
 3. DM each bot and verify messages route to the correct session
 

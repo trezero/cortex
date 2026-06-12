@@ -2,12 +2,12 @@
 
 ## User Persona
 
-**Alex** is a developer who manages multiple GitHub repositories and wants to use Archon's
+**Alex** is a developer who manages multiple GitHub repositories and wants to use Cortex's
 Agent Work Orders feature to automate development workflows — creating branches, writing
 implementation plans, executing code changes, and opening pull requests — all driven by
 Claude Code CLI running inside an isolated sandbox.
 
-Alex works on a single machine (**WIN-AI-PC** running WSL2) with Archon deployed locally.
+Alex works on a single machine (**WIN-AI-PC** running WSL2) with Cortex deployed locally.
 
 ---
 
@@ -26,7 +26,7 @@ This journey tests every layer of the Agent Work Orders feature across four phas
 
 ## Prerequisites
 
-- Archon stack running: `docker compose up -d` (server, MCP, frontend)
+- Cortex stack running: `docker compose up -d` (server, MCP, frontend)
 - Agent Work Orders service running: `docker compose --profile work-orders up -d`
   or `COMPOSE_PROFILES=work-orders` set in `.env` (recommended)
 - Environment variables configured in `.env`:
@@ -36,7 +36,7 @@ This journey tests every layer of the Agent Work Orders feature across four phas
 - A **test GitHub repository** you own (e.g., `https://github.com/youruser/test-repo`)
   with at least one commit on `main`. The repo should be expendable — work orders will
   create branches, commits, and PRs against it.
-- Agent Work Orders feature enabled in Archon UI (Settings > Features)
+- Agent Work Orders feature enabled in Cortex UI (Settings > Features)
 - Browser open to `http://localhost:3737`
 
 ---
@@ -46,7 +46,7 @@ This journey tests every layer of the Agent Work Orders feature across four phas
 ### 1.1 Verify Container is Running
 
 ```bash
-docker compose ps archon-agent-work-orders
+docker compose ps cortex-agent-work-orders
 ```
 
 | Check | Expected | P/F | Notes |
@@ -68,8 +68,8 @@ curl -s http://localhost:8053/health | python3 -m json.tool
 | `dependencies.git.available` | `true` | | |
 | `dependencies.github_cli.authenticated` | `true` | | |
 | `dependencies.supabase.connected` | `true` | | |
-| `dependencies.archon_server.reachable` | `true` | | |
-| `dependencies.archon_mcp.reachable` | `true` | | |
+| `dependencies.cortex_server.reachable` | `true` | | |
+| `dependencies.cortex_mcp.reachable` | `true` | | |
 
 ### 1.3 Health Check — Via Main Server Proxy
 
@@ -88,17 +88,17 @@ Temporarily set an invalid `ANTHROPIC_API_KEY` or stop the MCP container to veri
 degraded reporting.
 
 ```bash
-docker compose stop archon-mcp
+docker compose stop cortex-mcp
 curl -s http://localhost:8053/health | python3 -m json.tool
 ```
 
 | Check | Expected | P/F | Notes |
 |-------|----------|-----|-------|
 | `status` | `"degraded"` | | |
-| `dependencies.archon_mcp.reachable` | `false` | | |
+| `dependencies.cortex_mcp.reachable` | `false` | | |
 | Service stays running | Container does not crash | | |
 
-**Cleanup:** `docker compose start archon-mcp` — wait for it to become healthy.
+**Cleanup:** `docker compose start cortex-mcp` — wait for it to become healthy.
 
 ### 1.5 Feature Toggle in UI
 
@@ -216,7 +216,7 @@ curl -s http://localhost:8053/api/agent-work-orders/repositories | python3 -m js
 
 | Check | Expected | P/F | Notes |
 |-------|----------|-----|-------|
-| Data persisted to `archon_configured_repositories` | Repository data matches what UI shows | | |
+| Data persisted to `cortex_configured_repositories` | Repository data matches what UI shows | | |
 
 ---
 
@@ -588,7 +588,7 @@ Create two work orders in quick succession (planning-only for speed):
 ### 4.10 Service Restart Resilience
 
 ```bash
-docker compose restart archon-agent-work-orders
+docker compose restart cortex-agent-work-orders
 sleep 10
 curl -s http://localhost:8053/health | python3 -m json.tool
 ```
@@ -691,7 +691,7 @@ curl -s http://localhost:8181/api/agent-work-orders/{work_order_id} | python3 -m
 ### 6.2 Proxy Behavior When Service is Down
 
 ```bash
-docker compose stop archon-agent-work-orders
+docker compose stop cortex-agent-work-orders
 curl -s http://localhost:8181/api/agent-work-orders/ | python3 -m json.tool
 ```
 
@@ -699,9 +699,9 @@ curl -s http://localhost:8181/api/agent-work-orders/ | python3 -m json.tool
 |-------|----------|-----|-------|
 | 503 returned | Service unavailable error | | |
 | Error message descriptive | Indicates agent work orders service is unreachable | | |
-| Main server unaffected | Other Archon endpoints still work | | |
+| Main server unaffected | Other Cortex endpoints still work | | |
 
-**Cleanup:** `docker compose start archon-agent-work-orders`
+**Cleanup:** `docker compose start cortex-agent-work-orders`
 
 ---
 

@@ -5,23 +5,23 @@
 
 ## Overview
 
-A system for managing Claude Code skills across machines and projects through Archon. Skills originate locally from users, sync up to a central Archon registry, and can be distributed to other systems via a pull model. The Archon UI gains a "Skills" tab in the project view showing registered systems and their skill states, with the ability to queue installs remotely.
+A system for managing Claude Code skills across machines and projects through Cortex. Skills originate locally from users, sync up to a central Cortex registry, and can be distributed to other systems via a pull model. The Cortex UI gains a "Skills" tab in the project view showing registered systems and their skill states, with the ability to queue installs remotely.
 
 ## Goals
 
-1. **Centralize skill distribution** — Archon becomes the canonical registry for skills across all connected systems
-2. **Detect drift** — On startup, compare local skills against Archon and surface conflicts with clear resolution options
-3. **Enable remote management** — From the Archon UI, queue skill installs/removals that systems pick up on next sync
-4. **Build the library organically** — Users create skills locally; uploading to Archon grows the shared library
+1. **Centralize skill distribution** — Cortex becomes the canonical registry for skills across all connected systems
+2. **Detect drift** — On startup, compare local skills against Cortex and surface conflicts with clear resolution options
+3. **Enable remote management** — From the Cortex UI, queue skill installs/removals that systems pick up on next sync
+4. **Build the library organically** — Users create skills locally; uploading to Cortex grows the shared library
 5. **Validate quality** — Skills pass a cleanup/validation process before being distributed
 
 ## Key Design Decisions
 
-- **Pull model** — Systems check for pending actions on sync rather than Archon pushing to clients
+- **Pull model** — Systems check for pending actions on sync rather than Cortex pushing to clients
 - **Machine fingerprint** — Systems identified by SHA256(hostname | username | OS) rather than MAC address; more portable
 - **Claude Code SKILL.md format** — All skills are standard SKILL.md files with YAML frontmatter
-- **Lazy sync trigger** — Every Archon skill checks sync freshness in Phase 0; if stale (>24h), runs sync first
-- **Skills originate locally** — Users create skills in their projects; Archon is the registry they sync up to, not just down from
+- **Lazy sync trigger** — Every Cortex skill checks sync freshness in Phase 0; if stale (>24h), runs sync first
+- **Skills originate locally** — Users create skills in their projects; Cortex is the registry they sync up to, not just down from
 - **Full DB registry (Approach A)** — Skill content + metadata stored in database for maximum flexibility
 
 ## Architecture
@@ -29,10 +29,10 @@ A system for managing Claude Code skills across machines and projects through Ar
 ### Approach Chosen: Full DB Registry
 
 Skills content and metadata live in the database. This supports:
-- Distributing skills to systems that don't have the Archon repo cloned
+- Distributing skills to systems that don't have the Cortex repo cloned
 - Version history with rollback capability
 - Project-specific overrides without forking the canonical skill
-- Future custom skills upload via Archon UI
+- Future custom skills upload via Cortex UI
 
 Alternatives considered:
 - **File-based registry** — Skills only in git, DB tracks assignments. Simpler but can't serve skills without repo access.
@@ -42,13 +42,13 @@ Alternatives considered:
 
 ## Database Schema
 
-### `archon_skills` — Central skill registry
+### `cortex_skills` — Central skill registry
 
 ```sql
-CREATE TABLE archon_skills (
+CREATE TABLE cortex_skills (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL UNIQUE,           -- Kebab-case from SKILL.md frontmatter (e.g. "archon-memory")
-  display_name TEXT NOT NULL,          -- Human-friendly (e.g. "Archon Memory")
+  name TEXT NOT NULL UNIQUE,           -- Kebab-case from SKILL.md frontmatter (e.g. "cortex-memory")
+  display_name TEXT NOT NULL,          -- Human-friendly (e.g. "Cortex Memory")
   description TEXT DEFAULT '',         -- From frontmatter description field
   content TEXT NOT NULL,               -- Full SKILL.md content
   content_hash TEXT NOT NULL,          -- SHA256 of content for drift detection
@@ -56,35 +56,35 @@ CREATE TABLE archon_skills (
   is_required BOOLEAN DEFAULT false,   -- Required skills auto-install on system registration
   is_validated BOOLEAN DEFAULT false,  -- Passed cleanup/validation process
   tags TEXT[] DEFAULT '{}',
-  created_by_system_id UUID REFERENCES archon_systems(id),
+  created_by_system_id UUID REFERENCES cortex_systems(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 
-### `archon_skill_versions` — Version history
+### `cortex_skill_versions` — Version history
 
 ```sql
-CREATE TABLE archon_skill_versions (
+CREATE TABLE cortex_skill_versions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  skill_id UUID NOT NULL REFERENCES archon_skills(id) ON DELETE CASCADE,
+  skill_id UUID NOT NULL REFERENCES cortex_skills(id) ON DELETE CASCADE,
   version INTEGER NOT NULL,
   content TEXT NOT NULL,
   content_hash TEXT NOT NULL,
   change_summary TEXT,
-  created_by_system_id UUID REFERENCES archon_systems(id),
+  created_by_system_id UUID REFERENCES cortex_systems(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(skill_id, version)
 );
 ```
 
-### `archon_project_skills` — Project-specific overrides
+### `cortex_project_skills` — Project-specific overrides
 
 ```sql
-CREATE TABLE archon_project_skills (
+CREATE TABLE cortex_project_skills (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID NOT NULL REFERENCES archon_projects(id) ON DELETE CASCADE,
-  skill_id UUID NOT NULL REFERENCES archon_skills(id) ON DELETE CASCADE,
+  project_id UUID NOT NULL REFERENCES cortex_projects(id) ON DELETE CASCADE,
+  skill_id UUID NOT NULL REFERENCES cortex_skills(id) ON DELETE CASCADE,
   content_override TEXT,               -- NULL = use canonical; non-null = project variant
   content_hash TEXT,                   -- Hash of override content
   override_version INTEGER DEFAULT 1,
@@ -94,10 +94,10 @@ CREATE TABLE archon_project_skills (
 );
 ```
 
-### `archon_systems` — Registered machines
+### `cortex_systems` — Registered machines
 
 ```sql
-CREATE TABLE archon_systems (
+CREATE TABLE cortex_systems (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   fingerprint TEXT NOT NULL UNIQUE,    -- SHA256(hostname | username | os)
   name TEXT NOT NULL,                  -- User-provided friendly name
@@ -108,14 +108,14 @@ CREATE TABLE archon_systems (
 );
 ```
 
-### `archon_system_skills` — What's installed where
+### `cortex_system_skills` — What's installed where
 
 ```sql
-CREATE TABLE archon_system_skills (
+CREATE TABLE cortex_system_skills (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  system_id UUID NOT NULL REFERENCES archon_systems(id) ON DELETE CASCADE,
-  skill_id UUID NOT NULL REFERENCES archon_skills(id) ON DELETE CASCADE,
-  project_id UUID NOT NULL REFERENCES archon_projects(id) ON DELETE CASCADE,
+  system_id UUID NOT NULL REFERENCES cortex_systems(id) ON DELETE CASCADE,
+  skill_id UUID NOT NULL REFERENCES cortex_skills(id) ON DELETE CASCADE,
+  project_id UUID NOT NULL REFERENCES cortex_projects(id) ON DELETE CASCADE,
   status TEXT NOT NULL DEFAULT 'pending_install',  -- pending_install | installed | pending_remove | removed
   installed_content_hash TEXT,          -- Hash of what's actually on disk
   installed_version INTEGER,
@@ -128,9 +128,9 @@ CREATE TABLE archon_system_skills (
 ### Schema design notes
 
 - `content_hash` on every content-bearing table enables drift detection by comparing local file hash vs DB hash
-- `archon_skill_versions` preserves full history so updates never destroy previous content
-- `archon_project_skills.content_override` allows project-specific variants without forking the canonical skill
-- `has_local_changes` flags when sync detects a local modification that doesn't match Archon
+- `cortex_skill_versions` preserves full history so updates never destroy previous content
+- `cortex_project_skills.content_override` allows project-specific variants without forking the canonical skill
+- `has_local_changes` flags when sync detects a local modification that doesn't match Cortex
 - `is_validated` tracks whether a skill has passed the cleanup process
 - `created_by_system_id` provides attribution for who contributed the skill
 
@@ -140,10 +140,10 @@ CREATE TABLE archon_system_skills (
 
 ### Trigger: Lazy sync in Phase 0
 
-Every Archon skill's Phase 0 (health check) includes a sync freshness check:
+Every Cortex skill's Phase 0 (health check) includes a sync freshness check:
 
 ```
-Read .claude/archon-state.json
+Read .claude/cortex-state.json
 If last_skill_sync is missing or older than 24 hours:
   → Run skill sync flow before continuing
   → Update last_skill_sync timestamp
@@ -179,15 +179,15 @@ Step 6: Handle local changes (interactive — ask user)
     1. Update Source       → Push local content as new version of canonical skill
     2. Save Project Version → Store as project-specific override (canonical unchanged)
     3. Create New Skill    → Upload as new skill with new name (runs validation first)
-    4. Discard Changes     → Overwrite local with Archon canonical version
+    4. Discard Changes     → Overwrite local with Cortex canonical version
 
 Step 7: Handle unknown local skills (interactive — ask user)
-  For each skill not in Archon:
-    1. Upload to Archon → Validate + upload
+  For each skill not in Cortex:
+    1. Upload to Cortex → Validate + upload
     2. Skip             → Leave as local-only, not tracked
 
 Step 8: Update state file
-  Write last_skill_sync timestamp to .claude/archon-state.json
+  Write last_skill_sync timestamp to .claude/cortex-state.json
 
 Step 9: Summary
   "Skill sync complete: 4 in sync, 1 updated, 2 installed, 1 uploaded"
@@ -201,7 +201,7 @@ Happens in Step 3. If the MCP server doesn't recognize the fingerprint, the sync
 
 ## Skill Cleanup / Validation Process
 
-When a user uploads a new skill to Archon or updates the source, it runs through validation before being marked `is_validated=true`.
+When a user uploads a new skill to Cortex or updates the source, it runs through validation before being marked `is_validated=true`.
 
 ### Validation checks
 
@@ -245,7 +245,7 @@ When a user uploads a new skill to Archon or updates the source, it runs through
 
 ### MCP tool reference checking
 
-If a referenced MCP tool is not recognized, the validation flags it as a warning: "Tool `X` is not yet cataloged in Archon." Full MCP tool cataloging is deferred to a future phase.
+If a referenced MCP tool is not recognized, the validation flags it as a warning: "Tool `X` is not yet cataloged in Cortex." Full MCP tool cataloging is deferred to a future phase.
 
 ---
 
@@ -296,8 +296,8 @@ manage_skills(
 | `sync` | Auto-sync skill at startup | Register system, compare hashes, return pending actions + drift report |
 | `upload` | User via conflict resolution | Run validation, create/update skill in DB, save version history |
 | `validate` | Pre-upload check | Run cleanup validation, return report without saving |
-| `install` | Archon UI or sync skill | Set `pending_install` or write file and mark `installed` |
-| `remove` | Archon UI or user | Set `pending_remove` or delete file and mark `removed` |
+| `install` | Cortex UI or sync skill | Set `pending_install` or write file and mark `installed` |
+| `remove` | Cortex UI or user | Set `pending_remove` or delete file and mark `removed` |
 
 ### Sync response example
 
@@ -305,9 +305,9 @@ manage_skills(
 {
   "success": true,
   "system": {"id": "uuid", "name": "Jason's MacBook", "is_new": false},
-  "in_sync": ["archon-memory", "archon-link-project"],
+  "in_sync": ["cortex-memory", "cortex-link-project"],
   "local_changes": [
-    {"name": "my-custom-tool", "local_hash": "abc...", "archon_hash": "def..."}
+    {"name": "my-custom-tool", "local_hash": "abc...", "cortex_hash": "def..."}
   ],
   "pending_install": [
     {"skill_id": "uuid", "name": "code-reviewer", "content": "...full SKILL.md..."}
@@ -383,7 +383,7 @@ python/src/server/api_routes/skills_api.py
 ### File structure
 
 ```
-archon-ui-main/src/features/projects/skills/
+cortex-ui/src/features/projects/skills/
 ├── SkillsTab.tsx                     -- Entry point
 ├── components/
 │   ├── SystemCard.tsx                -- Registered system card
@@ -413,8 +413,8 @@ Two-level drill-down: systems list on left, detail panel on right.
 │  │ ● online       │  │                                      │
 │  └────────────────┘  │  INSTALLED SKILLS                    │
 │                      │  ┌──────────────────────────────┐    │
-│  ┌────────────────┐  │  │ archon-memory      installed  │   │
-│  │ CI Server      │  │  │ archon-link-project installed  │   │
+│  ┌────────────────┐  │  │ cortex-memory      installed  │   │
+│  │ CI Server      │  │  │ cortex-link-project installed  │   │
 │  │ 2 skills       │  │  │ code-reviewer   pending_install│   │
 │  │ ○ offline      │  │  │ my-custom-tool  local_changes  │   │
 │  └────────────────┘  │  └──────────────────────────────┘    │
@@ -454,21 +454,21 @@ Update both layout modes (horizontal and sidebar) in ProjectsView.tsx.
 
 ### Location
 
-`integrations/claude-code/skills/archon-skill-sync/SKILL.md`
+`integrations/claude-code/skills/cortex-skill-sync/SKILL.md`
 
 ### Invocation
 
-- **Manual:** `/archon-skill-sync`
-- **Automatic:** Triggered by sync freshness check in other Archon skills' Phase 0
+- **Manual:** `/cortex-skill-sync`
+- **Automatic:** Triggered by sync freshness check in other Cortex skills' Phase 0
 
 ### Updates to existing skills
 
-All existing Archon skills (archon-memory, archon-link-project) get an additional check in Phase 0:
+All existing Cortex skills (cortex-memory, cortex-link-project) get an additional check in Phase 0:
 
 ```
-Read .claude/archon-state.json
+Read .claude/cortex-state.json
 If last_skill_sync is missing or older than 24h:
-  → Run /archon-skill-sync before continuing
+  → Run /cortex-skill-sync before continuing
 ```
 
 ---
@@ -479,11 +479,11 @@ If last_skill_sync is missing or older than 24h:
 
 | Table | Purpose |
 |-------|---------|
-| `archon_skills` | Canonical skill registry |
-| `archon_skill_versions` | Version history per skill |
-| `archon_project_skills` | Project-specific overrides |
-| `archon_systems` | Registered machines |
-| `archon_system_skills` | Install state junction |
+| `cortex_skills` | Canonical skill registry |
+| `cortex_skill_versions` | Version history per skill |
+| `cortex_project_skills` | Project-specific overrides |
+| `cortex_systems` | Registered machines |
+| `cortex_system_skills` | Install state junction |
 
 ### Backend (5 new files)
 
@@ -519,9 +519,9 @@ If last_skill_sync is missing or older than 24h:
 
 | Skill | Change |
 |-------|--------|
-| `archon-skill-sync` | NEW — full sync flow |
-| `archon-memory` | Add sync freshness check to Phase 0 |
-| `archon-link-project` | Add sync freshness check to Phase 0 |
+| `cortex-skill-sync` | NEW — full sync flow |
+| `cortex-memory` | Add sync freshness check to Phase 0 |
+| `cortex-link-project` | Add sync freshness check to Phase 0 |
 
 ---
 
@@ -529,6 +529,6 @@ If last_skill_sync is missing or older than 24h:
 
 - **MCP tool cataloging** — Catalog known MCP tools so validation can check tool references authoritatively
 - **Skill sets / groups** — Batch deploy multiple skills together
-- **Custom skills upload via Archon UI** — API already supports it; UI form deferred
-- **Diff viewer** — Show local vs Archon content diff for `local_changes` status in Skills tab
+- **Custom skills upload via Cortex UI** — API already supports it; UI form deferred
+- **Diff viewer** — Show local vs Cortex content diff for `local_changes` status in Skills tab
 - **Skill marketplace** — Browse and install community-contributed skills

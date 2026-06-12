@@ -1,8 +1,8 @@
-# Archon UI Standards
+# Cortex UI Standards
 
 **Audience**: AI agents performing automated UI audits and refactors
 **Purpose**: Single source of truth for UI patterns, violations, and automated detection
-**Usage**: Run `/archon:archon-ui-consistency-review` to scan code against these standards
+**Usage**: Run `/cortex:cortex-ui-consistency-review` to scan code against these standards
 
 ---
 
@@ -312,7 +312,7 @@ grep -rn "from \"./styles\"" [path]/primitives --include="*.tsx" --files-without
 
 ## 6. PRIMITIVES LIBRARY
 
-### Archon Components
+### Cortex Components
 - **Card** - For all glassmorphism effects
 - **DataCard** - Cards with header/content/footer slots. Use `compact` prop for smaller cards (removes min-h-[240px]).
 - **StatPill** - Rounded counter with neon glow (pink/blue/green/orange/cyan/purple/gray)
@@ -744,7 +744,7 @@ Every color object MUST have:
 
 ### Common Patterns
 
-**Horizontal Scroll (Archon Standard)**
+**Horizontal Scroll (Cortex Standard)**
 ```tsx
 <div className="w-full">
   <div className="overflow-x-auto scrollbar-hide">

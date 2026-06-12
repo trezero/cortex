@@ -20,11 +20,11 @@ they get silently dropped. This could break the frontend.
 
 1. Restart the backend with the retrofit changes:
    ```bash
-   docker compose restart archon-server
+   docker compose restart cortex-server
    ```
-   Wait for `🎉 Archon backend started successfully!` in logs:
+   Wait for `🎉 Cortex backend started successfully!` in logs:
    ```bash
-   docker compose logs -f archon-server --tail 5
+   docker compose logs -f cortex-server --tail 5
    ```
 
 2. Test endpoints WITH response_model (should return expected shape):
@@ -86,7 +86,7 @@ whether Claude Code naturally discovers and follows the skill when given a relev
 
 ### Steps
 
-1. Start a **new Claude Code session** in the Archon repo (same branch):
+1. Start a **new Claude Code session** in the Cortex repo (same branch):
    ```bash
    claude
    ```
@@ -141,7 +141,7 @@ whether Claude Code naturally discovers and follows the skill when given a relev
 1. Navigate to a non-FastAPI project directory. If you don't have one handy, use the
    frontend directory:
    ```bash
-   cd /home/winadmin/projects/Trinity/archon/archon-ui-main
+   cd /home/winadmin/projects/Trinity/cortex/cortex-ui
    claude
    ```
 
@@ -162,12 +162,12 @@ whether Claude Code naturally discovers and follows the skill when given a relev
 
 ## Test D: Multiple FastAPI Apps Detection
 
-**Why:** Archon has 3 FastAPI() instances. The skill should ask which app to target
+**Why:** Cortex has 3 FastAPI() instances. The skill should ask which app to target
 when doing a full-repo retrofit.
 
 ### Steps
 
-1. In a fresh session on the Archon repo, type:
+1. In a fresh session on the Cortex repo, type:
    ```
    Use the api-docs skill to document all API endpoints in this entire repo
    ```

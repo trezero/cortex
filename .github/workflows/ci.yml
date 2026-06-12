@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./archon-ui-main
+        working-directory: ./cortex-ui
 
     steps:
       - name: Checkout repository
@@ -34,7 +34,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: archon-ui-main/package-lock.json
+          cache-dependency-path: cortex-ui/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -58,15 +58,15 @@ jobs:
       #   with:
       #     name: frontend-test-results
       #     path: |
-      #       archon-ui-main/coverage/test-results.json
-      #       archon-ui-main/public/test-results/
+      #       cortex-ui/coverage/test-results.json
+      #       cortex-ui/public/test-results/
       #     retention-days: 30
 # 
       # - name: Upload frontend coverage to Codecov
       #   if: always()
       #   uses: codecov/codecov-action@v4
       #   with:
-      #     files: ./archon-ui-main/public/test-results/coverage/lcov.info
+      #     files: ./cortex-ui/public/test-results/coverage/lcov.info
       #     flags: frontend
       #     name: frontend-coverage
       #     token: ${{ secrets.CODECOV_TOKEN }}
@@ -165,9 +165,9 @@ jobs:
         run: |
           docker build \
             --file python/Dockerfile.server \
-            --tag archon-server:test \
+            --tag cortex-server:test \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
-            --build-arg ARCHON_SERVER_PORT=8181 \
+            --build-arg CORTEX_SERVER_PORT=8181 \
             python/
 
       - name: Build MCP service
@@ -175,9 +175,9 @@ jobs:
         run: |
           docker build \
             --file python/Dockerfile.mcp \
-            --tag archon-mcp:test \
+            --tag cortex-mcp:test \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
-            --build-arg ARCHON_MCP_PORT=8051 \
+            --build-arg CORTEX_MCP_PORT=8051 \
             python/
 
       - name: Build agents service
@@ -185,17 +185,17 @@ jobs:
         run: |
           docker build \
             --file python/Dockerfile.agents \
-            --tag archon-agents:test \
+            --tag cortex-agents:test \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
-            --build-arg ARCHON_AGENTS_PORT=8052 \
+            --build-arg CORTEX_AGENTS_PORT=8052 \
             python/
 
       - name: Build frontend service
         if: matrix.service == 'frontend'
         run: |
           docker build \
-            --tag archon-frontend:test \
-            archon-ui-main/
+            --tag cortex-frontend:test \
+            cortex-ui/
 
       - name: Test container health check (for the containers that can run without proper env vars)
         if: matrix.service != 'frontend' && matrix.service != 'server'
@@ -207,19 +207,19 @@ jobs:
               docker run -d --name test-${{ matrix.service }} \
                 -e SUPABASE_URL=${{ env.SUPABASE_URL }} \
                 -e SUPABASE_SERVICE_KEY=${{ env.SUPABASE_SERVICE_KEY }} \
-                -e ARCHON_MCP_PORT=8051 \
+                -e CORTEX_MCP_PORT=8051 \
                 -e API_SERVICE_URL=http://localhost:8181 \
                 -e AGENTS_SERVICE_URL=http://localhost:8052 \
                 -p 8051:8051 \
-                archon-${{ matrix.service }}:test
+                cortex-${{ matrix.service }}:test
               ;;
             "agents")
               docker run -d --name test-${{ matrix.service }} \
                 -e SUPABASE_URL=${{ env.SUPABASE_URL }} \
                 -e SUPABASE_SERVICE_KEY=${{ env.SUPABASE_SERVICE_KEY }} \
-                -e ARCHON_AGENTS_PORT=8052 \
+                -e CORTEX_AGENTS_PORT=8052 \
                 -p 8052:8052 \
-                archon-${{ matrix.service }}:test
+                cortex-${{ matrix.service }}:test
               ;;
           esac
           
@@ -254,7 +254,7 @@ jobs:
         
       - name: Create test summary
         run: |
-          echo "# 🧪 Archon V2 Beta - CI Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "# 🧪 Cortex V2 Beta - CI Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # Frontend Results

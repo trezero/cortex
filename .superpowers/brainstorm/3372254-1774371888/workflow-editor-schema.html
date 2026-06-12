@@ -4,7 +4,7 @@
 <div class="section">
   <h3>Unified YAML Schema</h3>
   <div class="mockup">
-    <div class="mockup-header">Extended WorkflowDefinition — Archon additions in green</div>
+    <div class="mockup-header">Extended WorkflowDefinition — Cortex additions in green</div>
     <div class="mockup-body" style="padding:20px; font-family:monospace; font-size:11px; color:#ccc;">
       <pre style="margin:0;">name: implement-feature
 description: "Full feature implementation with plan review gate"
@@ -24,7 +24,7 @@ nodes:
   <span style="color:#6f8;">- id: plan-review                          # ← HITL gate node</span>
     <span style="color:#6f8;">prompt: "Summarize the plan for approval"</span>
     <span style="color:#6f8;">depends_on: [planning]</span>
-    <span style="color:#6f8;">approval:                                  # ← NEW: Archon extension</span>
+    <span style="color:#6f8;">approval:                                  # ← NEW: Cortex extension</span>
       <span style="color:#6f8;">required: true</span>
       <span style="color:#6f8;">type: plan_review</span>
       <span style="color:#6f8;">ttl_hours: 24</span>
@@ -65,9 +65,9 @@ nodes:
     depends_on: [classify-issue]
     when: "$classify-issue.output.type == 'FEATURE'"
 
-<span style="color:#888;"># ── Archon-only metadata (ignored by remote-agent) ──</span>
-<span style="color:#6f8;">archon:</span>
-  <span style="color:#6f8;">project_id: proj_xyz                       # Scope to Archon project</span>
+<span style="color:#888;"># ── Cortex-only metadata (ignored by remote-agent) ──</span>
+<span style="color:#6f8;">cortex:</span>
+  <span style="color:#6f8;">project_id: proj_xyz                       # Scope to Cortex project</span>
   <span style="color:#6f8;">tags: [feature, full-pipeline]</span>
   <span style="color:#6f8;">icon: rocket                               # UI display icon</span>
   <span style="color:#6f8;">suggested_by: pattern_discovery            # Origin tracking</span></pre>
@@ -75,7 +75,7 @@ nodes:
   </div>
 
   <div style="margin-top:12px; padding:12px; background:rgba(255,200,0,0.05); border:1px solid rgba(255,200,0,0.15); border-radius:8px; font-size:12px;">
-    <strong style="color:#fa0;">Compatibility strategy:</strong> The <code>approval:</code> block and <code>archon:</code> metadata are Archon extensions. The remote-agent's YAML parser ignores unknown fields, so the same file works in both systems — the remote-agent simply skips the approval gates and runs straight through. This means exported workflows are immediately usable in both contexts.
+    <strong style="color:#fa0;">Compatibility strategy:</strong> The <code>approval:</code> block and <code>cortex:</code> metadata are Cortex extensions. The remote-agent's YAML parser ignores unknown fields, so the same file works in both systems — the remote-agent simply skips the approval gates and runs straight through. This means exported workflows are immediately usable in both contexts.
   </div>
 </div>
 
@@ -108,7 +108,7 @@ nodes:
         <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
           <td style="padding:6px; color:#ccc;">project_id</td>
           <td style="padding:6px; color:#888;">uuid | null</td>
-          <td style="padding:6px; color:#666;">FK → archon_projects. Null = global workflow</td>
+          <td style="padding:6px; color:#666;">FK → cortex_projects. Null = global workflow</td>
         </tr>
         <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
           <td style="padding:6px; color:#ccc;">yaml_content</td>
@@ -222,7 +222,7 @@ nodes:
       </div>
 
       <div style="margin-top:16px; padding:12px; background:rgba(255,200,0,0.05); border:1px solid rgba(255,200,0,0.15); border-radius:8px; font-size:11px;">
-        <strong style="color:#fa0;">Import flow:</strong> Users can paste or upload a YAML file from .archon/workflows/ → parsed into form fields → saved to Supabase. <strong>Export flow:</strong> Download button generates a clean YAML file (strips archon: metadata block) compatible with remote-agent's .archon/workflows/ directory.
+        <strong style="color:#fa0;">Import flow:</strong> Users can paste or upload a YAML file from .cortex/workflows/ → parsed into form fields → saved to Supabase. <strong>Export flow:</strong> Download button generates a clean YAML file (strips cortex: metadata block) compatible with remote-agent's .cortex/workflows/ directory.
       </div>
     </div>
   </div>
@@ -253,7 +253,7 @@ nodes:
             <strong>Resolution order:</strong><br>
             1. Check Supabase <code>workflow_commands</code> table<br>
             2. Fall back to filesystem .md files<br>
-            3. Fall back to remote-agent's .archon/commands/<br><br>
+            3. Fall back to remote-agent's .cortex/commands/<br><br>
             <strong>UI features:</strong><br>
             • Markdown editor with preview<br>
             • Variable placeholder hints ($1, $2, $ARGUMENTS)<br>

@@ -111,7 +111,7 @@ echo -e "${BLUE}📊 Analyzing file changes...${NC}"
 FILES_CHANGED=$(git diff ${PREVIOUS_TAG}..${CURRENT_TAG} --stat | tail -1)
 
 # Detailed changes by component
-CHANGES_FRONTEND=$(git diff ${PREVIOUS_TAG}..${CURRENT_TAG} --stat -- archon-ui-main/ | head -20)
+CHANGES_FRONTEND=$(git diff ${PREVIOUS_TAG}..${CURRENT_TAG} --stat -- cortex-ui/ | head -20)
 CHANGES_BACKEND=$(git diff ${PREVIOUS_TAG}..${CURRENT_TAG} --stat -- python/ | head -20)
 
 FILE_CHANGES="### File Changes by Component
@@ -153,7 +153,7 @@ REPO_NAME=$(echo "$REPO_FULL" | cut -d'/' -f2)
 echo -e "${BLUE}🤖 Generating release notes with Claude...${NC}"
 
 # Build the prompt content
-PROMPT_CONTENT="You are writing release notes for Archon V2 Beta, a local-first AI knowledge management system.
+PROMPT_CONTENT="You are writing release notes for Cortex V2 Beta, a local-first AI knowledge management system.
 
 ## Release Information
 

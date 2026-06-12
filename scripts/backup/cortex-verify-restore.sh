@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-BACKUP_BASE="$HOME/archon-backups"
+BACKUP_BASE="$HOME/cortex-backups"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CORTEX_DIR="${CORTEX_DIR:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 DB_CONTAINER="supabase-db"

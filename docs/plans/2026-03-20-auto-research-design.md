@@ -7,7 +7,7 @@
 
 ## Overview
 
-A self-improvement engine for Archon. Given any prompt file (skill, command, agent instruction, or config), the engine iteratively mutates the prompt via LLM, runs the mutated version against a defined evaluation suite, scores the output, and keeps the best-performing variant. The winning prompt is presented to the user with a diff for review and one-click application.
+A self-improvement engine for Cortex. Given any prompt file (skill, command, agent instruction, or config), the engine iteratively mutates the prompt via LLM, runs the mutated version against a defined evaluation suite, scores the output, and keeps the best-performing variant. The winning prompt is presented to the user with a diff for review and one-click application.
 
 The engine is domain-agnostic — it optimizes any text payload that can be scored against test cases. Phase 1 targets file-based prompts (skills, commands, agent prompts). Later phases add system-level targets (CLI execution, web parsing, Postman tests).
 
@@ -18,7 +18,7 @@ The original plan proposed Agent Work Orders (CLI execution in git worktrees) as
 | Original | Redesigned | Why |
 |----------|-----------|-----|
 | Phase 1 target: Agent Work Orders | Phase 1 target: Prompt optimization | Agent Work Orders requires Claude Code CLI, git worktrees, code compilation — the hardest possible starting point. Prompt optimization uses only LLM API calls, is fast (seconds per iteration), and covers more targets |
-| Raw `subprocess` calls for LLM | PydanticAI agents | Archon already has a mature PydanticAI framework (`python/src/agents/`). Mutation and evaluation agents get structured output, rate limiting, and model flexibility for free |
+| Raw `subprocess` calls for LLM | PydanticAI agents | Cortex already has a mature PydanticAI framework (`python/src/agents/`). Mutation and evaluation agents get structured output, rate limiting, and model flexibility for free |
 | GitHub PR finalization | "Apply" button writes to file | PRs add `gh` CLI dependency, branch management, and auth complexity. Writing to file is simpler, reversible (git shows the diff), and gives the user full control |
 | No eval suite concept | JSON eval suites with test cases | The original plan hardcoded test cases in target implementations. Eval suites are data files that can be versioned, shared, and edited without code changes |
 | `sandbox_manager` (doesn't exist) | Not needed for Phase 1 | Prompt optimization runs LLM API calls, not system processes. No sandbox required |
@@ -110,7 +110,7 @@ Each target prompt has a corresponding JSON eval suite defining how to test it:
 
 Key fields:
 - **`target_file`**: Path to the prompt file (relative to repo root, or absolute for other projects)
-- **`model`**: LLM model for execution. Uses Archon's configured credentials. Defaults to the model set in Archon settings if omitted.
+- **`model`**: LLM model for execution. Uses Cortex's configured credentials. Defaults to the model set in Cortex settings if omitted.
 - **`mutation_guidance`**: Tells the mutator what aspects of the prompt to focus on
 - **`signals`**: Each signal has a `weight` (for scoring) and `critical` flag (for regression protection)
 
@@ -189,7 +189,7 @@ python/src/server/
     └── eval_suites/                    # JSON eval suite fixtures
         └── example_planning.json
 
-archon-ui-main/src/features/
+cortex-ui/src/features/
 └── auto-research/
     ├── types/index.ts
     ├── services/autoResearchService.ts
@@ -246,7 +246,7 @@ Core loop + PromptTarget. File-based prompts only. JSON eval suites. ProgressTra
 - Postman test target (Newman execution)
 - PR Reviews target (synthetic PR with injected bugs)
 - Multi-job concurrency with semaphore
-- Cross-project optimization (prompts in other repos managed by Archon)
+- Cross-project optimization (prompts in other repos managed by Cortex)
 
 ---
 
@@ -318,7 +318,7 @@ Core loop + PromptTarget. File-based prompts only. JSON eval suites. ProgressTra
    - User message includes the test case definition (signal names + descriptions) and the LLM output to judge
    - Returns structured `EvalResult` with boolean value + reasoning per signal
 
-3. **LLM model resolution**: Accept `model` parameter. If `None`, fall back to Archon's configured default model (from `llm_provider_service.py` / environment variables). Use PydanticAI model string format (e.g., `"openai:gpt-4o"`, `"anthropic:claude-sonnet-4-6"`).
+3. **LLM model resolution**: Accept `model` parameter. If `None`, fall back to Cortex's configured default model (from `llm_provider_service.py` / environment variables). Use PydanticAI model string format (e.g., `"openai:gpt-4o"`, `"anthropic:claude-sonnet-4-6"`).
 
 **Tests:**
 - Mutator returns valid string (mock PydanticAI agent)
@@ -401,9 +401,9 @@ Core loop + PromptTarget. File-based prompts only. JSON eval suites. ProgressTra
 ## Task 6: Frontend Types, Service & Query Hooks
 
 **Files:**
-- Create: `archon-ui-main/src/features/auto-research/types/index.ts`
-- Create: `archon-ui-main/src/features/auto-research/services/autoResearchService.ts`
-- Create: `archon-ui-main/src/features/auto-research/hooks/useAutoResearchQueries.ts`
+- Create: `cortex-ui/src/features/auto-research/types/index.ts`
+- Create: `cortex-ui/src/features/auto-research/services/autoResearchService.ts`
+- Create: `cortex-ui/src/features/auto-research/hooks/useAutoResearchQueries.ts`
 
 **Steps:**
 1. **Types**: `EvalSuiteSummary`, `AutoResearchJob`, `AutoResearchIteration`, `EvalSignalResult`, `StartOptimizationRequest`
@@ -432,10 +432,10 @@ Core loop + PromptTarget. File-based prompts only. JSON eval suites. ProgressTra
 ## Task 7: Frontend UI Components
 
 **Files:**
-- Create: `archon-ui-main/src/features/auto-research/components/OptimizeButton.tsx`
-- Create: `archon-ui-main/src/features/auto-research/components/OptimizeConfigModal.tsx`
-- Create: `archon-ui-main/src/features/auto-research/components/JobProgressModal.tsx`
-- Create: `archon-ui-main/src/features/auto-research/components/AutoResearchPage.tsx`
+- Create: `cortex-ui/src/features/auto-research/components/OptimizeButton.tsx`
+- Create: `cortex-ui/src/features/auto-research/components/OptimizeConfigModal.tsx`
+- Create: `cortex-ui/src/features/auto-research/components/JobProgressModal.tsx`
+- Create: `cortex-ui/src/features/auto-research/components/AutoResearchPage.tsx`
 
 **Steps:**
 1. **AutoResearchPage**: Dedicated page (add route). Lists available eval suites as cards. Each card shows suite name, target file, test case count, and an "Optimize" button. Below the suites, shows recent job history.
@@ -445,7 +445,7 @@ Core loop + PromptTarget. File-based prompts only. JSON eval suites. ProgressTra
 3. **OptimizeConfigModal**: Radix Dialog with:
    - Suite name and target file (read-only, from selected suite)
    - Iteration budget slider (default 10, max 50)
-   - Model selector (optional override, defaults to Archon's configured model)
+   - Model selector (optional override, defaults to Cortex's configured model)
    - "~3 LLM calls per iteration" note
    - Start button
 
@@ -489,7 +489,7 @@ Core loop + PromptTarget. File-based prompts only. JSON eval suites. ProgressTra
 
 ## Optimization Target Inventory
 
-These are the Archon prompts available for optimization once the engine is built. Each needs an eval suite JSON file to be actionable:
+These are the Cortex prompts available for optimization once the engine is built. Each needs an eval suite JSON file to be actionable:
 
 ### High Impact (create eval suites first)
 | Target | File | Why |
@@ -503,9 +503,9 @@ These are the Archon prompts available for optimization once the engine is built
 | Target | File |
 |--------|------|
 | RAG agent system prompt | `python/src/agents/rag_agent.py` (Phase 2: embedded) |
-| Archon prime | `.claude/commands/archon/archon-prime.md` |
-| Code review | `.claude/commands/archon/archon-alpha-review.md` |
-| Archon memory skill | `integrations/claude-code/extensions/archon-memory/SKILL.md` |
+| Cortex prime | `.claude/commands/cortex/cortex-prime.md` |
+| Code review | `.claude/commands/cortex/cortex-alpha-review.md` |
+| Cortex memory skill | `integrations/claude-code/extensions/cortex-memory/SKILL.md` |
 
 ### Other Projects
-Any skill or command file in a project managed by Archon can be targeted by specifying an absolute path in `target_file`.
+Any skill or command file in a project managed by Cortex can be targeted by specifying an absolute path in `target_file`.

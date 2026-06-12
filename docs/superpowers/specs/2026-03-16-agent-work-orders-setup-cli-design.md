@@ -10,15 +10,15 @@ An interactive, menu-driven Bash setup utility (`agentWorkOrderSetup.sh`) that g
 - Detect what is already configured/running so users know where they stand
 - Support both Docker and local deployment modes
 - Handle database migrations (auto-execute via `psql` when available, guide user to SQL Editor otherwise)
-- Follow the same conventions as the existing `archonSetup.sh`
+- Follow the same conventions as the existing `cortexSetup.sh`
 
 ## File Location
 
 `integrations/claude-code/setup/agentWorkOrderSetup.sh`
 
 Discoverable via:
-1. MCP server endpoint: `GET /archon-setup/agent-work-orders-setup.sh` (with URL template substitution)
-2. UI download card on the MCP/Setup page (alongside the existing archonSetup.sh card)
+1. MCP server endpoint: `GET /cortex-setup/agent-work-orders-setup.sh` (with URL template substitution)
+2. UI download card on the MCP/Setup page (alongside the existing cortexSetup.sh card)
 
 ## Architecture
 
@@ -26,7 +26,7 @@ Discoverable via:
 
 ```
 agentWorkOrderSetup.sh
-├── Helpers (colors, ask, logging — same patterns as archonSetup.sh)
+├── Helpers (colors, ask, logging — same patterns as cortexSetup.sh)
 ├── Detection functions
 │   ├── check_dependency(name, command, version_flag)
 │   ├── check_env_var(var_name)
@@ -45,7 +45,7 @@ agentWorkOrderSetup.sh
 └── Action implementations
 ```
 
-### Conventions (from archonSetup.sh)
+### Conventions (from cortexSetup.sh)
 
 - Colored output with `✓`, `!`, `✗` indicators
 - `ask "prompt" "default"` function for interactive input
@@ -93,18 +93,18 @@ Note: The dashboard shows `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` — a
 ### Services
 | Check | Method |
 |-------|--------|
-| Archon Server (8181) | `curl -s -o /dev/null -w "%{http_code}" http://localhost:8181/health` |
-| Archon MCP (8051) | `curl -s -o /dev/null -w "%{http_code}" http://localhost:8051/health` |
+| Cortex Server (8181) | `curl -s -o /dev/null -w "%{http_code}" http://localhost:8181/health` |
+| Cortex MCP (8051) | `curl -s -o /dev/null -w "%{http_code}" http://localhost:8051/health` |
 | Work Orders (8053) | `curl -s -o /dev/null -w "%{http_code}" http://localhost:8053/health` |
 
 ### Database (only if Supabase credentials available)
 | Check | Method |
 |-------|--------|
-| `archon_agent_work_orders` | Supabase REST API: `GET /rest/v1/archon_agent_work_orders?select=agent_work_order_id&limit=0` with `apikey` and `Authorization: Bearer` headers. HTTP 200 = exists, 404 = missing |
-| `archon_agent_work_order_steps` | Same approach (`?select=id&limit=0`) |
-| `archon_configured_repositories` | Same approach — always needed for repo config, independent of `STATE_STORAGE_TYPE` |
+| `cortex_agent_work_orders` | Supabase REST API: `GET /rest/v1/cortex_agent_work_orders?select=agent_work_order_id&limit=0` with `apikey` and `Authorization: Bearer` headers. HTTP 200 = exists, 404 = missing |
+| `cortex_agent_work_order_steps` | Same approach (`?select=id&limit=0`) |
+| `cortex_configured_repositories` | Same approach — always needed for repo config, independent of `STATE_STORAGE_TYPE` |
 
-Note: The state tables (`archon_agent_work_orders`, `archon_agent_work_order_steps`) are only needed when `STATE_STORAGE_TYPE=supabase`. The `archon_configured_repositories` table is always needed for repository configuration. The dashboard annotates accordingly.
+Note: The state tables (`cortex_agent_work_orders`, `cortex_agent_work_order_steps`) are only needed when `STATE_STORAGE_TYPE=supabase`. The `cortex_configured_repositories` table is always needed for repository configuration. The dashboard annotates accordingly.
 
 Dashboard output example:
 ```
@@ -130,14 +130,14 @@ Dashboard output example:
   ! GITHUB_PAT_TOKEN                not set
 
   Services
-  ✓ Archon Server       http://localhost:8181 (healthy)
-  ✓ Archon MCP          http://localhost:8051 (healthy)
+  ✓ Cortex Server       http://localhost:8181 (healthy)
+  ✓ Cortex MCP          http://localhost:8051 (healthy)
   ✗ Work Orders         http://localhost:8053 (not responding)
 
   Database
-  ✓ archon_agent_work_orders       exists
-  ✓ archon_agent_work_order_steps  exists
-  ✗ archon_configured_repositories missing
+  ✓ cortex_agent_work_orders       exists
+  ✓ cortex_agent_work_order_steps  exists
+  ✗ cortex_configured_repositories missing
 
 ═══════════════════════════════════════════════
 ```
@@ -172,8 +172,8 @@ Dashboard output example:
 - Requires `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` — abort with message if missing
 - Check which tables exist (same as dashboard DB check)
 - Two migration groups checked independently:
-  - **State tables** (`archon_agent_work_orders`, `archon_agent_work_order_steps`) — file: `migration/agent_work_orders_state.sql`, needed when `STATE_STORAGE_TYPE=supabase`
-  - **Repository table** (`archon_configured_repositories`) — file: `migration/agent_work_orders_repositories.sql`, always needed
+  - **State tables** (`cortex_agent_work_orders`, `cortex_agent_work_order_steps`) — file: `migration/agent_work_orders_state.sql`, needed when `STATE_STORAGE_TYPE=supabase`
+  - **Repository table** (`cortex_configured_repositories`) — file: `migration/agent_work_orders_repositories.sql`, always needed
 - For each missing group:
   - If `psql` is available and `POSTGRES_URL` is set (common for local Supabase): offer to auto-execute via `psql -f <migration_file>`
   - Otherwise: print the migration file path and instruct user to paste into Supabase SQL Editor
@@ -184,7 +184,7 @@ Dashboard output example:
 
 - Verify Docker daemon is running
 - Run `docker compose --profile work-orders up -d --build`
-- Tail logs briefly (`docker compose logs -f archon-agent-work-orders --since 5s &` with timeout)
+- Tail logs briefly (`docker compose logs -f cortex-agent-work-orders --since 5s &` with timeout)
 - Poll health endpoint with timeout (30s), report success/failure
 - If port 8053 is already in use, report the PID holding it
 
@@ -228,19 +228,19 @@ Dashboard output example:
 Add to `python/src/mcp_server/mcp_server.py`:
 
 ```python
-@app.get("/archon-setup/agent-work-orders-setup.sh")
+@app.get("/cortex-setup/agent-work-orders-setup.sh")
 async def get_agent_work_orders_setup_script():
     # Same pattern as existing get_setup_script()
-    # Template substitution for {{ARCHON_API_URL}}, {{ARCHON_MCP_URL}}
+    # Template substitution for {{CORTEX_API_URL}}, {{CORTEX_MCP_URL}}
     # Returns text/plain response
 ```
 
 ## UI Download Card
 
-Add a second download card to the MCP/Setup page alongside the existing archonSetup.sh card. Card content:
+Add a second download card to the MCP/Setup page alongside the existing cortexSetup.sh card. Card content:
 - Title: "Agent Work Orders Setup"
 - Description: "Interactive CLI to configure, deploy, and verify the Agent Work Orders service"
-- Download button pointing to `/archon-setup/agent-work-orders-setup.sh`
+- Download button pointing to `/cortex-setup/agent-work-orders-setup.sh`
 - Run instruction: `bash agentWorkOrderSetup.sh`
 
 ## README Update

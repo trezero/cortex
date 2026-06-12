@@ -80,7 +80,7 @@ jobs:
           echo "### File Changes by Component" > changes.txt
           echo "" >> changes.txt
           echo "**Frontend:**" >> changes.txt
-          git diff ${PREVIOUS_TAG}..${CURRENT_TAG} --stat -- archon-ui-main/ | head -20 >> changes.txt
+          git diff ${PREVIOUS_TAG}..${CURRENT_TAG} --stat -- cortex-ui/ | head -20 >> changes.txt
           echo "" >> changes.txt
           echo "**Backend:**" >> changes.txt
           git diff ${PREVIOUS_TAG}..${CURRENT_TAG} --stat -- python/ | head -20 >> changes.txt
@@ -113,7 +113,7 @@ jobs:
           cat > release-context.md <<'EOF'
           # Release Notes Generation Task
 
-          You are writing release notes for Archon V2 Beta, a local-first AI knowledge management system.
+          You are writing release notes for Cortex V2 Beta, a local-first AI knowledge management system.
 
           ## Release Information
 

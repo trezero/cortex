@@ -12,7 +12,7 @@ set -euo pipefail
 # ──────────────────────────────────────────────────────────────────────
 # Configuration
 # ──────────────────────────────────────────────────────────────────────
-BACKUP_BASE="$HOME/archon-backups"
+BACKUP_BASE="$HOME/cortex-backups"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CORTEX_DIR="${CORTEX_DIR:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 GLOBAL_CLAUDE_DIR="/home/winadmin/.claude"
@@ -97,7 +97,7 @@ CLAUDE_STATE_DIR="$BACKUP_DIR/claude-state"
 
 if [[ -d "$CLAUDE_STATE_DIR" ]]; then
     mkdir -p "$CORTEX_DIR/.claude"
-    for f in archon-state.json archon-config.json archon-memory-buffer.jsonl settings.local.json; do
+    for f in cortex-state.json cortex-config.json cortex-memory-buffer.jsonl settings.local.json; do
         if [[ -f "$CLAUDE_STATE_DIR/$f" ]]; then
             cp "$CLAUDE_STATE_DIR/$f" "$CORTEX_DIR/.claude/"
             echo "  .claude/$f"

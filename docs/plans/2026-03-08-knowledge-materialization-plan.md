@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Enable Archon agents to autonomously detect knowledge gaps, query the Vector DB, synthesize results via LLM, and write permanent Markdown documentation into project repos.
+**Goal:** Enable Cortex agents to autonomously detect knowledge gaps, query the Vector DB, synthesize results via LLM, and write permanent Markdown documentation into project repos.
 
 **Architecture:** Service Pipeline — MCP tool calls REST API, which orchestrates MaterializationService (search + synthesis + file write + DB tracking). Frontend shows progress, history, and toast notifications.
 
@@ -25,7 +25,7 @@
 -- 018_add_materialization_history.sql
 -- Tracks knowledge materialization events across projects
 
-CREATE TABLE IF NOT EXISTS archon_materialization_history (
+CREATE TABLE IF NOT EXISTS cortex_materialization_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id TEXT NOT NULL,
     project_path TEXT NOT NULL,
@@ -44,16 +44,16 @@ CREATE TABLE IF NOT EXISTS archon_materialization_history (
     metadata JSONB DEFAULT '{}'
 );
 
-CREATE INDEX IF NOT EXISTS idx_mat_history_project ON archon_materialization_history(project_id);
-CREATE INDEX IF NOT EXISTS idx_mat_history_status ON archon_materialization_history(status);
-CREATE INDEX IF NOT EXISTS idx_mat_history_topic ON archon_materialization_history(topic);
-CREATE INDEX IF NOT EXISTS idx_mat_history_project_topic ON archon_materialization_history(project_id, topic);
+CREATE INDEX IF NOT EXISTS idx_mat_history_project ON cortex_materialization_history(project_id);
+CREATE INDEX IF NOT EXISTS idx_mat_history_status ON cortex_materialization_history(status);
+CREATE INDEX IF NOT EXISTS idx_mat_history_topic ON cortex_materialization_history(topic);
+CREATE INDEX IF NOT EXISTS idx_mat_history_project_topic ON cortex_materialization_history(project_id, topic);
 ```
 
 **Step 2: Apply migration to local database**
 
 Run: `psql` or Supabase SQL editor to execute the migration.
-Expected: Table `archon_materialization_history` created with 4 indexes.
+Expected: Table `cortex_materialization_history` created with 4 indexes.
 
 **Step 3: Commit**
 
@@ -87,7 +87,7 @@ from pydantic import BaseModel, Field
 
 class MaterializationRequest(BaseModel):
     topic: str = Field(description="Topic to materialize")
-    project_id: str = Field(description="Archon project ID")
+    project_id: str = Field(description="Cortex project ID")
     project_path: str = Field(description="Filesystem path to project repo")
     agent_context: str | None = Field(default=None, description="Additional context from the requesting agent")
 
@@ -168,7 +168,7 @@ async def test_check_existing_returns_record_when_found(service, mock_supabase):
         "project_path": "/home/user/project",
         "topic": "auth middleware",
         "filename": "auth-middleware.md",
-        "file_path": ".archon/knowledge/auth-middleware.md",
+        "file_path": ".cortex/knowledge/auth-middleware.md",
         "source_ids": [],
         "original_urls": [],
         "synthesis_model": "gpt-4.1-nano",
@@ -196,7 +196,7 @@ async def test_list_materializations(service, mock_supabase):
 async def test_mark_accessed(service, mock_supabase):
     mock_supabase.execute.return_value.data = [{"access_count": 4}]
     await service.mark_accessed("abc-123")
-    mock_supabase.table.assert_called_with("archon_materialization_history")
+    mock_supabase.table.assert_called_with("cortex_materialization_history")
 
 
 @pytest.mark.asyncio
@@ -207,7 +207,7 @@ async def test_create_record(service, mock_supabase):
         project_path="/home/user/project",
         topic="auth middleware",
         filename="auth-middleware.md",
-        file_path=".archon/knowledge/auth-middleware.md",
+        file_path=".cortex/knowledge/auth-middleware.md",
         source_ids=["src_1"],
         original_urls=["https://docs.example.com"],
         synthesis_model="gpt-4.1-nano",
@@ -218,7 +218,7 @@ async def test_create_record(service, mock_supabase):
 
 **Step 3: Run tests to verify they fail**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/test_materialization_service.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/test_materialization_service.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'src.server.services.knowledge.materialization_service'`
 
 **Step 4: Implement MaterializationService (DB operations only)**
@@ -242,7 +242,7 @@ from ...utils import get_supabase_client
 
 logger = get_logger(__name__)
 
-TABLE = "archon_materialization_history"
+TABLE = "cortex_materialization_history"
 
 
 class MaterializationService:
@@ -351,7 +351,7 @@ Note: The `mark_accessed` method uses an RPC for atomic increment. We'll need a 
 CREATE OR REPLACE FUNCTION increment_access_count(record_id UUID)
 RETURNS VOID AS $$
 BEGIN
-    UPDATE archon_materialization_history
+    UPDATE cortex_materialization_history
     SET access_count = access_count + 1,
         last_accessed_at = NOW(),
         updated_at = NOW()
@@ -362,7 +362,7 @@ $$ LANGUAGE plpgsql;
 
 **Step 5: Run tests to verify they pass**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/test_materialization_service.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/test_materialization_service.py -v`
 Expected: All 5 tests PASS
 
 **Step 6: Commit**
@@ -433,7 +433,7 @@ def test_synthesizer_agent_custom_model():
 
 **Step 2: Run tests to verify they fail**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/agents/test_synthesizer_agent.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/agents/test_synthesizer_agent.py -v`
 Expected: FAIL — `ModuleNotFoundError`
 
 **Step 3: Implement SynthesizerAgent**
@@ -455,7 +455,7 @@ from dataclasses import dataclass, field
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 
-from .base_agent import ArchonDependencies, BaseAgent
+from .base_agent import CortexDependencies, BaseAgent
 
 logger = logging.getLogger(__name__)
 
@@ -479,7 +479,7 @@ class SourceInfo:
 
 
 @dataclass
-class SynthesizerDeps(ArchonDependencies):
+class SynthesizerDeps(CortexDependencies):
     """Dependencies for the synthesizer agent."""
     topic: str = ""
     chunks: list[ChunkData] = field(default_factory=list)
@@ -556,7 +556,7 @@ class SynthesizerAgent(BaseAgent[SynthesizerDeps, str]):
 
 **Step 4: Run tests to verify they pass**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/agents/test_synthesizer_agent.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/agents/test_synthesizer_agent.py -v`
 Expected: All 4 tests PASS
 
 **Step 5: Commit**
@@ -610,7 +610,7 @@ def test_slugify_topic(service):
 async def test_write_materialized_file(service, temp_project):
     content = "# Test\n\nSome content."
     path = await service.write_materialized_file(temp_project, "test-topic.md", content)
-    assert os.path.exists(os.path.join(temp_project, ".archon", "knowledge", "test-topic.md"))
+    assert os.path.exists(os.path.join(temp_project, ".cortex", "knowledge", "test-topic.md"))
     with open(path) as f:
         assert f.read() == content
 
@@ -619,7 +619,7 @@ async def test_write_materialized_file(service, temp_project):
 async def test_write_creates_directories(service, temp_project):
     content = "# Test"
     await service.write_materialized_file(temp_project, "new-file.md", content)
-    assert os.path.isdir(os.path.join(temp_project, ".archon", "knowledge"))
+    assert os.path.isdir(os.path.join(temp_project, ".cortex", "knowledge"))
 
 
 @pytest.mark.asyncio
@@ -628,7 +628,7 @@ async def test_update_index(service, temp_project):
     await service.write_materialized_file(temp_project, "topic-a.md", "---\ntopic: Topic A\nmaterialized_at: 2026-03-08\noriginal_urls:\n  - https://a.com\n---\n# Topic A\nContent.")
     await service.write_materialized_file(temp_project, "topic-b.md", "---\ntopic: Topic B\nmaterialized_at: 2026-03-08\noriginal_urls:\n  - https://b.com\n---\n# Topic B\nContent.")
     await service.update_index(temp_project)
-    index_path = os.path.join(temp_project, ".archon", "index.md")
+    index_path = os.path.join(temp_project, ".cortex", "index.md")
     assert os.path.exists(index_path)
     with open(index_path) as f:
         content = f.read()
@@ -639,9 +639,9 @@ async def test_update_index(service, temp_project):
 @pytest.mark.asyncio
 async def test_remove_file(service, temp_project):
     await service.write_materialized_file(temp_project, "to-remove.md", "# Remove me")
-    assert os.path.exists(os.path.join(temp_project, ".archon", "knowledge", "to-remove.md"))
+    assert os.path.exists(os.path.join(temp_project, ".cortex", "knowledge", "to-remove.md"))
     await service.remove_file(temp_project, "to-remove.md")
-    assert not os.path.exists(os.path.join(temp_project, ".archon", "knowledge", "to-remove.md"))
+    assert not os.path.exists(os.path.join(temp_project, ".cortex", "knowledge", "to-remove.md"))
 
 
 @pytest.mark.asyncio
@@ -653,7 +653,7 @@ async def test_generate_unique_filename(service, temp_project):
 
 **Step 2: Run tests to verify they fail**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/test_indexer_service.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/test_indexer_service.py -v`
 Expected: FAIL — `ModuleNotFoundError`
 
 **Step 3: Implement IndexerService**
@@ -662,11 +662,11 @@ Create `python/src/server/services/knowledge/indexer_service.py`:
 
 ```python
 """
-IndexerService — writes materialized files and maintains the .archon/index.md.
+IndexerService — writes materialized files and maintains the .cortex/index.md.
 
 Handles filesystem operations for knowledge materialization:
-- Writing synthesized Markdown to .archon/knowledge/
-- Generating and updating .archon/index.md TOC
+- Writing synthesized Markdown to .cortex/knowledge/
+- Generating and updating .cortex/index.md TOC
 - Removing materialized files
 - Filename generation and collision handling
 """
@@ -680,8 +680,8 @@ from ...config.logfire_config import get_logger
 
 logger = get_logger(__name__)
 
-KNOWLEDGE_DIR = ".archon/knowledge"
-INDEX_FILE = ".archon/index.md"
+KNOWLEDGE_DIR = ".cortex/knowledge"
+INDEX_FILE = ".cortex/index.md"
 
 
 class IndexerService:
@@ -707,7 +707,7 @@ class IndexerService:
     async def write_materialized_file(
         self, project_path: str, filename: str, content: str
     ) -> str:
-        """Write content to .archon/knowledge/{filename}. Creates dirs if needed."""
+        """Write content to .cortex/knowledge/{filename}. Creates dirs if needed."""
         knowledge_dir = os.path.join(project_path, KNOWLEDGE_DIR)
         os.makedirs(knowledge_dir, exist_ok=True)
         file_path = os.path.join(knowledge_dir, filename)
@@ -724,10 +724,10 @@ class IndexerService:
             logger.info(f"Removed materialized file | path={file_path}")
 
     async def update_index(self, project_path: str) -> None:
-        """Regenerate .archon/index.md from all files in .archon/knowledge/."""
+        """Regenerate .cortex/index.md from all files in .cortex/knowledge/."""
         knowledge_dir = os.path.join(project_path, KNOWLEDGE_DIR)
-        archon_dir = os.path.join(project_path, ".archon")
-        os.makedirs(archon_dir, exist_ok=True)
+        cortex_dir = os.path.join(project_path, ".cortex")
+        os.makedirs(cortex_dir, exist_ok=True)
 
         entries = []
         if os.path.isdir(knowledge_dir):
@@ -745,9 +745,9 @@ class IndexerService:
                 entries.append(f"- [{topic}](knowledge/{filename}) — {date} — from {source_str}")
 
         lines = [
-            "# .archon Knowledge Index",
+            "# .cortex Knowledge Index",
             "",
-            "Auto-generated by Archon. Do not edit manually.",
+            "Auto-generated by Cortex. Do not edit manually.",
             "",
         ]
         if entries:
@@ -758,7 +758,7 @@ class IndexerService:
             lines.append("No materialized knowledge files yet.")
         lines.append("")
 
-        index_path = os.path.join(archon_dir, "index.md")
+        index_path = os.path.join(cortex_dir, "index.md")
         with open(index_path, "w") as f:
             f.write("\n".join(lines))
         logger.info(f"Updated index | path={index_path} | entries={len(entries)}")
@@ -779,7 +779,7 @@ class IndexerService:
 
 **Step 4: Run tests to verify they pass**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/test_indexer_service.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/test_indexer_service.py -v`
 Expected: All 7 tests PASS
 
 **Step 5: Commit**
@@ -841,7 +841,7 @@ async def test_materialize_skips_when_already_exists(service, mock_supabase):
         "project_path": "/tmp/project",
         "topic": "auth",
         "filename": "auth.md",
-        "file_path": ".archon/knowledge/auth.md",
+        "file_path": ".cortex/knowledge/auth.md",
         "source_ids": [],
         "original_urls": [],
         "synthesis_model": None,
@@ -855,7 +855,7 @@ async def test_materialize_skips_when_already_exists(service, mock_supabase):
     }]
     result = await service.materialize("auth", "proj_123", "/tmp/project")
     assert result.success is True
-    assert result.file_path == ".archon/knowledge/auth.md"
+    assert result.file_path == ".cortex/knowledge/auth.md"
 
 
 @pytest.mark.asyncio
@@ -880,7 +880,7 @@ async def test_materialize_returns_no_content_when_search_empty(
 
 **Step 2: Run tests to verify they fail**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/test_materialization_pipeline.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/test_materialization_pipeline.py -v`
 Expected: FAIL — `materialize` method not found or import errors
 
 **Step 3: Add the `materialize()` orchestration method**
@@ -1006,7 +1006,7 @@ from .indexer_service import IndexerService
             source_urls = synthesized.source_urls or [s.url for s in source_map.values() if s.url]
             source_ids = list(source_map.keys())
             frontmatter = {
-                "archon_source": "vector_archive",
+                "cortex_source": "vector_archive",
                 "materialized_at": datetime.now(timezone.utc).isoformat(),
                 "topic": topic,
                 "source_urls": source_urls,
@@ -1022,7 +1022,7 @@ from .indexer_service import IndexerService
             await self.indexer.update_index(project_path)
 
             # Step 8: Finalize DB record (pending -> active with real data)
-            file_path = f".archon/knowledge/{filename}"
+            file_path = f".cortex/knowledge/{filename}"
             now = datetime.now(timezone.utc).isoformat()
             self.supabase.table(TABLE).update({
                 "filename": filename,
@@ -1063,7 +1063,7 @@ from .indexer_service import IndexerService
 
 **Step 4: Run tests to verify they pass**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/test_materialization_pipeline.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/test_materialization_pipeline.py -v`
 Expected: All 2 tests PASS
 
 **Step 5: Commit**
@@ -1118,7 +1118,7 @@ def test_execute_materialization_endpoint(client):
     with patch("src.server.api_routes.materialization_api.MaterializationService") as MockService:
         mock_svc = MagicMock()
         mock_svc.materialize = AsyncMock(return_value=MagicMock(
-            success=True, file_path=".archon/knowledge/test.md",
+            success=True, file_path=".cortex/knowledge/test.md",
             filename="test.md", word_count=100, summary="test",
             materialization_id="abc-123", reason=None,
         ))
@@ -1135,7 +1135,7 @@ def test_execute_materialization_endpoint(client):
 
 **Step 2: Run tests to verify they fail**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/api_routes/test_materialization_api.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/api_routes/test_materialization_api.py -v`
 Expected: FAIL — import error or 404
 
 **Step 3: Implement the API routes**
@@ -1253,7 +1253,7 @@ Add to `python/src/server/main.py`:
 
 **Step 5: Run tests to verify they pass**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/api_routes/test_materialization_api.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/api_routes/test_materialization_api.py -v`
 Expected: All 2 tests PASS
 
 **Step 6: Commit**
@@ -1280,7 +1280,7 @@ Create `python/src/mcp_server/features/materialization/__init__.py`:
 
 ```python
 """
-Knowledge Materialization tools for Archon MCP Server.
+Knowledge Materialization tools for Cortex MCP Server.
 
 Tools for materializing vector knowledge into local project repos.
 """
@@ -1325,11 +1325,11 @@ def register_materialization_tools(mcp: FastMCP):
 
         Searches the RAG knowledge base for the given topic, synthesizes
         the results into a cohesive Markdown document, and writes it to
-        the project's .archon/knowledge/ directory.
+        the project's .cortex/knowledge/ directory.
 
         Args:
             topic: The knowledge topic to materialize (e.g., "auth middleware patterns")
-            project_id: The Archon project ID
+            project_id: The Cortex project ID
             project_path: Filesystem path to the project repo
         """
         try:
@@ -1487,14 +1487,14 @@ Append the following section to `.claude/agents/codebase-analyst.md`:
 When analyzing a topic or pattern in a project:
 
 1. **Check local context first:**
-   - Read `.archon/index.md` if it exists — this lists all materialized knowledge
+   - Read `.cortex/index.md` if it exists — this lists all materialized knowledge
    - Search project source files and documentation for the topic
    - Check CLAUDE.md and any docs/ directory
 
 2. **Escalate to Vector DB if local context is insufficient:**
    - If the topic is not covered locally, or local docs are incomplete/outdated
    - Call `materialize_knowledge` with the topic, project_id, and project_path
-   - This will search the global knowledge base, synthesize results, and write a Markdown file to `.archon/knowledge/`
+   - This will search the global knowledge base, synthesize results, and write a Markdown file to `.cortex/knowledge/`
 
 3. **Continue with enriched context:**
    - Read the newly materialized file
@@ -1521,12 +1521,12 @@ git commit -m "feat: add Context Escalation Protocol to codebase-analyst"
 ### Task 9: Materialization types and service
 
 **Files:**
-- Create: `archon-ui-main/src/features/knowledge/materialization/types/index.ts`
-- Create: `archon-ui-main/src/features/knowledge/materialization/services/materializationService.ts`
+- Create: `cortex-ui/src/features/knowledge/materialization/types/index.ts`
+- Create: `cortex-ui/src/features/knowledge/materialization/services/materializationService.ts`
 
 **Step 1: Create types**
 
-Create `archon-ui-main/src/features/knowledge/materialization/types/index.ts`:
+Create `cortex-ui/src/features/knowledge/materialization/types/index.ts`:
 
 ```typescript
 export interface MaterializationRecord {
@@ -1567,7 +1567,7 @@ export interface MaterializationExecuteResponse {
 
 **Step 2: Create service**
 
-Create `archon-ui-main/src/features/knowledge/materialization/services/materializationService.ts`:
+Create `cortex-ui/src/features/knowledge/materialization/services/materializationService.ts`:
 
 ```typescript
 import { callAPIWithETag } from "../../../shared/api/apiClient";
@@ -1610,7 +1610,7 @@ export const materializationService = {
 **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/features/knowledge/materialization/
+git add cortex-ui/src/features/knowledge/materialization/
 git commit -m "feat: add materialization types and service"
 ```
 
@@ -1619,7 +1619,7 @@ git commit -m "feat: add materialization types and service"
 ### Task 10: Materialization query hooks
 
 **Files:**
-- Create: `archon-ui-main/src/features/knowledge/materialization/hooks/useMaterializationQueries.ts`
+- Create: `cortex-ui/src/features/knowledge/materialization/hooks/useMaterializationQueries.ts`
 
 **Step 1: Create query hooks**
 
@@ -1678,7 +1678,7 @@ export function useUpdateMaterializationStatus() {
 **Step 2: Commit**
 
 ```bash
-git add archon-ui-main/src/features/knowledge/materialization/hooks/
+git add cortex-ui/src/features/knowledge/materialization/hooks/
 git commit -m "feat: add materialization query hooks"
 ```
 
@@ -1687,7 +1687,7 @@ git commit -m "feat: add materialization query hooks"
 ### Task 11: MaterializationList component
 
 **Files:**
-- Create: `archon-ui-main/src/features/knowledge/materialization/components/MaterializationList.tsx`
+- Create: `cortex-ui/src/features/knowledge/materialization/components/MaterializationList.tsx`
 
 **Step 1: Create the component**
 
@@ -1762,7 +1762,7 @@ export const MaterializationList = ({ projectId, statusFilter }: Materialization
 **Step 2: Commit**
 
 ```bash
-git add archon-ui-main/src/features/knowledge/materialization/components/
+git add cortex-ui/src/features/knowledge/materialization/components/
 git commit -m "feat: add MaterializationList component"
 ```
 
@@ -1771,8 +1771,8 @@ git commit -m "feat: add MaterializationList component"
 ### Task 12: Integrate into KnowledgeView
 
 **Files:**
-- Modify: `archon-ui-main/src/features/knowledge/views/KnowledgeView.tsx`
-- Modify: `archon-ui-main/src/features/knowledge/components/KnowledgeHeader.tsx`
+- Modify: `cortex-ui/src/features/knowledge/views/KnowledgeView.tsx`
+- Modify: `cortex-ui/src/features/knowledge/components/KnowledgeHeader.tsx`
 
 **Step 1: Add "Materialized" tab/filter to KnowledgeView**
 
@@ -1790,13 +1790,13 @@ In KnowledgeView or a parent component, use `useMaterializationHistory` with sma
 ```typescript
 const { showToast } = useToast();
 // In an effect watching materialization data:
-showToast(`Archon materialized '${newItem.topic}' to ${newItem.file_path}`, "success");
+showToast(`Cortex materialized '${newItem.topic}' to ${newItem.file_path}`, "success");
 ```
 
 **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/features/knowledge/views/KnowledgeView.tsx archon-ui-main/src/features/knowledge/components/KnowledgeHeader.tsx
+git add cortex-ui/src/features/knowledge/views/KnowledgeView.tsx cortex-ui/src/features/knowledge/components/KnowledgeHeader.tsx
 git commit -m "feat: integrate MaterializationList into KnowledgeView"
 ```
 
@@ -1808,17 +1808,17 @@ git commit -m "feat: integrate MaterializationList into KnowledgeView"
 
 **Step 1: Run backend tests**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/ -v --tb=short`
+Run: `cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/ -v --tb=short`
 Expected: All tests PASS including new materialization tests
 
 **Step 2: Run frontend type check**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit`
+Run: `cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit`
 Expected: No TypeScript errors
 
 **Step 3: Run linters**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && make lint`
+Run: `cd /home/winadmin/projects/Trinity/cortex && make lint`
 Expected: No linting errors
 
 **Step 4: Commit any fixes**
@@ -1833,7 +1833,7 @@ git commit -m "fix: address linting and type errors"
 
 **Step 1: Start services**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && docker compose up --build -d`
+Run: `cd /home/winadmin/projects/Trinity/cortex && docker compose up --build -d`
 
 **Step 2: Apply migration**
 

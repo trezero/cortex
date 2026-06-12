@@ -1,5 +1,5 @@
 name: 🐛 Bug Report
-description: Report a bug to help us improve Archon Beta
+description: Report a bug to help us improve Cortex Beta
 title: "🐛 [Bug]: "
 labels: ["bug", "needs-triage"]
 assignees: []
@@ -8,15 +8,15 @@ body:
   - type: markdown
     attributes:
       value: |
-        # 🐛 Bug Report for Archon Beta
+        # 🐛 Bug Report for Cortex Beta
         
-        Thank you for taking the time to report a bug! This helps us improve Archon for everyone.
+        Thank you for taking the time to report a bug! This helps us improve Cortex for everyone.
 
   - type: input
-    id: archon-version
+    id: cortex-version
     attributes:
-      label: Archon Version
-      description: What version of Archon are you running?
+      label: Cortex Version
+      description: What version of Cortex are you running?
       placeholder: "v0.1.0 or check package.json"
     validations:
       required: true
@@ -102,7 +102,7 @@ body:
     id: component
     attributes:
       label: Affected Component
-      description: Which part of Archon is affected?
+      description: Which part of Cortex is affected?
       options:
         - "🔍 Knowledge Base / RAG"
         - "🔗 MCP Integration"
@@ -134,7 +134,7 @@ body:
     id: service-status
     attributes:
       label: Service Status (check all that are working)
-      description: Which Archon services were running when the bug occurred?
+      description: Which Cortex services were running when the bug occurred?
       options:
         - label: "🖥️ Frontend UI (http://localhost:3737)"
         - label: "⚙️ Main Server (http://localhost:8181)"

@@ -1,8 +1,8 @@
-# Archon Architecture
+# Cortex Architecture
 
 ## Overview
 
-Archon is a knowledge management system with AI capabilities, built as a monolithic application with vertical slice organization. The frontend uses React with TanStack Query, while the backend runs FastAPI with multiple service components.
+Cortex is a knowledge management system with AI capabilities, built as a monolithic application with vertical slice organization. The frontend uses React with TanStack Query, while the backend runs FastAPI with multiple service components.
 
 ## Tech Stack
 
@@ -29,7 +29,7 @@ agents/              # AI agents (PydanticAI)
 └── features/        # Agent capabilities
 ```
 
-### Frontend (`archon-ui-main/src/`)
+### Frontend (`cortex-ui/src/`)
 ```text
 features/            # Vertical slice architecture
 ├── knowledge/       # Knowledge base feature
@@ -49,12 +49,12 @@ components/          # Legacy components (migrating)
 
 ### Knowledge Management
 **Backend**: `python/src/server/services/knowledge_service.py`
-**Frontend**: `archon-ui-main/src/features/knowledge/`
+**Frontend**: `cortex-ui/src/features/knowledge/`
 **Features**: Web crawling, document upload, embeddings, RAG search
 
 ### Project Management
 **Backend**: `python/src/server/services/project_*_service.py`
-**Frontend**: `archon-ui-main/src/features/projects/`
+**Frontend**: `cortex-ui/src/features/projects/`
 **Features**: Projects, tasks, documents, version history
 
 ### MCP Server
@@ -93,8 +93,8 @@ Pattern: `{METHOD} /api/{resource}/{id?}/{sub-resource?}`
 
 ### Data Fetching
 **Core**: TanStack Query v5
-**Configuration**: `archon-ui-main/src/features/shared/config/queryClient.ts`
-**Patterns**: `archon-ui-main/src/features/shared/config/queryPatterns.ts`
+**Configuration**: `cortex-ui/src/features/shared/config/queryClient.ts`
+**Patterns**: `cortex-ui/src/features/shared/config/queryPatterns.ts`
 
 ### State Management
 - **Server State**: TanStack Query
@@ -112,7 +112,7 @@ features/{feature}/
 ```
 
 ### Smart Polling
-**Implementation**: `archon-ui-main/src/features/ui/hooks/useSmartPolling.ts`
+**Implementation**: `cortex-ui/src/features/ui/hooks/useSmartPolling.ts`
 - Visibility-aware (pauses when tab hidden)
 - Variable intervals based on focus state
 
@@ -125,9 +125,9 @@ features/{feature}/
 - `sources` - Knowledge sources
 - `documents` - Document chunks with embeddings
 - `code_examples` - Extracted code
-- `archon_projects` - Projects
-- `archon_tasks` - Tasks
-- `archon_document_versions` - Version history
+- `cortex_projects` - Projects
+- `cortex_tasks` - Tasks
+- `cortex_document_versions` - Version history
 
 ## Key Architectural Decisions
 
@@ -144,7 +144,7 @@ TanStack Query is the single source of truth. No separate state management neede
 No translation layers. Database values (e.g., `"todo"`, `"doing"`) used directly in UI.
 
 ### Browser-Native Caching
-ETags handled by browser, not JavaScript. See `archon-ui-main/src/features/shared/api/apiClient.ts`.
+ETags handled by browser, not JavaScript. See `cortex-ui/src/features/shared/api/apiClient.ts`.
 
 ## Deployment
 
@@ -156,7 +156,7 @@ docker compose up -d
 cd python && uv run python -m src.server.main
 
 # Frontend
-cd archon-ui-main && npm run dev
+cd cortex-ui && npm run dev
 ```
 
 ### Production
@@ -188,7 +188,7 @@ Controlled via Settings UI. Projects feature can be disabled.
 
 ## Testing
 
-**Frontend Tests**: `archon-ui-main/src/features/*/tests/`
+**Frontend Tests**: `cortex-ui/src/features/*/tests/`
 **Backend Tests**: `python/tests/`
 **Patterns**: Mock services and query patterns, not implementation
 

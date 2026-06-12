@@ -771,7 +771,7 @@ Only commit if changes were made during verification. Skip if file is unchanged.
 
 ---
 
-### Task 10: Test Against Archon Codebase (Retrofit Mode)
+### Task 10: Test Against Cortex Codebase (Retrofit Mode)
 
 **Human verification — not for automated execution.** This task requires a human to start a new Claude Code session with the skill installed.
 

@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Build a centralized skill registry in Archon that tracks Claude Code skills across machines and projects, with a pull-based sync model and an Archon UI for remote management.
+**Goal:** Build a centralized skill registry in Cortex that tracks Claude Code skills across machines and projects, with a pull-based sync model and an Cortex UI for remote management.
 
 **Architecture:** Five new DB tables store skills, systems, and install state. Four backend services handle CRUD, validation, sync, and system registration. Two MCP tools (`find_skills`, `manage_skills`) expose the backend to Claude Code. A new "Skills" tab in the project view shows registered systems and lets users queue installs. A sync skill auto-runs on startup to detect drift and reconcile state.
 
@@ -24,11 +24,11 @@ Create `migration/0.1.0/014_add_skills_management_tables.sql`:
 
 ```sql
 -- Skills Management System tables
--- Adds: archon_systems, archon_skills, archon_skill_versions,
---        archon_project_skills, archon_system_skills
+-- Adds: cortex_systems, cortex_skills, cortex_skill_versions,
+--        cortex_project_skills, cortex_system_skills
 
 -- Registered machines/clients
-CREATE TABLE IF NOT EXISTS archon_systems (
+CREATE TABLE IF NOT EXISTS cortex_systems (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   fingerprint TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS archon_systems (
 );
 
 -- Central skill registry
-CREATE TABLE IF NOT EXISTS archon_skills (
+CREATE TABLE IF NOT EXISTS cortex_skills (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL UNIQUE,
   display_name TEXT NOT NULL,
@@ -50,29 +50,29 @@ CREATE TABLE IF NOT EXISTS archon_skills (
   is_required BOOLEAN DEFAULT false,
   is_validated BOOLEAN DEFAULT false,
   tags TEXT[] DEFAULT '{}',
-  created_by_system_id UUID REFERENCES archon_systems(id) ON DELETE SET NULL,
+  created_by_system_id UUID REFERENCES cortex_systems(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Skill version history
-CREATE TABLE IF NOT EXISTS archon_skill_versions (
+CREATE TABLE IF NOT EXISTS cortex_skill_versions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  skill_id UUID NOT NULL REFERENCES archon_skills(id) ON DELETE CASCADE,
+  skill_id UUID NOT NULL REFERENCES cortex_skills(id) ON DELETE CASCADE,
   version INTEGER NOT NULL,
   content TEXT NOT NULL,
   content_hash TEXT NOT NULL,
   change_summary TEXT,
-  created_by_system_id UUID REFERENCES archon_systems(id) ON DELETE SET NULL,
+  created_by_system_id UUID REFERENCES cortex_systems(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(skill_id, version)
 );
 
 -- Project-specific skill overrides
-CREATE TABLE IF NOT EXISTS archon_project_skills (
+CREATE TABLE IF NOT EXISTS cortex_project_skills (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID NOT NULL REFERENCES archon_projects(id) ON DELETE CASCADE,
-  skill_id UUID NOT NULL REFERENCES archon_skills(id) ON DELETE CASCADE,
+  project_id UUID NOT NULL REFERENCES cortex_projects(id) ON DELETE CASCADE,
+  skill_id UUID NOT NULL REFERENCES cortex_skills(id) ON DELETE CASCADE,
   content_override TEXT,
   content_hash TEXT,
   override_version INTEGER DEFAULT 1,
@@ -82,11 +82,11 @@ CREATE TABLE IF NOT EXISTS archon_project_skills (
 );
 
 -- System-skill install state (scoped to projects)
-CREATE TABLE IF NOT EXISTS archon_system_skills (
+CREATE TABLE IF NOT EXISTS cortex_system_skills (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  system_id UUID NOT NULL REFERENCES archon_systems(id) ON DELETE CASCADE,
-  skill_id UUID NOT NULL REFERENCES archon_skills(id) ON DELETE CASCADE,
-  project_id UUID NOT NULL REFERENCES archon_projects(id) ON DELETE CASCADE,
+  system_id UUID NOT NULL REFERENCES cortex_systems(id) ON DELETE CASCADE,
+  skill_id UUID NOT NULL REFERENCES cortex_skills(id) ON DELETE CASCADE,
+  project_id UUID NOT NULL REFERENCES cortex_projects(id) ON DELETE CASCADE,
   status TEXT NOT NULL DEFAULT 'pending_install',
   installed_content_hash TEXT,
   installed_version INTEGER,
@@ -96,13 +96,13 @@ CREATE TABLE IF NOT EXISTS archon_system_skills (
 );
 
 -- Indexes for common queries
-CREATE INDEX IF NOT EXISTS idx_archon_skills_name ON archon_skills(name);
-CREATE INDEX IF NOT EXISTS idx_archon_systems_fingerprint ON archon_systems(fingerprint);
-CREATE INDEX IF NOT EXISTS idx_archon_system_skills_system ON archon_system_skills(system_id);
-CREATE INDEX IF NOT EXISTS idx_archon_system_skills_project ON archon_system_skills(project_id);
-CREATE INDEX IF NOT EXISTS idx_archon_system_skills_status ON archon_system_skills(status);
-CREATE INDEX IF NOT EXISTS idx_archon_skill_versions_skill ON archon_skill_versions(skill_id);
-CREATE INDEX IF NOT EXISTS idx_archon_project_skills_project ON archon_project_skills(project_id);
+CREATE INDEX IF NOT EXISTS idx_cortex_skills_name ON cortex_skills(name);
+CREATE INDEX IF NOT EXISTS idx_cortex_systems_fingerprint ON cortex_systems(fingerprint);
+CREATE INDEX IF NOT EXISTS idx_cortex_system_skills_system ON cortex_system_skills(system_id);
+CREATE INDEX IF NOT EXISTS idx_cortex_system_skills_project ON cortex_system_skills(project_id);
+CREATE INDEX IF NOT EXISTS idx_cortex_system_skills_status ON cortex_system_skills(status);
+CREATE INDEX IF NOT EXISTS idx_cortex_skill_versions_skill ON cortex_skill_versions(skill_id);
+CREATE INDEX IF NOT EXISTS idx_cortex_project_skills_project ON cortex_project_skills(project_id);
 ```
 
 **Step 2: Add tables to complete_setup.sql**
@@ -276,7 +276,7 @@ Create `python/src/server/services/skills/skill_validation_service.py`:
 ```python
 """Skill validation and cleanup service.
 
-Validates SKILL.md content before it can be uploaded to the Archon registry.
+Validates SKILL.md content before it can be uploaded to the Cortex registry.
 Checks frontmatter format, naming conventions, security, and content structure.
 """
 import logging
@@ -308,7 +308,7 @@ MIN_DESCRIPTION_LENGTH = 20
 
 
 class SkillValidationService:
-    """Validates SKILL.md content for the Archon skill registry."""
+    """Validates SKILL.md content for the Cortex skill registry."""
 
     def validate(self, content: str, existing_name: str | None = None) -> dict[str, Any]:
         """Validate skill content and return a validation report.
@@ -535,7 +535,7 @@ Create `python/src/server/services/skills/system_service.py`:
 ```python
 """System registration and fingerprint matching service.
 
-Manages the archon_systems table — registering new machines,
+Manages the cortex_systems table — registering new machines,
 looking up existing ones by fingerprint, and tracking last-seen times.
 """
 import logging
@@ -546,7 +546,7 @@ from src.server.config.database import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
-TABLE = "archon_systems"
+TABLE = "cortex_systems"
 
 
 class SystemService:
@@ -636,7 +636,7 @@ class SystemService:
         return result.data[0]
 
     def delete_system(self, system_id: str) -> None:
-        """Delete a system. Cascades to archon_system_skills."""
+        """Delete a system. Cascades to cortex_system_skills."""
         self.supabase.table(TABLE).delete().eq("id", system_id).execute()
 ```
 
@@ -770,9 +770,9 @@ class TestGetSkill:
 class TestFindByName:
     def test_finds_by_name(self, service, mock_supabase):
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
-            {"id": "s1", "name": "archon-memory"}
+            {"id": "s1", "name": "cortex-memory"}
         ]
-        result = service.find_by_name("archon-memory")
+        result = service.find_by_name("cortex-memory")
         assert result["id"] == "s1"
 ```
 
@@ -788,7 +788,7 @@ Create `python/src/server/services/skills/skill_service.py`:
 ```python
 """Skill CRUD and version management service.
 
-Manages the archon_skills and archon_skill_versions tables —
+Manages the cortex_skills and cortex_skill_versions tables —
 creating, updating, versioning, and hashing skill content.
 """
 import hashlib
@@ -799,9 +799,9 @@ from src.server.config.database import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
-SKILLS_TABLE = "archon_skills"
-VERSIONS_TABLE = "archon_skill_versions"
-PROJECT_SKILLS_TABLE = "archon_project_skills"
+SKILLS_TABLE = "cortex_skills"
+VERSIONS_TABLE = "cortex_skill_versions"
+PROJECT_SKILLS_TABLE = "cortex_project_skills"
 
 
 class SkillService:
@@ -959,7 +959,7 @@ class SkillService:
         """Get skills associated with a project (with override info)."""
         result = (
             self.supabase.table(PROJECT_SKILLS_TABLE)
-            .select("*, archon_skills(*)")
+            .select("*, cortex_skills(*)")
             .eq("project_id", project_id)
             .execute()
         )
@@ -1066,47 +1066,47 @@ def service(mock_supabase):
 
 class TestComputeSyncReport:
     def test_in_sync_when_hashes_match(self, service):
-        local_skills = [{"name": "archon-memory", "content_hash": "aaa"}]
-        archon_skills = [{"id": "s1", "name": "archon-memory", "content_hash": "aaa", "content": "..."}]
+        local_skills = [{"name": "cortex-memory", "content_hash": "aaa"}]
+        cortex_skills = [{"id": "s1", "name": "cortex-memory", "content_hash": "aaa", "content": "..."}]
         system_skills = [{"skill_id": "s1", "status": "installed", "installed_content_hash": "aaa"}]
 
-        report = service.compute_sync_report(local_skills, archon_skills, system_skills)
-        assert "archon-memory" in report["in_sync"]
+        report = service.compute_sync_report(local_skills, cortex_skills, system_skills)
+        assert "cortex-memory" in report["in_sync"]
         assert len(report["local_changes"]) == 0
 
     def test_detects_local_changes(self, service):
-        local_skills = [{"name": "archon-memory", "content_hash": "bbb"}]
-        archon_skills = [{"id": "s1", "name": "archon-memory", "content_hash": "aaa", "content": "..."}]
+        local_skills = [{"name": "cortex-memory", "content_hash": "bbb"}]
+        cortex_skills = [{"id": "s1", "name": "cortex-memory", "content_hash": "aaa", "content": "..."}]
         system_skills = [{"skill_id": "s1", "status": "installed", "installed_content_hash": "aaa"}]
 
-        report = service.compute_sync_report(local_skills, archon_skills, system_skills)
+        report = service.compute_sync_report(local_skills, cortex_skills, system_skills)
         assert len(report["local_changes"]) == 1
-        assert report["local_changes"][0]["name"] == "archon-memory"
+        assert report["local_changes"][0]["name"] == "cortex-memory"
 
     def test_detects_unknown_local(self, service):
         local_skills = [{"name": "new-skill", "content_hash": "xxx"}]
-        archon_skills = []
+        cortex_skills = []
         system_skills = []
 
-        report = service.compute_sync_report(local_skills, archon_skills, system_skills)
+        report = service.compute_sync_report(local_skills, cortex_skills, system_skills)
         assert len(report["unknown_local"]) == 1
         assert report["unknown_local"][0]["name"] == "new-skill"
 
     def test_detects_pending_installs(self, service):
         local_skills = []
-        archon_skills = [{"id": "s1", "name": "code-reviewer", "content_hash": "ccc", "content": "...content..."}]
+        cortex_skills = [{"id": "s1", "name": "code-reviewer", "content_hash": "ccc", "content": "...content..."}]
         system_skills = [{"skill_id": "s1", "status": "pending_install"}]
 
-        report = service.compute_sync_report(local_skills, archon_skills, system_skills)
+        report = service.compute_sync_report(local_skills, cortex_skills, system_skills)
         assert len(report["pending_install"]) == 1
         assert report["pending_install"][0]["name"] == "code-reviewer"
 
     def test_detects_pending_removals(self, service):
         local_skills = [{"name": "old-skill", "content_hash": "ddd"}]
-        archon_skills = [{"id": "s2", "name": "old-skill", "content_hash": "ddd", "content": "..."}]
+        cortex_skills = [{"id": "s2", "name": "old-skill", "content_hash": "ddd", "content": "..."}]
         system_skills = [{"skill_id": "s2", "status": "pending_remove"}]
 
-        report = service.compute_sync_report(local_skills, archon_skills, system_skills)
+        report = service.compute_sync_report(local_skills, cortex_skills, system_skills)
         assert len(report["pending_remove"]) == 1
 ```
 
@@ -1122,7 +1122,7 @@ Create `python/src/server/services/skills/skill_sync_service.py`:
 ```python
 """Skill sync service.
 
-Compares local skill state against the Archon registry,
+Compares local skill state against the Cortex registry,
 resolves pending actions, and detects drift.
 """
 import logging
@@ -1132,11 +1132,11 @@ from src.server.config.database import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_SKILLS_TABLE = "archon_system_skills"
+SYSTEM_SKILLS_TABLE = "cortex_system_skills"
 
 
 class SkillSyncService:
-    """Handles sync logic between local systems and the Archon skill registry."""
+    """Handles sync logic between local systems and the Cortex skill registry."""
 
     def __init__(self, supabase_client=None):
         self.supabase = supabase_client or get_supabase_client()
@@ -1144,20 +1144,20 @@ class SkillSyncService:
     def compute_sync_report(
         self,
         local_skills: list[dict[str, Any]],
-        archon_skills: list[dict[str, Any]],
+        cortex_skills: list[dict[str, Any]],
         system_skills: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        """Compare local skills against Archon state and return a sync report.
+        """Compare local skills against Cortex state and return a sync report.
 
         Args:
             local_skills: [{name, content_hash}] from the client's disk.
-            archon_skills: Full skill records from archon_skills table.
-            system_skills: Records from archon_system_skills for this system+project.
+            cortex_skills: Full skill records from cortex_skills table.
+            system_skills: Records from cortex_system_skills for this system+project.
 
         Returns:
             Sync report with in_sync, local_changes, pending_install, pending_remove, unknown_local.
         """
-        archon_by_name = {s["name"]: s for s in archon_skills}
+        cortex_by_name = {s["name"]: s for s in cortex_skills}
         system_by_skill_id = {s["skill_id"]: s for s in system_skills}
         local_by_name = {s["name"]: s for s in local_skills}
 
@@ -1167,43 +1167,43 @@ class SkillSyncService:
         pending_remove: list[dict[str, Any]] = []
         unknown_local: list[dict[str, Any]] = []
 
-        # Check each local skill against Archon
+        # Check each local skill against Cortex
         for local in local_skills:
             name = local["name"]
-            archon_skill = archon_by_name.get(name)
+            cortex_skill = cortex_by_name.get(name)
 
-            if not archon_skill:
+            if not cortex_skill:
                 unknown_local.append({"name": name, "content_hash": local["content_hash"]})
                 continue
 
-            sys_skill = system_by_skill_id.get(archon_skill["id"])
+            sys_skill = system_by_skill_id.get(cortex_skill["id"])
 
             if sys_skill and sys_skill["status"] == "pending_remove":
                 pending_remove.append({
-                    "skill_id": archon_skill["id"],
+                    "skill_id": cortex_skill["id"],
                     "name": name,
                 })
-            elif local["content_hash"] == archon_skill["content_hash"]:
+            elif local["content_hash"] == cortex_skill["content_hash"]:
                 in_sync.append(name)
             else:
                 local_changes.append({
                     "name": name,
-                    "skill_id": archon_skill["id"],
+                    "skill_id": cortex_skill["id"],
                     "local_hash": local["content_hash"],
-                    "archon_hash": archon_skill["content_hash"],
+                    "cortex_hash": cortex_skill["content_hash"],
                 })
 
-        # Check for pending installs (in Archon but not local, with pending_install status)
+        # Check for pending installs (in Cortex but not local, with pending_install status)
         for sys_skill in system_skills:
             if sys_skill["status"] != "pending_install":
                 continue
             skill_id = sys_skill["skill_id"]
-            archon_skill = next((s for s in archon_skills if s["id"] == skill_id), None)
-            if archon_skill and archon_skill["name"] not in local_by_name:
+            cortex_skill = next((s for s in cortex_skills if s["id"] == skill_id), None)
+            if cortex_skill and cortex_skill["name"] not in local_by_name:
                 pending_install.append({
                     "skill_id": skill_id,
-                    "name": archon_skill["name"],
-                    "content": archon_skill.get("content", ""),
+                    "name": cortex_skill["name"],
+                    "content": cortex_skill.get("content", ""),
                 })
 
         return {
@@ -1278,7 +1278,7 @@ class SkillSyncService:
         """Get all systems that have skills installed for a project."""
         result = (
             self.supabase.table(SYSTEM_SKILLS_TABLE)
-            .select("system_id, archon_systems(*)")
+            .select("system_id, cortex_systems(*)")
             .eq("project_id", project_id)
             .execute()
         )
@@ -1291,15 +1291,15 @@ class SkillSyncService:
             sys_id = row["system_id"]
             if sys_id not in seen:
                 seen.add(sys_id)
-                if row.get("archon_systems"):
-                    systems.append(row["archon_systems"])
+                if row.get("cortex_systems"):
+                    systems.append(row["cortex_systems"])
         return systems
 
     def get_system_project_skills(self, system_id: str, project_id: str) -> list[dict[str, Any]]:
         """Get detailed skill state for a system within a project (with skill info)."""
         result = (
             self.supabase.table(SYSTEM_SKILLS_TABLE)
-            .select("*, archon_skills(id, name, display_name, description, version, content_hash, is_required, is_validated, tags)")
+            .select("*, cortex_skills(id, name, display_name, description, version, content_hash, is_required, is_validated, tags)")
             .eq("system_id", system_id)
             .eq("project_id", project_id)
             .execute()
@@ -1715,7 +1715,7 @@ Create `python/src/mcp_server/features/skills/skill_tools.py`:
 """Skills management MCP tools.
 
 Provides find_skills and manage_skills tools for querying and managing
-the Archon skill registry from Claude Code.
+the Cortex skill registry from Claude Code.
 """
 import json
 import logging
@@ -1743,7 +1743,7 @@ def register_skill_tools(mcp: FastMCP):
         system_id: str | None = None,
         include_content: bool = False,
     ) -> str:
-        """Find skills in the Archon registry.
+        """Find skills in the Cortex registry.
 
         Args:
             skill_id: Get a specific skill by ID (returns full content)
@@ -1836,14 +1836,14 @@ def register_skill_tools(mcp: FastMCP):
                 system_name: Friendly name (required for first-time registration)
                 project_id: Current project ID
 
-            For upload (push local skill to Archon registry):
+            For upload (push local skill to Cortex registry):
                 skill_content: Full SKILL.md content
                 skill_name: Override name (for creating new skill from modified content)
 
             For validate (check skill without saving):
                 skill_content: Full SKILL.md content to validate
 
-            For install/remove (queue action from Archon UI):
+            For install/remove (queue action from Cortex UI):
                 skill_id: Skill to install or remove
                 system_id: Target system
                 project_id: Project scope
@@ -1932,9 +1932,9 @@ def register_skill_tools(mcp: FastMCP):
                             # For now, return is_new flag so the skill can prompt
                             is_new = True
 
-                    # Step 2: Get all Archon skills
+                    # Step 2: Get all Cortex skills
                     skills_resp = await client.get(urljoin(api_url, "/api/skills"))
-                    archon_skills = skills_resp.json().get("skills", []) if skills_resp.status_code == 200 else []
+                    cortex_skills = skills_resp.json().get("skills", []) if skills_resp.status_code == 200 else []
 
                     # Step 3: Build sync report
                     # Since we need full content for pending installs, fetch individually for those
@@ -1953,23 +1953,23 @@ def register_skill_tools(mcp: FastMCP):
 
                     if local_skills:
                         local_by_name = {s["name"]: s for s in local_skills}
-                        archon_by_name = {s["name"]: s for s in archon_skills}
+                        cortex_by_name = {s["name"]: s for s in cortex_skills}
 
                         for local in local_skills:
-                            archon = archon_by_name.get(local["name"])
-                            if not archon:
+                            cortex = cortex_by_name.get(local["name"])
+                            if not cortex:
                                 report["unknown_local"].append({
                                     "name": local["name"],
                                     "content_hash": local["content_hash"],
                                 })
-                            elif local["content_hash"] == archon.get("content_hash"):
+                            elif local["content_hash"] == cortex.get("content_hash"):
                                 report["in_sync"].append(local["name"])
                             else:
                                 report["local_changes"].append({
                                     "name": local["name"],
-                                    "skill_id": archon["id"],
+                                    "skill_id": cortex["id"],
                                     "local_hash": local["content_hash"],
-                                    "archon_hash": archon.get("content_hash"),
+                                    "cortex_hash": cortex.get("content_hash"),
                                 })
 
                     return json.dumps({"success": True, **report})
@@ -2039,12 +2039,12 @@ git commit -m "feat: add find_skills and manage_skills MCP tools"
 ### Task 8: Frontend — Types and service layer
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/skills/types/index.ts`
-- Create: `archon-ui-main/src/features/projects/skills/services/skillService.ts`
+- Create: `cortex-ui/src/features/projects/skills/types/index.ts`
+- Create: `cortex-ui/src/features/projects/skills/services/skillService.ts`
 
 **Step 1: Create types**
 
-Create `archon-ui-main/src/features/projects/skills/types/index.ts`:
+Create `cortex-ui/src/features/projects/skills/types/index.ts`:
 
 ```typescript
 export interface Skill {
@@ -2082,7 +2082,7 @@ export interface SystemSkill {
   installed_version: number | null;
   has_local_changes: boolean;
   updated_at: string;
-  archon_skills?: Skill;
+  cortex_skills?: Skill;
 }
 
 export interface SystemWithSkills extends System {
@@ -2107,7 +2107,7 @@ export interface SkillsListResponse {
 
 **Step 2: Create service**
 
-Create `archon-ui-main/src/features/projects/skills/services/skillService.ts`:
+Create `cortex-ui/src/features/projects/skills/services/skillService.ts`:
 
 ```typescript
 import { callAPIWithETag } from "@/features/shared/api/apiClient";
@@ -2149,7 +2149,7 @@ export const skillService = {
 **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/skills/
+git add cortex-ui/src/features/projects/skills/
 git commit -m "feat: add skills types and service layer"
 ```
 
@@ -2158,11 +2158,11 @@ git commit -m "feat: add skills types and service layer"
 ### Task 9: Frontend — TanStack Query hooks
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/skills/hooks/useSkillQueries.ts`
+- Create: `cortex-ui/src/features/projects/skills/hooks/useSkillQueries.ts`
 
 **Step 1: Create query hooks**
 
-Create `archon-ui-main/src/features/projects/skills/hooks/useSkillQueries.ts`:
+Create `cortex-ui/src/features/projects/skills/hooks/useSkillQueries.ts`:
 
 ```typescript
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -2246,7 +2246,7 @@ export function useRemoveSkill() {
 **Step 2: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/skills/hooks/
+git add cortex-ui/src/features/projects/skills/hooks/
 git commit -m "feat: add TanStack Query hooks for skills management"
 ```
 
@@ -2255,12 +2255,12 @@ git commit -m "feat: add TanStack Query hooks for skills management"
 ### Task 10: Frontend — SkillStatusBadge and SystemCard components
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/skills/components/SkillStatusBadge.tsx`
-- Create: `archon-ui-main/src/features/projects/skills/components/SystemCard.tsx`
+- Create: `cortex-ui/src/features/projects/skills/components/SkillStatusBadge.tsx`
+- Create: `cortex-ui/src/features/projects/skills/components/SystemCard.tsx`
 
 **Step 1: Create SkillStatusBadge**
 
-Create `archon-ui-main/src/features/projects/skills/components/SkillStatusBadge.tsx`:
+Create `cortex-ui/src/features/projects/skills/components/SkillStatusBadge.tsx`:
 
 ```tsx
 interface SkillStatusBadgeProps {
@@ -2290,7 +2290,7 @@ export function SkillStatusBadge({ status, hasLocalChanges }: SkillStatusBadgePr
 
 **Step 2: Create SystemCard**
 
-Create `archon-ui-main/src/features/projects/skills/components/SystemCard.tsx`:
+Create `cortex-ui/src/features/projects/skills/components/SystemCard.tsx`:
 
 ```tsx
 import type { SystemWithSkills } from "../types";
@@ -2336,7 +2336,7 @@ function isRecentlyActive(lastSeen: string): boolean {
 **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/skills/components/
+git add cortex-ui/src/features/projects/skills/components/
 git commit -m "feat: add SkillStatusBadge and SystemCard components"
 ```
 
@@ -2345,12 +2345,12 @@ git commit -m "feat: add SkillStatusBadge and SystemCard components"
 ### Task 11: Frontend — SystemSkillList and SkillsTab
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/skills/components/SystemSkillList.tsx`
-- Create: `archon-ui-main/src/features/projects/skills/SkillsTab.tsx`
+- Create: `cortex-ui/src/features/projects/skills/components/SystemSkillList.tsx`
+- Create: `cortex-ui/src/features/projects/skills/SkillsTab.tsx`
 
 **Step 1: Create SystemSkillList**
 
-Create `archon-ui-main/src/features/projects/skills/components/SystemSkillList.tsx`:
+Create `cortex-ui/src/features/projects/skills/components/SystemSkillList.tsx`:
 
 ```tsx
 import { SkillStatusBadge } from "./SkillStatusBadge";
@@ -2380,7 +2380,7 @@ export function SystemSkillList({ systemSkills, allSkills, onInstall }: SystemSk
                 className="flex items-center justify-between p-2 rounded-md bg-white/5"
               >
                 <span className="text-sm text-white">
-                  {ss.archon_skills?.display_name ?? ss.skill_id}
+                  {ss.cortex_skills?.display_name ?? ss.skill_id}
                 </span>
                 <SkillStatusBadge status={ss.status} hasLocalChanges={ss.has_local_changes} />
               </div>
@@ -2431,7 +2431,7 @@ export function SystemSkillList({ systemSkills, allSkills, onInstall }: SystemSk
 
 **Step 2: Create SkillsTab**
 
-Create `archon-ui-main/src/features/projects/skills/SkillsTab.tsx`:
+Create `cortex-ui/src/features/projects/skills/SkillsTab.tsx`:
 
 ```tsx
 import { useState } from "react";
@@ -2482,7 +2482,7 @@ export function SkillsTab({ projectId }: SkillsTabProps) {
       <div className="flex flex-col items-center justify-center py-12 text-zinc-400 space-y-2">
         <p className="text-sm">No systems registered to this project yet.</p>
         <p className="text-xs text-zinc-500">
-          Systems are registered when they connect via the Archon MCP server and run a skill sync.
+          Systems are registered when they connect via the Cortex MCP server and run a skill sync.
         </p>
       </div>
     );
@@ -2534,7 +2534,7 @@ export function SkillsTab({ projectId }: SkillsTabProps) {
 **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/skills/
+git add cortex-ui/src/features/projects/skills/
 git commit -m "feat: add SkillsTab with system list and skill management"
 ```
 
@@ -2543,7 +2543,7 @@ git commit -m "feat: add SkillsTab with system list and skill management"
 ### Task 12: Frontend — Integrate Skills tab into ProjectsView
 
 **Files:**
-- Modify: `archon-ui-main/src/features/projects/views/ProjectsView.tsx`
+- Modify: `cortex-ui/src/features/projects/views/ProjectsView.tsx`
 
 **Step 1: Add import**
 
@@ -2603,41 +2603,41 @@ At line ~314-316, add the same:
 
 **Step 6: Run TypeScript check**
 
-Run: `cd archon-ui-main && npx tsc --noEmit 2>&1 | grep "src/features/projects/skills"`
+Run: `cd cortex-ui && npx tsc --noEmit 2>&1 | grep "src/features/projects/skills"`
 Expected: No errors
 
 **Step 7: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/views/ProjectsView.tsx
+git add cortex-ui/src/features/projects/views/ProjectsView.tsx
 git commit -m "feat: integrate Skills tab into project view"
 ```
 
 ---
 
-### Task 13: Create the archon-skill-sync SKILL.md
+### Task 13: Create the cortex-skill-sync SKILL.md
 
-The auto-sync skill that runs on startup and reconciles local vs Archon state.
+The auto-sync skill that runs on startup and reconciles local vs Cortex state.
 
 **Files:**
-- Create: `integrations/claude-code/skills/archon-skill-sync/SKILL.md`
+- Create: `integrations/claude-code/skills/cortex-skill-sync/SKILL.md`
 
 **Step 1: Write the skill**
 
-Create `integrations/claude-code/skills/archon-skill-sync/SKILL.md`:
+Create `integrations/claude-code/skills/cortex-skill-sync/SKILL.md`:
 
 ```markdown
 ---
-name: archon-skill-sync
-description: Sync local Claude Code skills with the Archon skill registry. Detects new skills, local modifications, and pending installs. Use when "sync skills", "check skills", "update skills", or at startup when sync is stale.
+name: cortex-skill-sync
+description: Sync local Claude Code skills with the Cortex skill registry. Detects new skills, local modifications, and pending installs. Use when "sync skills", "check skills", "update skills", or at startup when sync is stale.
 ---
 
-# Archon Skill Sync
+# Cortex Skill Sync
 
-Synchronizes local Claude Code skills with the Archon skill registry. Detects drift, handles conflict resolution, installs pending skills, and uploads new local skills.
+Synchronizes local Claude Code skills with the Cortex skill registry. Detects drift, handles conflict resolution, installs pending skills, and uploads new local skills.
 
-**Invocation:** `/archon-skill-sync`
-**Auto-trigger:** Runs automatically when any Archon skill detects last_skill_sync > 24h in `.claude/archon-state.json`
+**Invocation:** `/cortex-skill-sync`
+**Auto-trigger:** Runs automatically when any Cortex skill detects last_skill_sync > 24h in `.claude/cortex-state.json`
 
 ---
 
@@ -2675,8 +2675,8 @@ Store as `system_fingerprint`.
 
 Scan these directories for SKILL.md files:
 - `.claude/skills/` (user-installed skills)
-- `integrations/claude-code/skills/` (repo skills, if in Archon repo)
-- Any directory listed in `.claude/archon-state.json` under `skill_directories`
+- `integrations/claude-code/skills/` (repo skills, if in Cortex repo)
+- Any directory listed in `.claude/cortex-state.json` under `skill_directories`
 
 ```
 Glob: .claude/skills/**/SKILL.md
@@ -2697,14 +2697,14 @@ Build `local_skills` list: `[{name, content_hash}]`
 
 ---
 
-## Phase 2: Sync with Archon
+## Phase 2: Sync with Cortex
 
 ### 2a. Read project state
 
-Read `.claude/archon-state.json` for `archon_project_id`.
+Read `.claude/cortex-state.json` for `cortex_project_id`.
 
 If no project ID:
-> "No Archon project linked. Run `/link-to-project` first to associate this repo with an Archon project."
+> "No Cortex project linked. Run `/link-to-project` first to associate this repo with an Cortex project."
 
 Stop here.
 
@@ -2715,7 +2715,7 @@ manage_skills(
     action="sync",
     local_skills=<local_skills list>,
     system_fingerprint="<fingerprint>",
-    project_id="<archon_project_id>"
+    project_id="<cortex_project_id>"
 )
 ```
 
@@ -2724,7 +2724,7 @@ manage_skills(
 If response has `system.is_new == true`:
 
 Ask the user:
-> "This is the first time this machine is connecting to Archon. What name should we use for this system?"
+> "This is the first time this machine is connecting to Cortex. What name should we use for this system?"
 >
 > Suggestion: `<hostname>`
 
@@ -2735,7 +2735,7 @@ manage_skills(
     local_skills=<local_skills list>,
     system_fingerprint="<fingerprint>",
     system_name="<user-provided-name>",
-    project_id="<archon_project_id>"
+    project_id="<cortex_project_id>"
 )
 ```
 
@@ -2759,13 +2759,13 @@ For each item in `pending_remove`:
 
 For each item in `local_changes`, ask the user:
 
-> "Skill **<name>** has local modifications (local hash: `<local_hash>`, Archon hash: `<archon_hash>`). What would you like to do?"
+> "Skill **<name>** has local modifications (local hash: `<local_hash>`, Cortex hash: `<cortex_hash>`). What would you like to do?"
 
 Options:
-- **Update Source** — Push local content to Archon as a new version
+- **Update Source** — Push local content to Cortex as a new version
 - **Save as Project Version** — Store as a project-specific override
 - **Create New Skill** — Upload as a new skill with a different name
-- **Discard Changes** — Overwrite local with Archon version
+- **Discard Changes** — Overwrite local with Cortex version
 
 **If Update Source:**
 Read the local file content, then:
@@ -2787,13 +2787,13 @@ manage_skills(action="upload", skill_content="<local content>", skill_name="<new
 ```
 
 **If Discard Changes:**
-Fetch the Archon version via `find_skills(skill_id="<skill_id>")` and overwrite the local file.
+Fetch the Cortex version via `find_skills(skill_id="<skill_id>")` and overwrite the local file.
 
 ### 3d. Handle unknown local skills
 
 For each item in `unknown_local`, ask the user:
 
-> "Found local skill **<name>** not in Archon. Would you like to upload it to the registry?"
+> "Found local skill **<name>** not in Cortex. Would you like to upload it to the registry?"
 
 Options:
 - **Upload** — Validate and upload
@@ -2816,7 +2816,7 @@ If validation has errors, show them and ask user to fix.
 
 ### 4a. Write sync timestamp
 
-Update `.claude/archon-state.json`:
+Update `.claude/cortex-state.json`:
 ```json
 {
   "last_skill_sync": "<ISO timestamp>",
@@ -2843,11 +2843,11 @@ Merge with existing state — do not overwrite other fields.
 
 ### Sync Freshness
 
-Other Archon skills check sync freshness in their Phase 0:
+Other Cortex skills check sync freshness in their Phase 0:
 ```
-Read .claude/archon-state.json
+Read .claude/cortex-state.json
 If last_skill_sync is missing or older than 24h:
-  → Run /archon-skill-sync before continuing
+  → Run /cortex-skill-sync before continuing
 ```
 
 ### Skill File Locations
@@ -2858,7 +2858,7 @@ If last_skill_sync is missing or older than 24h:
 
 ### Error Recovery
 
-- If Archon is unreachable, skip sync and continue with stale state
+- If Cortex is unreachable, skip sync and continue with stale state
 - If a single skill install/upload fails, continue with remaining operations
 - Always save the sync timestamp even if some operations failed (prevents retry loops)
 ```
@@ -2866,8 +2866,8 @@ If last_skill_sync is missing or older than 24h:
 **Step 2: Commit**
 
 ```bash
-git add integrations/claude-code/skills/archon-skill-sync/
-git commit -m "feat: add archon-skill-sync skill for startup skill synchronization"
+git add integrations/claude-code/skills/cortex-skill-sync/
+git commit -m "feat: add cortex-skill-sync skill for startup skill synchronization"
 ```
 
 ---
@@ -2875,35 +2875,35 @@ git commit -m "feat: add archon-skill-sync skill for startup skill synchronizati
 ### Task 14: Update existing skills with sync freshness check
 
 **Files:**
-- Modify: `integrations/claude-code/skills/archon-memory/SKILL.md`
-- Modify: `integrations/claude-code/skills/archon-link-project/SKILL.md`
+- Modify: `integrations/claude-code/skills/cortex-memory/SKILL.md`
+- Modify: `integrations/claude-code/skills/cortex-link-project/SKILL.md`
 
-**Step 1: Add sync check to archon-memory Phase 0**
+**Step 1: Add sync check to cortex-memory Phase 0**
 
-In `integrations/claude-code/skills/archon-memory/SKILL.md`, add after the health check in Phase 0 (after the `health_check()` call and before the state file loading):
+In `integrations/claude-code/skills/cortex-memory/SKILL.md`, add after the health check in Phase 0 (after the `health_check()` call and before the state file loading):
 
 ```markdown
 ### 0b. Check skill sync freshness
 
-Read `.claude/archon-state.json`. If `last_skill_sync` is missing or older than 24 hours:
+Read `.claude/cortex-state.json`. If `last_skill_sync` is missing or older than 24 hours:
 > "Skills are out of sync. Running skill sync first..."
 
-Run `/archon-skill-sync` before continuing.
+Run `/cortex-skill-sync` before continuing.
 ```
 
 Renumber subsequent steps (0b becomes 0c, etc.).
 
-**Step 2: Add sync check to archon-link-project Phase 0**
+**Step 2: Add sync check to cortex-link-project Phase 0**
 
-In `integrations/claude-code/skills/archon-link-project/SKILL.md`, add the same block after the health check in Phase 0 (after step 0a, before 0b):
+In `integrations/claude-code/skills/cortex-link-project/SKILL.md`, add the same block after the health check in Phase 0 (after step 0a, before 0b):
 
 ```markdown
 ### 0b. Check skill sync freshness
 
-Read `.claude/archon-state.json`. If `last_skill_sync` is missing or older than 24 hours:
+Read `.claude/cortex-state.json`. If `last_skill_sync` is missing or older than 24 hours:
 > "Skills are out of sync. Running skill sync first..."
 
-Run `/archon-skill-sync` before continuing.
+Run `/cortex-skill-sync` before continuing.
 ```
 
 Renumber subsequent steps.
@@ -2911,8 +2911,8 @@ Renumber subsequent steps.
 **Step 3: Commit**
 
 ```bash
-git add integrations/claude-code/skills/archon-memory/SKILL.md integrations/claude-code/skills/archon-link-project/SKILL.md
-git commit -m "feat: add sync freshness check to existing Archon skills"
+git add integrations/claude-code/skills/cortex-memory/SKILL.md integrations/claude-code/skills/cortex-link-project/SKILL.md
+git commit -m "feat: add sync freshness check to existing Cortex skills"
 ```
 
 ---
@@ -2941,7 +2941,7 @@ Expected: No errors
 
 **Step 5: Run frontend TypeScript check**
 
-Run: `cd archon-ui-main && npx tsc --noEmit 2>&1 | grep -E "(error|skills)"`
+Run: `cd cortex-ui && npx tsc --noEmit 2>&1 | grep -E "(error|skills)"`
 Expected: No errors in skills files
 
 **Step 6: If any tests or checks fail, fix them before proceeding**
@@ -2964,6 +2964,6 @@ Expected: No errors in skills files
 | 10 | SkillStatusBadge + SystemCard | React components |
 | 11 | SystemSkillList + SkillsTab | Main tab component |
 | 12 | ProjectsView integration | Add Skills tab to both layouts |
-| 13 | archon-skill-sync SKILL.md | New sync skill |
+| 13 | cortex-skill-sync SKILL.md | New sync skill |
 | 14 | Update existing skills | Add sync freshness check to Phase 0 |
 | 15 | Full test suite verification | All tests pass, no regressions |

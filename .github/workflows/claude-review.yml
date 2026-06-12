@@ -15,7 +15,7 @@ jobs:
         github.event_name == 'pull_request_review_comment'
       ) &&
       contains(github.event.comment.body, '@claude-review') &&
-      contains(fromJSON('["Wirasm", "coleam00", "sean-eskerium"]'), github.event.comment.user.login)
+      contains(fromJSON('["trezero"]'), github.event.comment.user.login)
 
     runs-on: ubuntu-latest
 
@@ -47,7 +47,7 @@ jobs:
             You are performing a CODE REVIEW ONLY. You cannot make any changes to files.
 
             ## Your Role
-            You are reviewing code for Archon V2 Beta, a local-first AI knowledge management system in early beta stage.
+            You are reviewing code for Cortex V2 Beta, a local-first AI knowledge management system in early beta stage.
 
             ## Architecture Context
             - Frontend: React + TypeScript + Vite (port 3737)
@@ -180,7 +180,7 @@ jobs:
             [Brief explanation rationale for above recommendations, considering this is an beta project focused on rapid iteration]
 
             ---
-            *Review based on Archon V2 Beta guidelines and CLAUDE.md principles*
+            *Review based on Cortex V2 Beta guidelines and CLAUDE.md principles*
 
           # Commented out - using default tools
           # allowed_tools: "Read(*),Grep(*),LS(*),Glob(*),Bash(npm test*),Bash(npm run test*),Bash(npm run lint*),Bash(npm run type*),Bash(npm run check*),Bash(uv run pytest*),Bash(uv run ruff*),Bash(uv run mypy*),Bash(git log*),Bash(git diff*),Bash(git status*),Bash(git show*),Bash(cat *),Bash(head *),Bash(tail *),Bash(wc *),Bash(find * -type f),WebSearch(*),TodoWrite(*)"
@@ -193,7 +193,7 @@ jobs:
         github.event_name == 'pull_request_review_comment'
       ) &&
       contains(github.event.comment.body, '@claude-review') &&
-      !contains(fromJSON('["Wirasm", "coleam00", "sean-eskerium"]'), github.event.comment.user.login)
+      !contains(fromJSON('["trezero"]'), github.event.comment.user.login)
 
     runs-on: ubuntu-latest
 

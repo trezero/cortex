@@ -2,10 +2,10 @@
 
 ## User Persona
 
-**Cole** is a developer who maintains Archon and multiple projects managed by Archon. He wants
+**Cole** is a developer who maintains Cortex and multiple projects managed by Cortex. He wants
 to use the Auto Research engine to automatically improve prompts — skills, commands, and agent
 instructions — by iteratively mutating them, testing against evaluation suites, and keeping the
-best-performing variants. He works on **WIN-AI-PC** running WSL2 with Archon deployed locally.
+best-performing variants. He works on **WIN-AI-PC** running WSL2 with Cortex deployed locally.
 
 ---
 
@@ -25,14 +25,14 @@ This journey tests every user-facing aspect of the Auto Research feature across 
 
 ## Prerequisites
 
-- Archon stack running: `docker compose up -d` (server + frontend)
+- Cortex stack running: `docker compose up -d` (server + frontend)
 - Database migration `024_add_auto_research_tables.sql` applied to Supabase
 - At least one eval suite JSON file in `python/src/server/data/eval_suites/`
   (the repo ships with `planning_prompt_v1.json`)
-- An LLM API key configured in Archon settings (OpenAI or Anthropic)
+- An LLM API key configured in Cortex settings (OpenAI or Anthropic)
 - The target prompt file exists on disk (e.g., `.claude/commands/agent-work-orders/planning.md`)
 - Browser open to `http://localhost:3737`
-- Frontend dev server running: `cd archon-ui-main && npm run dev`
+- Frontend dev server running: `cd cortex-ui && npm run dev`
 
 ---
 
@@ -40,7 +40,7 @@ This journey tests every user-facing aspect of the Auto Research feature across 
 
 ### 1.1 Sidebar Link Visible
 
-Navigate to Archon UI in browser.
+Navigate to Cortex UI in browser.
 
 | Check | Expected | P/F | Notes |
 |-------|----------|-----|-------|
@@ -352,7 +352,7 @@ This tests that jobs orphaned by a server restart are cleaned up.
 Start an optimization with 50 iterations. While it's running, restart the backend:
 
 ```bash
-docker compose restart archon-server
+docker compose restart cortex-server
 # or if running locally:
 # kill the uv process and restart
 ```

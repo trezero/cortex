@@ -10,7 +10,7 @@ The web UI can be built on top of the same backend API endpoints created in v1.
 
 ## Why Deferred
 
-1. **CLI-first user base**: Most Archon users interact via Claude Code. The MCP tool flow covers the primary use case.
+1. **CLI-first user base**: Most Cortex users interact via Claude Code. The MCP tool flow covers the primary use case.
 2. **Docker filesystem complexity**: The web UI would need the same volume mount as the CLI flow, but users might expect to type any path — needs clear UX around the mount constraint.
 3. **AI description generation**: In CLI mode, Claude Code generates descriptions for free. The web UI would need a separate AI provider integration for description generation.
 4. **Scope control**: The scanner backend + MCP tools are already substantial. Adding a full frontend feature doubles the scope.
@@ -30,7 +30,7 @@ The web UI can be built on top of the same backend API endpoints created in v1.
 **Step 2: Review & Select**
 - List of detected projects with checkboxes (all new checked by default)
 - Each card shows: folder name, GitHub URL, detected languages, status badges
-- Status badges: "New" (green), "Already in Archon" (yellow/unchecked), "No Remote" (gray), "Group" (blue)
+- Status badges: "New" (green), "Already in Cortex" (yellow/unchecked), "No Remote" (gray), "Group" (blue)
 - Project groups displayed with visual hierarchy (parent + indented children)
 - Filter/search within results
 - Summary bar: "23 selected of 47 found (3 project groups)"
@@ -121,7 +121,7 @@ POST /api/scanner/generate-descriptions
 - Use the existing `agents/` infrastructure for LLM calls
 - Each description generation is a lightweight prompt: "Given this README, write a 1-2 sentence project description"
 - Rate limit: generate descriptions sequentially to avoid burning API quota
-- Cache generated descriptions in `archon_scan_projects.description` column (add to schema)
+- Cache generated descriptions in `cortex_scan_projects.description` column (add to schema)
 
 ---
 
@@ -141,7 +141,7 @@ POST /api/scanner/generate-descriptions
 
 ### Bulk Operations
 
-- Select multiple existing Archon projects → "Re-scan" to check for updates
+- Select multiple existing Cortex projects → "Re-scan" to check for updates
 - Bulk delete projects created by a scan (undo operation)
 - Bulk re-crawl knowledge sources for scanned projects
 
@@ -151,7 +151,7 @@ POST /api/scanner/generate-descriptions
 
 The web UI depends on these v1 backend components being complete:
 - [ ] Scanner API endpoints (`/api/scanner/*`)
-- [ ] Database tables (`archon_scan_results`, `archon_scan_projects`, `archon_scanner_templates`)
+- [ ] Database tables (`cortex_scan_results`, `cortex_scan_projects`, `cortex_scanner_templates`)
 - [ ] Scanner service with config file writing
 - [ ] Docker volume mount configuration
 

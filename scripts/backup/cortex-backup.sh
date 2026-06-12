@@ -12,8 +12,8 @@ set -euo pipefail
 # Configuration
 # ──────────────────────────────────────────────────────────────────────
 REMOTE_HOST="winadmin@172.16.1.222"
-REMOTE_BACKUP_DIR="~/archon-backups"
-LOCAL_BACKUP_DIR="$HOME/archon-backups"
+REMOTE_BACKUP_DIR="~/cortex-backups"
+LOCAL_BACKUP_DIR="$HOME/cortex-backups"
 LOG_FILE="$LOCAL_BACKUP_DIR/backup.log"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CORTEX_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -161,7 +161,7 @@ log "  env files: $(ls "$BACKUP_DIR/env/" | wc -l) files collected"
 CLAUDE_STATE_DIR="$BACKUP_DIR/claude-state"
 mkdir -p "$CLAUDE_STATE_DIR"
 
-for f in archon-state.json archon-config.json archon-memory-buffer.jsonl settings.local.json; do
+for f in cortex-state.json cortex-config.json cortex-memory-buffer.jsonl settings.local.json; do
     [[ -f "$CORTEX_DIR/.claude/$f" ]] && cp "$CORTEX_DIR/.claude/$f" "$CLAUDE_STATE_DIR/"
 done
 
@@ -209,7 +209,7 @@ fi
 MISSING=""
 [[ ! -s "$BACKUP_DIR/env/cortex.env" ]] && MISSING="$MISSING cortex.env"
 [[ ! -s "$BACKUP_DIR/env/localsupabase.env" ]] && MISSING="$MISSING localsupabase.env"
-[[ ! -s "$CLAUDE_STATE_DIR/archon-state.json" ]] && MISSING="$MISSING archon-state.json"
+[[ ! -s "$CLAUDE_STATE_DIR/cortex-state.json" ]] && MISSING="$MISSING cortex-state.json"
 
 if [[ -n "$MISSING" ]]; then
     log_error "Missing or empty critical files:$MISSING"
@@ -258,7 +258,7 @@ rsync -az "$LOG_FILE" "$REMOTE_HOST:$REMOTE_BACKUP_DIR/backup.log" 2>/dev/null |
 # ──────────────────────────────────────────────────────────────────────
 log "Step 5: Updating repos on backup server..."
 
-ssh "$REMOTE_HOST" "cd ~/projects/Archon && git pull --ff-only 2>&1 || echo 'git pull Archon failed (non-fatal)'" 2>>"$LOG_FILE" | while read -r line; do log "  Archon: $line"; done
+ssh "$REMOTE_HOST" "cd ~/projects/Cortex && git pull --ff-only 2>&1 || echo 'git pull Cortex failed (non-fatal)'" 2>>"$LOG_FILE" | while read -r line; do log "  Cortex: $line"; done
 
 ssh "$REMOTE_HOST" "cd ~/projects/localSupabase && git pull --ff-only 2>&1 || echo 'git pull localSupabase failed (non-fatal)'" 2>>"$LOG_FILE" | while read -r line; do log "  localSupabase: $line"; done
 

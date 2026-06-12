@@ -5,21 +5,21 @@
 
 ## Overview
 
-A Claude Code skill (`/link-to-project`) that links the current repo to an Archon project ecosystem. It establishes project hierarchy, associates knowledge sources, and optionally ingests local docs — all through a sequential wizard flow using existing MCP tools.
+A Claude Code skill (`/link-to-project`) that links the current repo to an Cortex project ecosystem. It establishes project hierarchy, associates knowledge sources, and optionally ingests local docs — all through a sequential wizard flow using existing MCP tools.
 
 ## Skill Identity
 
-- **Name:** `archon-link-project`
+- **Name:** `cortex-link-project`
 - **Command:** `/link-to-project`
-- **Location:** `integrations/claude-code/skills/archon-link-project/SKILL.md`
+- **Location:** `integrations/claude-code/skills/cortex-link-project/SKILL.md`
 - **Approach:** Sequential wizard — phase-by-phase guided flow with questions at each step
 
 ## Workflow Phases
 
 ### Phase 0 — Health Check & State Load
 
-- Verify Archon is reachable (health endpoint)
-- Read `.claude/archon-state.json` if it exists
+- Verify Cortex is reachable (health endpoint)
+- Read `.claude/cortex-state.json` if it exists
 - If already linked, show current state and ask if user wants to modify, re-link, or cancel
 
 ### Phase 1 — Project Discovery
@@ -46,7 +46,7 @@ A Claude Code skill (`/link-to-project`) that links the current repo to an Archo
 
 ### Phase 4 — Local Doc Ingestion (Optional)
 
-- Ask: "Want to ingest docs from this repo into Archon?"
+- Ask: "Want to ingest docs from this repo into Cortex?"
 - If yes: scan for doc files (`docs/`, `README.md`, `*.md`, etc.), show what was found
 - Let user select which to ingest
 - Call `manage_rag_source(action="add", source_type="inline", project_id=..., documents=[...])`
@@ -54,16 +54,16 @@ A Claude Code skill (`/link-to-project`) that links the current repo to an Archo
 
 ### Phase 5 — Save State
 
-- Write/update `.claude/archon-state.json` with project link details
+- Write/update `.claude/cortex-state.json` with project link details
 - Show summary of what was linked
 
 ## State File Schema
 
-The skill reads and writes `.claude/archon-state.json` (shared with archon-memory skill):
+The skill reads and writes `.claude/cortex-state.json` (shared with cortex-memory skill):
 
 ```json
 {
-  "archon_project_id": "9b18cc38-...",
+  "cortex_project_id": "9b18cc38-...",
   "parent_project_id": "5cb8f561-...",
   "project_name": "RecipeRaiders Admin Dashboard",
   "parent_project_name": "RecipeRaiders Ecosystem",
@@ -83,7 +83,7 @@ The skill reads and writes `.claude/archon-state.json` (shared with archon-memor
 
 | Phase | Tool | Purpose |
 |-------|------|---------|
-| 0 | (read local file) | Load `.claude/archon-state.json` |
+| 0 | (read local file) | Load `.claude/cortex-state.json` |
 | 1 | `find_projects()` | List all projects for selection |
 | 1 | `manage_project(action="create")` | Create new project if needed |
 | 2 | `manage_project(action="update", parent_project_id=...)` | Set hierarchy |
@@ -91,7 +91,7 @@ The skill reads and writes `.claude/archon-state.json` (shared with archon-memor
 | 3 | `manage_project(action="update")` | Associate sources via API |
 | 4 | `manage_rag_source(action="add", source_type="inline")` | Ingest local docs |
 | 4 | `rag_check_progress(progress_id=...)` | Poll ingestion status |
-| 5 | (write local file) | Save `.claude/archon-state.json` |
+| 5 | (write local file) | Save `.claude/cortex-state.json` |
 
 No new backend endpoints or MCP tools are needed — the skill orchestrates existing tools entirely.
 
@@ -99,14 +99,14 @@ No new backend endpoints or MCP tools are needed — the skill orchestrates exis
 
 - **Already linked:** Show current state, ask to modify/re-link/cancel
 - **Project not found:** Offer to create or search again
-- **Archon unreachable:** Fail fast with clear connection error message
+- **Cortex unreachable:** Fail fast with clear connection error message
 - **Ingestion failures:** Report which files failed, continue with successful ones
 - **No docs found:** Skip Phase 4 gracefully with a note
 - **Circular hierarchy:** Detect and block A→B→A cycles with explanation
 
 ## Design Decisions
 
-- **Sequential wizard over auto-detection:** More reliable, follows existing archon-memory skill pattern, easier to debug
+- **Sequential wizard over auto-detection:** More reliable, follows existing cortex-memory skill pattern, easier to debug
 - **Uses existing MCP tools only:** No backend changes required
-- **Shared state file:** `.claude/archon-state.json` is shared with archon-memory skill so other skills can read `parent_project_id` for cross-project searches
+- **Shared state file:** `.claude/cortex-state.json` is shared with cortex-memory skill so other skills can read `parent_project_id` for cross-project searches
 - **Can run from any repo:** Handles both parent and child directions

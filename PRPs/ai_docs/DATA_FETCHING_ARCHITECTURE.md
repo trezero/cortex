@@ -2,13 +2,13 @@
 
 ## Overview
 
-Archon uses **TanStack Query v5** for all data fetching, caching, and synchronization. This replaces the former custom polling layer with a query‑centric design that handles caching, deduplication, and smart refetching (including visibility‑aware polling) automatically.
+Cortex uses **TanStack Query v5** for all data fetching, caching, and synchronization. This replaces the former custom polling layer with a query‑centric design that handles caching, deduplication, and smart refetching (including visibility‑aware polling) automatically.
 
 ## Core Components
 
 ### 1. Query Client Configuration
 
-**Location**: `archon-ui-main/src/features/shared/config/queryClient.ts`
+**Location**: `cortex-ui/src/features/shared/config/queryClient.ts`
 
 Centralized QueryClient with:
 
@@ -20,7 +20,7 @@ Centralized QueryClient with:
 
 ### 2. Smart Polling Hook
 
-**Location**: `archon-ui-main/src/features/ui/hooks/useSmartPolling.ts`
+**Location**: `cortex-ui/src/features/ui/hooks/useSmartPolling.ts`
 
 Visibility-aware polling that:
 
@@ -30,7 +30,7 @@ Visibility-aware polling that:
 
 ### 3. Query Patterns
 
-**Location**: `archon-ui-main/src/features/shared/config/queryPatterns.ts`
+**Location**: `cortex-ui/src/features/shared/config/queryPatterns.ts`
 
 Shared constants:
 
@@ -43,12 +43,12 @@ Shared constants:
 
 Each feature maintains its own query keys:
 
-- **Projects**: `archon-ui-main/src/features/projects/hooks/useProjectQueries.ts` (projectKeys)
-- **Tasks**: `archon-ui-main/src/features/projects/tasks/hooks/useTaskQueries.ts` (taskKeys)
-- **Knowledge**: `archon-ui-main/src/features/knowledge/hooks/useKnowledgeQueries.ts` (knowledgeKeys)
-- **Progress**: `archon-ui-main/src/features/progress/hooks/useProgressQueries.ts` (progressKeys)
-- **MCP**: `archon-ui-main/src/features/mcp/hooks/useMcpQueries.ts` (mcpKeys)
-- **Documents**: `archon-ui-main/src/features/projects/documents/hooks/useDocumentQueries.ts` (documentKeys)
+- **Projects**: `cortex-ui/src/features/projects/hooks/useProjectQueries.ts` (projectKeys)
+- **Tasks**: `cortex-ui/src/features/projects/tasks/hooks/useTaskQueries.ts` (taskKeys)
+- **Knowledge**: `cortex-ui/src/features/knowledge/hooks/useKnowledgeQueries.ts` (knowledgeKeys)
+- **Progress**: `cortex-ui/src/features/progress/hooks/useProgressQueries.ts` (progressKeys)
+- **MCP**: `cortex-ui/src/features/mcp/hooks/useMcpQueries.ts` (mcpKeys)
+- **Documents**: `cortex-ui/src/features/projects/documents/hooks/useDocumentQueries.ts` (documentKeys)
 
 ### Data Fetching Hooks
 
@@ -64,7 +64,7 @@ Standard pattern across all features:
 
 ### ETag Support
 
-**Location**: `archon-ui-main/src/features/shared/api/apiClient.ts`
+**Location**: `cortex-ui/src/features/shared/api/apiClient.ts`
 
 ETag implementation:
 
@@ -83,7 +83,7 @@ Backend endpoints follow RESTful patterns:
 
 ## Optimistic Updates
 
-**Utilities**: `archon-ui-main/src/features/shared/utils/optimistic.ts`
+**Utilities**: `cortex-ui/src/features/shared/utils/optimistic.ts`
 
 All mutations use nanoid-based optimistic updates:
 
@@ -96,16 +96,16 @@ All mutations use nanoid-based optimistic updates:
 
 ### Smart Polling Usage
 
-**Implementation**: `archon-ui-main/src/features/ui/hooks/useSmartPolling.ts`
+**Implementation**: `cortex-ui/src/features/ui/hooks/useSmartPolling.ts`
 
 Polling intervals are defined in each feature's query hooks. See actual implementations:
-- **Projects**: `archon-ui-main/src/features/projects/hooks/useProjectQueries.ts`
-- **Tasks**: `archon-ui-main/src/features/projects/tasks/hooks/useTaskQueries.ts`
-- **Knowledge**: `archon-ui-main/src/features/knowledge/hooks/useKnowledgeQueries.ts`
-- **Progress**: `archon-ui-main/src/features/progress/hooks/useProgressQueries.ts`
-- **MCP**: `archon-ui-main/src/features/mcp/hooks/useMcpQueries.ts`
+- **Projects**: `cortex-ui/src/features/projects/hooks/useProjectQueries.ts`
+- **Tasks**: `cortex-ui/src/features/projects/tasks/hooks/useTaskQueries.ts`
+- **Knowledge**: `cortex-ui/src/features/knowledge/hooks/useKnowledgeQueries.ts`
+- **Progress**: `cortex-ui/src/features/progress/hooks/useProgressQueries.ts`
+- **MCP**: `cortex-ui/src/features/mcp/hooks/useMcpQueries.ts`
 
-Standard intervals from `archon-ui-main/src/features/shared/config/queryPatterns.ts`:
+Standard intervals from `cortex-ui/src/features/shared/config/queryPatterns.ts`:
 - `STALE_TIMES.instant`: 0ms (always fresh)
 - `STALE_TIMES.frequent`: 5 seconds (frequently changing data)
 - `STALE_TIMES.normal`: 30 seconds (standard cache)
@@ -155,7 +155,7 @@ Unused data removed after 10 minutes (configurable in queryClient).
 
 ### Hook Testing
 
-**Example**: `archon-ui-main/src/features/projects/hooks/tests/useProjectQueries.test.ts`
+**Example**: `cortex-ui/src/features/projects/hooks/tests/useProjectQueries.test.ts`
 
 Standard mocking approach for:
 

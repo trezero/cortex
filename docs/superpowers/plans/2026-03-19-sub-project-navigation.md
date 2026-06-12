@@ -17,9 +17,9 @@
 ### New Files
 | File | Purpose |
 |------|---------|
-| `archon-ui-main/src/features/projects/components/SubProjectCard.tsx` | Compact DataCard for child projects in the strip |
-| `archon-ui-main/src/features/projects/components/SubProjectsStrip.tsx` | Horizontal scrolling strip + manage button |
-| `archon-ui-main/src/features/projects/components/ManageSubProjectsModal.tsx` | Modal to add/remove child projects |
+| `cortex-ui/src/features/projects/components/SubProjectCard.tsx` | Compact DataCard for child projects in the strip |
+| `cortex-ui/src/features/projects/components/SubProjectsStrip.tsx` | Horizontal scrolling strip + manage button |
+| `cortex-ui/src/features/projects/components/ManageSubProjectsModal.tsx` | Modal to add/remove child projects |
 | `python/tests/server/api_routes/test_project_children.py` | Backend tests for children endpoint + parent clearing |
 
 ### Modified Files
@@ -27,14 +27,14 @@
 |------|--------|
 | `python/src/server/api_routes/projects_api.py` | Fix parent_project_id clearing via `model_fields_set`; add `GET /projects/{id}/children` |
 | `python/src/server/services/projects/project_service.py` | Add `get_project_children()` method |
-| `archon-ui-main/src/features/projects/types/project.ts` | Add `parent_project_id` to request types; add `ChildProject` type |
-| `archon-ui-main/src/features/projects/schemas/index.ts` | Add `parent_project_id` to Zod schemas |
-| `archon-ui-main/src/features/projects/services/projectService.ts` | Add `getProjectChildren()` method |
-| `archon-ui-main/src/features/projects/hooks/useProjectQueries.ts` | Add `projectKeys.children()`, `useProjectChildren()` hook, `useSetParentProject()` mutation |
-| `archon-ui-main/src/features/projects/components/ProjectGridCard.tsx` | Folder-tree icon + count pill for parents; breadcrumb for children |
-| `archon-ui-main/src/features/projects/components/ProjectTableRow.tsx` | Same indicators for table layout |
-| `archon-ui-main/src/features/projects/views/ProjectsView.tsx` | Insert SubProjectsStrip; add breadcrumb in detail header |
-| `archon-ui-main/src/features/projects/components/NewProjectModal.tsx` | Add "Parent Project" dropdown field |
+| `cortex-ui/src/features/projects/types/project.ts` | Add `parent_project_id` to request types; add `ChildProject` type |
+| `cortex-ui/src/features/projects/schemas/index.ts` | Add `parent_project_id` to Zod schemas |
+| `cortex-ui/src/features/projects/services/projectService.ts` | Add `getProjectChildren()` method |
+| `cortex-ui/src/features/projects/hooks/useProjectQueries.ts` | Add `projectKeys.children()`, `useProjectChildren()` hook, `useSetParentProject()` mutation |
+| `cortex-ui/src/features/projects/components/ProjectGridCard.tsx` | Folder-tree icon + count pill for parents; breadcrumb for children |
+| `cortex-ui/src/features/projects/components/ProjectTableRow.tsx` | Same indicators for table layout |
+| `cortex-ui/src/features/projects/views/ProjectsView.tsx` | Insert SubProjectsStrip; add breadcrumb in detail header |
+| `cortex-ui/src/features/projects/components/NewProjectModal.tsx` | Add "Parent Project" dropdown field |
 
 ---
 
@@ -139,7 +139,7 @@ class TestGetProjectChildren:
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/api_routes/test_project_children.py -v
+cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/api_routes/test_project_children.py -v
 ```
 
 Expected: FAIL — `get_project_children` does not exist yet.
@@ -160,7 +160,7 @@ In `python/src/server/services/projects/project_service.py`, add after the `upda
         """
         try:
             response = (
-                self.supabase_client.table("archon_projects")
+                self.supabase_client.table("cortex_projects")
                 .select("id, title, description, tags, parent_project_id")
                 .eq("parent_project_id", parent_id)
                 .execute()
@@ -231,7 +231,7 @@ async def get_project_children(project_id: str):
 - [ ] **Step 6: Run tests to verify they pass**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/api_routes/test_project_children.py -v
+cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/api_routes/test_project_children.py -v
 ```
 
 Expected: All tests PASS.
@@ -248,12 +248,12 @@ git commit -m "feat: add children endpoint and fix parent_project_id clearing"
 ### Task 2: Frontend types and Zod schemas
 
 **Files:**
-- Modify: `archon-ui-main/src/features/projects/types/project.ts:85-108`
-- Modify: `archon-ui-main/src/features/projects/schemas/index.ts:7-22`
+- Modify: `cortex-ui/src/features/projects/types/project.ts:85-108`
+- Modify: `cortex-ui/src/features/projects/schemas/index.ts:7-22`
 
 - [ ] **Step 1: Add `parent_project_id` to request types and add `ChildProject` type**
 
-In `archon-ui-main/src/features/projects/types/project.ts`:
+In `cortex-ui/src/features/projects/types/project.ts`:
 
 Add to `CreateProjectRequest` (after line 95, the `business_sources` field):
 ```typescript
@@ -280,7 +280,7 @@ export interface ChildProject {
 
 - [ ] **Step 2: Add `parent_project_id` to Zod schemas**
 
-In `archon-ui-main/src/features/projects/schemas/index.ts`:
+In `cortex-ui/src/features/projects/schemas/index.ts`:
 
 Add to `CreateProjectSchema` (after the `pinned` field on line 19):
 ```typescript
@@ -290,7 +290,7 @@ Add to `CreateProjectSchema` (after the `pinned` field on line 19):
 - [ ] **Step 3: Verify TypeScript compiles**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep "src/features/projects"
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep "src/features/projects"
 ```
 
 Expected: No new errors.
@@ -298,7 +298,7 @@ Expected: No new errors.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/types/project.ts archon-ui-main/src/features/projects/schemas/index.ts
+git add cortex-ui/src/features/projects/types/project.ts cortex-ui/src/features/projects/schemas/index.ts
 git commit -m "feat: add parent_project_id to FE request types and Zod schemas"
 ```
 
@@ -307,12 +307,12 @@ git commit -m "feat: add parent_project_id to FE request types and Zod schemas"
 ### Task 3: Frontend service method + query hooks
 
 **Files:**
-- Modify: `archon-ui-main/src/features/projects/services/projectService.ts`
-- Modify: `archon-ui-main/src/features/projects/hooks/useProjectQueries.ts`
+- Modify: `cortex-ui/src/features/projects/services/projectService.ts`
+- Modify: `cortex-ui/src/features/projects/hooks/useProjectQueries.ts`
 
 - [ ] **Step 1: Add `getProjectChildren` to projectService**
 
-In `archon-ui-main/src/features/projects/services/projectService.ts`, add after the `getProjectFeatures` method (before the closing `};`):
+In `cortex-ui/src/features/projects/services/projectService.ts`, add after the `getProjectFeatures` method (before the closing `};`):
 
 ```typescript
   /**
@@ -338,7 +338,7 @@ import type { ChildProject, CreateProjectRequest, Project, ProjectFeatures, Upda
 
 - [ ] **Step 2: Add `projectKeys.children` and `useProjectChildren` hook**
 
-In `archon-ui-main/src/features/projects/hooks/useProjectQueries.ts`:
+In `cortex-ui/src/features/projects/hooks/useProjectQueries.ts`:
 
 Add to `projectKeys` factory (after the `features` key, line 19):
 ```typescript
@@ -402,7 +402,7 @@ export function useSetParentProject() {
 - [ ] **Step 3: Verify TypeScript compiles**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep "src/features/projects"
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep "src/features/projects"
 ```
 
 Expected: No new errors.
@@ -410,7 +410,7 @@ Expected: No new errors.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/services/projectService.ts archon-ui-main/src/features/projects/hooks/useProjectQueries.ts
+git add cortex-ui/src/features/projects/services/projectService.ts cortex-ui/src/features/projects/hooks/useProjectQueries.ts
 git commit -m "feat: add children service method and query hooks"
 ```
 
@@ -419,11 +419,11 @@ git commit -m "feat: add children service method and query hooks"
 ### Task 4: SubProjectCard component
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/components/SubProjectCard.tsx`
+- Create: `cortex-ui/src/features/projects/components/SubProjectCard.tsx`
 
 - [ ] **Step 1: Create SubProjectCard**
 
-Create `archon-ui-main/src/features/projects/components/SubProjectCard.tsx`:
+Create `cortex-ui/src/features/projects/components/SubProjectCard.tsx`:
 
 ```tsx
 import { DataCard, DataCardContent } from "../../ui/primitives/data-card";
@@ -496,7 +496,7 @@ export function SubProjectCard({ project, onSelect }: SubProjectCardProps) {
 - [ ] **Step 2: Verify TypeScript compiles**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep "SubProjectCard"
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep "SubProjectCard"
 ```
 
 Expected: No errors.
@@ -504,7 +504,7 @@ Expected: No errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/components/SubProjectCard.tsx
+git add cortex-ui/src/features/projects/components/SubProjectCard.tsx
 git commit -m "feat: add SubProjectCard compact component"
 ```
 
@@ -513,11 +513,11 @@ git commit -m "feat: add SubProjectCard compact component"
 ### Task 5: SubProjectsStrip component
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/components/SubProjectsStrip.tsx`
+- Create: `cortex-ui/src/features/projects/components/SubProjectsStrip.tsx`
 
 - [ ] **Step 1: Create SubProjectsStrip**
 
-Create `archon-ui-main/src/features/projects/components/SubProjectsStrip.tsx`:
+Create `cortex-ui/src/features/projects/components/SubProjectsStrip.tsx`:
 
 ```tsx
 import { Settings2 } from "lucide-react";
@@ -600,7 +600,7 @@ export function SubProjectsStrip({
 - [ ] **Step 2: Verify TypeScript compiles**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep "SubProjectsStrip"
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep "SubProjectsStrip"
 ```
 
 Expected: No errors.
@@ -608,7 +608,7 @@ Expected: No errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/components/SubProjectsStrip.tsx
+git add cortex-ui/src/features/projects/components/SubProjectsStrip.tsx
 git commit -m "feat: add SubProjectsStrip horizontal scrolling component"
 ```
 
@@ -617,12 +617,12 @@ git commit -m "feat: add SubProjectsStrip horizontal scrolling component"
 ### Task 6: Parent/child indicators on ProjectGridCard and ProjectTableRow
 
 **Files:**
-- Modify: `archon-ui-main/src/features/projects/components/ProjectGridCard.tsx`
-- Modify: `archon-ui-main/src/features/projects/components/ProjectTableRow.tsx`
+- Modify: `cortex-ui/src/features/projects/components/ProjectGridCard.tsx`
+- Modify: `cortex-ui/src/features/projects/components/ProjectTableRow.tsx`
 
 - [ ] **Step 1: Add childCount and parentTitle props to ProjectGridCard**
 
-In `archon-ui-main/src/features/projects/components/ProjectGridCard.tsx`:
+In `cortex-ui/src/features/projects/components/ProjectGridCard.tsx`:
 
 Add `FolderTree` to the lucide import:
 ```typescript
@@ -691,7 +691,7 @@ Add `StatPill` import if not already present (it's already imported).
 
 - [ ] **Step 2: Add same props to ProjectTableRow**
 
-In `archon-ui-main/src/features/projects/components/ProjectTableRow.tsx`:
+In `cortex-ui/src/features/projects/components/ProjectTableRow.tsx`:
 
 Add `FolderTree` to imports:
 ```typescript
@@ -743,7 +743,7 @@ In the project name column (lines 87-89), add indicators:
 
 - [ ] **Step 3: Update ProjectGrid and ProjectTable to pass new props**
 
-In `archon-ui-main/src/features/projects/components/ProjectGrid.tsx`:
+In `cortex-ui/src/features/projects/components/ProjectGrid.tsx`:
 
 Add `allProjects` prop (full unfiltered list for child counting) and `onSelectProject` becomes the parent selector too. Actually, `projects` is the sorted/filtered list. We need the **full** list for child counting. Add a new prop:
 
@@ -781,7 +781,7 @@ Pass new props to every `<ProjectGridCard>`:
   onSelectParent={onSelectProject}
 ```
 
-In `archon-ui-main/src/features/projects/components/ProjectTable.tsx`:
+In `cortex-ui/src/features/projects/components/ProjectTable.tsx`:
 
 Add `allProjects` to the interface:
 ```typescript
@@ -846,12 +846,12 @@ Also fix the group collapse toggle (line 92-101) for accessibility — add `role
 
 - [ ] **Step 4: Update ProjectsView to pass `allProjects` to Grid/Table**
 
-In `archon-ui-main/src/features/projects/views/ProjectsView.tsx`, pass `allProjects={projects as Project[]}` to both `<ProjectGrid>` and `<ProjectTable>`.
+In `cortex-ui/src/features/projects/views/ProjectsView.tsx`, pass `allProjects={projects as Project[]}` to both `<ProjectGrid>` and `<ProjectTable>`.
 
 - [ ] **Step 5: Verify TypeScript compiles and check in browser**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep "src/features/projects"
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep "src/features/projects"
 ```
 
 Expected: No errors.
@@ -859,7 +859,7 @@ Expected: No errors.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/components/ProjectGridCard.tsx archon-ui-main/src/features/projects/components/ProjectTableRow.tsx archon-ui-main/src/features/projects/components/ProjectGrid.tsx archon-ui-main/src/features/projects/components/ProjectTable.tsx archon-ui-main/src/features/projects/views/ProjectsView.tsx
+git add cortex-ui/src/features/projects/components/ProjectGridCard.tsx cortex-ui/src/features/projects/components/ProjectTableRow.tsx cortex-ui/src/features/projects/components/ProjectGrid.tsx cortex-ui/src/features/projects/components/ProjectTable.tsx cortex-ui/src/features/projects/views/ProjectsView.tsx
 git commit -m "feat: add parent/child indicators to grid cards and table rows"
 ```
 
@@ -868,7 +868,7 @@ git commit -m "feat: add parent/child indicators to grid cards and table rows"
 ### Task 7: Integrate SubProjectsStrip into ProjectsView
 
 **Files:**
-- Modify: `archon-ui-main/src/features/projects/views/ProjectsView.tsx`
+- Modify: `cortex-ui/src/features/projects/views/ProjectsView.tsx`
 
 - [ ] **Step 1: Add SubProjectsStrip and breadcrumb to ProjectsView**
 
@@ -926,7 +926,7 @@ Add breadcrumb above the PillNavigation (inside the detail area, before the `<di
 - [ ] **Step 2: Verify TypeScript compiles**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep "src/features/projects"
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep "src/features/projects"
 ```
 
 Expected: No errors.
@@ -934,7 +934,7 @@ Expected: No errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/views/ProjectsView.tsx
+git add cortex-ui/src/features/projects/views/ProjectsView.tsx
 git commit -m "feat: integrate SubProjectsStrip and breadcrumb into ProjectsView"
 ```
 
@@ -943,12 +943,12 @@ git commit -m "feat: integrate SubProjectsStrip and breadcrumb into ProjectsView
 ### Task 8: ManageSubProjectsModal
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/components/ManageSubProjectsModal.tsx`
-- Modify: `archon-ui-main/src/features/projects/views/ProjectsView.tsx` (wire up modal)
+- Create: `cortex-ui/src/features/projects/components/ManageSubProjectsModal.tsx`
+- Modify: `cortex-ui/src/features/projects/views/ProjectsView.tsx` (wire up modal)
 
 - [ ] **Step 1: Create ManageSubProjectsModal**
 
-Create `archon-ui-main/src/features/projects/components/ManageSubProjectsModal.tsx`:
+Create `cortex-ui/src/features/projects/components/ManageSubProjectsModal.tsx`:
 
 ```tsx
 import { Search, X } from "lucide-react";
@@ -1128,7 +1128,7 @@ export function ManageSubProjectsModal({
 
 - [ ] **Step 2: Wire ManageSubProjectsModal into ProjectsView**
 
-In `archon-ui-main/src/features/projects/views/ProjectsView.tsx`:
+In `cortex-ui/src/features/projects/views/ProjectsView.tsx`:
 
 Add import:
 ```typescript
@@ -1150,7 +1150,7 @@ Add the modal at the bottom of the component, alongside other modals:
 - [ ] **Step 3: Verify TypeScript compiles**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep "src/features/projects"
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep "src/features/projects"
 ```
 
 Expected: No errors.
@@ -1158,7 +1158,7 @@ Expected: No errors.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/components/ManageSubProjectsModal.tsx archon-ui-main/src/features/projects/views/ProjectsView.tsx
+git add cortex-ui/src/features/projects/components/ManageSubProjectsModal.tsx cortex-ui/src/features/projects/views/ProjectsView.tsx
 git commit -m "feat: add ManageSubProjectsModal for linking/unlinking children"
 ```
 
@@ -1167,11 +1167,11 @@ git commit -m "feat: add ManageSubProjectsModal for linking/unlinking children"
 ### Task 9: Parent Project dropdown on NewProjectModal
 
 **Files:**
-- Modify: `archon-ui-main/src/features/projects/components/NewProjectModal.tsx`
+- Modify: `cortex-ui/src/features/projects/components/NewProjectModal.tsx`
 
 - [ ] **Step 1: Add Parent Project dropdown to NewProjectModal**
 
-In `archon-ui-main/src/features/projects/components/NewProjectModal.tsx`:
+In `cortex-ui/src/features/projects/components/NewProjectModal.tsx`:
 
 Add imports:
 ```typescript
@@ -1238,7 +1238,7 @@ setFormData({ title: "", description: "", parent_project_id: undefined });
 - [ ] **Step 2: Verify TypeScript compiles**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep "src/features/projects"
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep "src/features/projects"
 ```
 
 Expected: No errors.
@@ -1246,7 +1246,7 @@ Expected: No errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/components/NewProjectModal.tsx
+git add cortex-ui/src/features/projects/components/NewProjectModal.tsx
 git commit -m "feat: add Parent Project dropdown to NewProjectModal"
 ```
 
@@ -1257,7 +1257,7 @@ git commit -m "feat: add Parent Project dropdown to NewProjectModal"
 - [ ] **Step 1: Run full TypeScript check**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit
 ```
 
 Expected: No new errors in `src/features/projects`.
@@ -1265,7 +1265,7 @@ Expected: No new errors in `src/features/projects`.
 - [ ] **Step 2: Run Biome on features directory**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npm run biome:fix
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npm run biome:fix
 ```
 
 Fix any formatting issues.
@@ -1273,13 +1273,13 @@ Fix any formatting issues.
 - [ ] **Step 3: Run backend linter**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/python && uv run ruff check src/server/api_routes/projects_api.py src/server/services/projects/project_service.py --fix
+cd /home/winadmin/projects/Trinity/cortex/python && uv run ruff check src/server/api_routes/projects_api.py src/server/services/projects/project_service.py --fix
 ```
 
 - [ ] **Step 4: Run backend tests**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/api_routes/test_project_children.py -v
+cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/api_routes/test_project_children.py -v
 ```
 
 Expected: All pass.
@@ -1308,5 +1308,5 @@ git commit -m "chore: lint and format fixes for sub-project navigation"
 ## Propagation Steps
 
 After all changes:
-- **Backend**: Restart Docker: `docker compose restart archon-server`
+- **Backend**: Restart Docker: `docker compose restart cortex-server`
 - **Frontend**: Auto-reloads if `npm run dev` is running

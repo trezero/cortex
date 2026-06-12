@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add `"command"` as a first-class extension type in the Archon registry so Claude Code slash commands can be synced, versioned, and distributed through the same Extensions system that already handles skills and plugins.
+**Goal:** Add `"command"` as a first-class extension type in the Cortex registry so Claude Code slash commands can be synced, versioned, and distributed through the same Extensions system that already handles skills and plugins.
 
-**Architecture:** Commands are stored in the existing `archon_extensions` table with `type = "command"`. The `plugin_manifest` JSONB column (already nullable) is reused to store command-specific metadata (`command_group` and `filename`) needed to reconstruct the correct install path (`~/.claude/commands/{group}/{file}.md`). The seeding service scans `integrations/claude-code/commands/` recursively at startup, and the commands tarball endpoint switches from static file serving to registry-backed generation. The sync skill and bootstrap flow are updated to handle commands alongside skills.
+**Architecture:** Commands are stored in the existing `cortex_extensions` table with `type = "command"`. The `plugin_manifest` JSONB column (already nullable) is reused to store command-specific metadata (`command_group` and `filename`) needed to reconstruct the correct install path (`~/.claude/commands/{group}/{file}.md`). The seeding service scans `integrations/claude-code/commands/` recursively at startup, and the commands tarball endpoint switches from static file serving to registry-backed generation. The sync skill and bootstrap flow are updated to handle commands alongside skills.
 
 **Tech Stack:** Python 3.12 (FastAPI, Pydantic), TypeScript (React, TanStack Query), Supabase (PostgreSQL)
 
@@ -36,18 +36,18 @@
 
 | File | Responsibility |
 |---|---|
-| `archon-ui-main/src/features/projects/extensions/types/index.ts` | Extend `Extension.type` union, add `CommandMetadata` interface |
-| `archon-ui-main/src/features/projects/extensions/components/SystemExtensionList.tsx` | Group extensions by type, show type badges |
-| `archon-ui-main/src/features/projects/extensions/components/ExtensionStatusBadge.tsx` | Add type-aware icon/label |
+| `cortex-ui/src/features/projects/extensions/types/index.ts` | Extend `Extension.type` union, add `CommandMetadata` interface |
+| `cortex-ui/src/features/projects/extensions/components/SystemExtensionList.tsx` | Group extensions by type, show type badges |
+| `cortex-ui/src/features/projects/extensions/components/ExtensionStatusBadge.tsx` | Add type-aware icon/label |
 
 ### Integration — Files to Modify
 
 | File | Responsibility |
 |---|---|
-| `integrations/claude-code/extensions/archon-extension-sync/SKILL.md` | Scan commands dir in Phase 1, install commands correctly in Phase 3, remove Phase 3e |
-| `integrations/claude-code/extensions/archon-bootstrap/SKILL.md` | Download commands tarball alongside extensions tarball |
-| `integrations/claude-code/setup/archonSetup.sh` | Use registry-backed commands tarball instead of individual curl downloads |
-| `integrations/claude-code/setup/archonSetup.bat` | Same as above for Windows |
+| `integrations/claude-code/extensions/cortex-extension-sync/SKILL.md` | Scan commands dir in Phase 1, install commands correctly in Phase 3, remove Phase 3e |
+| `integrations/claude-code/extensions/cortex-bootstrap/SKILL.md` | Download commands tarball alongside extensions tarball |
+| `integrations/claude-code/setup/cortexSetup.sh` | Use registry-backed commands tarball instead of individual curl downloads |
+| `integrations/claude-code/setup/cortexSetup.bat` | Same as above for Windows |
 
 ---
 
@@ -62,21 +62,21 @@ Commands install to a different path structure than skills:
 To reconstruct the install path, we store metadata in the existing `plugin_manifest` JSONB column:
 
 ```json
-{"command_group": "archon", "filename": "archon-prime.md"}
+{"command_group": "cortex", "filename": "cortex-prime.md"}
 ```
 
-For ungrouped commands (e.g., `archon-setup.md` at the root of the commands dir):
+For ungrouped commands (e.g., `cortex-setup.md` at the root of the commands dir):
 
 ```json
-{"command_group": null, "filename": "archon-setup.md"}
+{"command_group": null, "filename": "cortex-setup.md"}
 ```
 
 ### Command Name Derivation
 
 The extension `name` field (unique, kebab-case) is derived from the file path:
-- `archon/archon-prime.md` → `archon-prime` (filename stem)
+- `cortex/cortex-prime.md` → `cortex-prime` (filename stem)
 - `agent-work-orders/commit.md` → `agent-work-orders-commit` (group prefix + filename stem)
-- `archon-setup.md` → `archon-setup` (filename stem, ungrouped)
+- `cortex-setup.md` → `cortex-setup` (filename stem, ungrouped)
 
 Rule: if the filename stem already starts with the group name, use just the filename stem. Otherwise, prefix with `{group}-`.
 
@@ -89,7 +89,7 @@ Skills require YAML frontmatter with a `name` field. Commands may or may not hav
 
 ### No Migration Needed
 
-The `type` column in `archon_extensions` is already free-text (`TEXT NOT NULL DEFAULT 'skill'`). We just insert `"command"` values. The `plugin_manifest` column is already `JSONB` and nullable.
+The `type` column in `cortex_extensions` is already free-text (`TEXT NOT NULL DEFAULT 'skill'`). We just insert `"command"` values. The `plugin_manifest` column is already `JSONB` and nullable.
 
 ---
 
@@ -110,18 +110,18 @@ class TestCreateExtensionWithType:
         """create_extension with type='command' should include type in the insert payload."""
         extension_row = {
             "id": "cmd-uuid-1",
-            "name": "archon-setup",
+            "name": "cortex-setup",
             "type": "command",
-            "content": "# Archon Setup\n\nSome content.",
-            "content_hash": ExtensionService.compute_content_hash("# Archon Setup\n\nSome content."),
+            "content": "# Cortex Setup\n\nSome content.",
+            "content_hash": ExtensionService.compute_content_hash("# Cortex Setup\n\nSome content."),
         }
         mock_supabase.table.return_value.insert.return_value.execute.return_value.data = [extension_row]
         mock_supabase.table.return_value.insert.return_value.execute.return_value.data = [extension_row]
 
         result = service.create_extension(
-            name="archon-setup",
+            name="cortex-setup",
             description="Setup command",
-            content="# Archon Setup\n\nSome content.",
+            content="# Cortex Setup\n\nSome content.",
             created_by="test",
             type="command",
         )
@@ -155,7 +155,7 @@ class TestCreateExtensionWithType:
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/extensions/test_extension_service.py::TestCreateExtensionWithType -v
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/extensions/test_extension_service.py::TestCreateExtensionWithType -v
 ```
 
 Expected: FAIL — `create_extension() got an unexpected keyword argument 'type'`
@@ -201,7 +201,7 @@ if plugin_manifest is not None:
 - [ ] **Step 4: Run test to verify it passes**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/extensions/test_extension_service.py::TestCreateExtensionWithType -v
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/extensions/test_extension_service.py::TestCreateExtensionWithType -v
 ```
 
 Expected: PASS
@@ -233,7 +233,7 @@ class TestListExtensionsWithTypeFilter:
 - [ ] **Step 6: Run test to verify it fails**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/extensions/test_extension_service.py::TestListExtensionsWithTypeFilter -v
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/extensions/test_extension_service.py::TestListExtensionsWithTypeFilter -v
 ```
 
 Expected: FAIL — `list_extensions() got an unexpected keyword argument 'type'`
@@ -258,7 +258,7 @@ Apply the same pattern to `list_extensions_full` and `list_extensions_for_projec
 - [ ] **Step 8: Run all extension service tests**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/extensions/test_extension_service.py -v
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/extensions/test_extension_service.py -v
 ```
 
 Expected: ALL PASS
@@ -327,7 +327,7 @@ class TestCommandValidation:
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/extensions/test_extension_validation_service.py::TestCommandValidation -v
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/extensions/test_extension_validation_service.py::TestCommandValidation -v
 ```
 
 Expected: FAIL — `validate() got an unexpected keyword argument 'extension_type'`
@@ -395,7 +395,7 @@ Replace the frontmatter section (lines 66-94) with type-aware logic:
 - [ ] **Step 4: Run test to verify it passes**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/extensions/test_extension_validation_service.py -v
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/extensions/test_extension_validation_service.py -v
 ```
 
 Expected: ALL PASS (new tests and existing tests)
@@ -421,13 +421,13 @@ Add to `python/tests/server/services/extensions/test_extension_seeding_service.p
 
 ```python
 SAMPLE_COMMAND_NO_FRONTMATTER = textwrap.dedent("""\
-    # Archon Setup — Register This Machine
+    # Cortex Setup — Register This Machine
 
-    Connect this machine to Archon.
+    Connect this machine to Cortex.
 
     ## Phase 0: Health Check
 
-    Call `health_check()` via the Archon MCP tool.
+    Call `health_check()` via the Cortex MCP tool.
 """)
 
 SAMPLE_COMMAND_WITH_FRONTMATTER = textwrap.dedent("""\
@@ -459,17 +459,17 @@ class TestSeedCommandsFlatFile:
     def test_creates_command_from_flat_md_file(self, service, mock_extension_service, tmp_path):
         """A .md file at the root of commands dir should be seeded as type='command'."""
         mock_extension_service.find_by_name.return_value = None
-        mock_extension_service.create_extension.return_value = {"id": "cmd-1", "name": "archon-setup"}
+        mock_extension_service.create_extension.return_value = {"id": "cmd-1", "name": "cortex-setup"}
 
-        _make_command_file(tmp_path, "archon-setup.md", SAMPLE_COMMAND_NO_FRONTMATTER)
+        _make_command_file(tmp_path, "cortex-setup.md", SAMPLE_COMMAND_NO_FRONTMATTER)
 
         counts = service.seed_commands(tmp_path)
 
         mock_extension_service.create_extension.assert_called_once()
         call_kwargs = mock_extension_service.create_extension.call_args
-        assert call_kwargs[1]["name"] == "archon-setup"
+        assert call_kwargs[1]["name"] == "cortex-setup"
         assert call_kwargs[1]["type"] == "command"
-        assert call_kwargs[1]["plugin_manifest"] == {"command_group": None, "filename": "archon-setup.md"}
+        assert call_kwargs[1]["plugin_manifest"] == {"command_group": None, "filename": "cortex-setup.md"}
         assert counts["created"] == 1
 
 
@@ -477,17 +477,17 @@ class TestSeedCommandsGroupedFile:
     def test_creates_command_from_grouped_md_file(self, service, mock_extension_service, tmp_path):
         """A .md file inside a subdirectory should include the group in the name and metadata."""
         mock_extension_service.find_by_name.return_value = None
-        mock_extension_service.create_extension.return_value = {"id": "cmd-2", "name": "archon-prime"}
+        mock_extension_service.create_extension.return_value = {"id": "cmd-2", "name": "cortex-prime"}
 
-        _make_command_file(tmp_path, "archon-prime.md", SAMPLE_COMMAND_WITH_FRONTMATTER, group="archon")
+        _make_command_file(tmp_path, "cortex-prime.md", SAMPLE_COMMAND_WITH_FRONTMATTER, group="cortex")
 
         counts = service.seed_commands(tmp_path)
 
         mock_extension_service.create_extension.assert_called_once()
         call_kwargs = mock_extension_service.create_extension.call_args
-        assert call_kwargs[1]["name"] == "archon-prime"
+        assert call_kwargs[1]["name"] == "cortex-prime"
         assert call_kwargs[1]["type"] == "command"
-        assert call_kwargs[1]["plugin_manifest"] == {"command_group": "archon", "filename": "archon-prime.md"}
+        assert call_kwargs[1]["plugin_manifest"] == {"command_group": "cortex", "filename": "cortex-prime.md"}
         assert counts["created"] == 1
 
 
@@ -513,12 +513,12 @@ class TestSeedCommandsSkipUnchanged:
         content_hash = ExtensionService.compute_content_hash(SAMPLE_COMMAND_NO_FRONTMATTER)
         mock_extension_service.find_by_name.return_value = {
             "id": "cmd-existing",
-            "name": "archon-setup",
+            "name": "cortex-setup",
             "content_hash": content_hash,
             "current_version": 1,
         }
 
-        _make_command_file(tmp_path, "archon-setup.md", SAMPLE_COMMAND_NO_FRONTMATTER)
+        _make_command_file(tmp_path, "cortex-setup.md", SAMPLE_COMMAND_NO_FRONTMATTER)
 
         counts = service.seed_commands(tmp_path)
 
@@ -537,7 +537,7 @@ class TestSeedCommandsEmptyDir:
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/extensions/test_extension_seeding_service.py::TestSeedCommandsFlatFile -v
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/extensions/test_extension_seeding_service.py::TestSeedCommandsFlatFile -v
 ```
 
 Expected: FAIL — `ExtensionSeedingService has no attribute 'seed_commands'`
@@ -640,7 +640,7 @@ def _seed_one_command(self, filepath: Path, group: str | None, counts: dict[str,
             name=name,
             description=description,
             content=content,
-            created_by="archon-seeder",
+            created_by="cortex-seeder",
             type="command",
             plugin_manifest=command_metadata,
         )
@@ -657,7 +657,7 @@ def _seed_one_command(self, filepath: Path, group: str | None, counts: dict[str,
         existing["id"],
         content,
         new_version=existing["current_version"] + 1,
-        updated_by="archon-seeder",
+        updated_by="cortex-seeder",
         description=description or None,
     )
     logger.info(f"Updated command extension: {name} -> v{existing['current_version'] + 1}")
@@ -667,7 +667,7 @@ def _seed_one_command(self, filepath: Path, group: str | None, counts: dict[str,
 - [ ] **Step 4: Run all seeding tests**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/extensions/test_extension_seeding_service.py -v
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/extensions/test_extension_seeding_service.py -v
 ```
 
 Expected: ALL PASS
@@ -703,7 +703,7 @@ total_skipped = counts["skipped"] + plugin_counts["skipped"] + command_counts["s
 - [ ] **Step 2: Verify server starts without errors**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && timeout 10 uv run python -m src.server.main || true
+cd /home/winadmin/projects/Trinity/cortex && timeout 10 uv run python -m src.server.main || true
 ```
 
 Expected: Server starts, logs show "Command seeding complete: N created, ..."
@@ -786,7 +786,7 @@ In the `create_extension` endpoint, modify the validation and creation call:
 - [ ] **Step 4: Run existing API tests to verify no regressions**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/api_routes/ -v
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/api_routes/ -v
 ```
 
 Expected: ALL PASS
@@ -887,10 +887,10 @@ Note: the fallback now uses `rglob("*.md")` instead of `glob("*.md")` to include
 Start the server and test:
 
 ```bash
-curl -sf http://localhost:8051/archon-setup/commands.tar.gz | tar tz
+curl -sf http://localhost:8051/cortex-setup/commands.tar.gz | tar tz
 ```
 
-Expected: List of files like `archon-setup.md`, `scan-projects.md` (and any grouped commands that have been seeded).
+Expected: List of files like `cortex-setup.md`, `scan-projects.md` (and any grouped commands that have been seeded).
 
 - [ ] **Step 3: Commit**
 
@@ -1004,7 +1004,7 @@ In the "List all extensions" branch, add type filter:
 - [ ] **Step 4: Run MCP tool tests**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/mcp_server/features/extensions/ -v
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/mcp_server/features/extensions/ -v
 ```
 
 Expected: ALL PASS
@@ -1021,7 +1021,7 @@ git commit -m "feat: add extension_type parameter to MCP extension tools"
 ## Task 8: Frontend — Update Extension Types
 
 **Files:**
-- Modify: `archon-ui-main/src/features/projects/extensions/types/index.ts`
+- Modify: `cortex-ui/src/features/projects/extensions/types/index.ts`
 
 - [ ] **Step 1: Extend the Extension type union and add CommandMetadata**
 
@@ -1053,7 +1053,7 @@ export interface Extension {
 - [ ] **Step 2: Verify TypeScript compiles**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep -i "extensions" || echo "No type errors"
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep -i "extensions" || echo "No type errors"
 ```
 
 Expected: No type errors
@@ -1061,7 +1061,7 @@ Expected: No type errors
 - [ ] **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/extensions/types/index.ts
+git add cortex-ui/src/features/projects/extensions/types/index.ts
 git commit -m "feat: extend Extension type to support 'command' type"
 ```
 
@@ -1070,7 +1070,7 @@ git commit -m "feat: extend Extension type to support 'command' type"
 ## Task 9: Frontend — Add Type Grouping to SystemExtensionList
 
 **Files:**
-- Modify: `archon-ui-main/src/features/projects/extensions/components/SystemExtensionList.tsx`
+- Modify: `cortex-ui/src/features/projects/extensions/components/SystemExtensionList.tsx`
 
 - [ ] **Step 1: Add type grouping and type badges**
 
@@ -1125,7 +1125,7 @@ export function SystemExtensionList({ systemExtensions, allExtensions, onInstall
   // Group installed by type (via joined extension data)
   const installedByType: Record<string, SystemExtension[]> = {};
   for (const se of systemExtensions) {
-    const type = se.archon_extensions?.type ?? "skill";
+    const type = se.cortex_extensions?.type ?? "skill";
     if (!installedByType[type]) installedByType[type] = [];
     installedByType[type].push(se);
   }
@@ -1149,7 +1149,7 @@ export function SystemExtensionList({ systemExtensions, allExtensions, onInstall
                     <div key={se.id} className="flex items-center justify-between p-2 rounded-md bg-white/5">
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-white">
-                          {se.archon_extensions?.display_name || se.archon_extensions?.name || se.extension_id}
+                          {se.cortex_extensions?.display_name || se.cortex_extensions?.name || se.extension_id}
                         </span>
                         <TypeBadge type={type} />
                       </div>
@@ -1216,7 +1216,7 @@ export function SystemExtensionList({ systemExtensions, allExtensions, onInstall
 - [ ] **Step 2: Verify TypeScript compiles and dev server renders**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit
 ```
 
 Expected: No errors
@@ -1224,16 +1224,16 @@ Expected: No errors
 - [ ] **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/extensions/components/SystemExtensionList.tsx
+git add cortex-ui/src/features/projects/extensions/components/SystemExtensionList.tsx
 git commit -m "feat: group extensions by type in SystemExtensionList with type badges"
 ```
 
 ---
 
-## Task 10: Integration — Update archon-extension-sync Skill
+## Task 10: Integration — Update cortex-extension-sync Skill
 
 **Files:**
-- Modify: `integrations/claude-code/extensions/archon-extension-sync/SKILL.md`
+- Modify: `integrations/claude-code/extensions/cortex-extension-sync/SKILL.md`
 
 - [ ] **Step 1: Update Phase 1 to scan commands directory**
 
@@ -1246,7 +1246,7 @@ Add a new section **1d. Find all command files**:
 
 Scan for command definition files alongside extensions:
 - `<install_dir>/commands/` (user-installed commands)
-- `integrations/claude-code/commands/` (repo commands, if in Archon repo)
+- `integrations/claude-code/commands/` (repo commands, if in Cortex repo)
 
 ```
 Glob: <install_dir>/commands/**/*.md
@@ -1315,16 +1315,16 @@ Delete the entire "3e. Update slash commands" section. Commands are now synced t
 - [ ] **Step 5: Commit**
 
 ```bash
-git add integrations/claude-code/extensions/archon-extension-sync/SKILL.md
+git add integrations/claude-code/extensions/cortex-extension-sync/SKILL.md
 git commit -m "feat: update extension-sync skill to handle command type"
 ```
 
 ---
 
-## Task 11: Integration — Update archon-bootstrap Skill
+## Task 11: Integration — Update cortex-bootstrap Skill
 
 **Files:**
-- Modify: `integrations/claude-code/extensions/archon-bootstrap/SKILL.md`
+- Modify: `integrations/claude-code/extensions/cortex-bootstrap/SKILL.md`
 
 - [ ] **Step 1: Add commands tarball download alongside extensions**
 
@@ -1334,7 +1334,7 @@ Find the phase where extensions are downloaded (Phase 5 in the bootstrap skill).
 ### 5b. Download commands
 
 ```bash
-curl -sf "<archon_mcp_url>/archon-setup/commands.tar.gz" | tar xz -C "<install_dir>/commands/"
+curl -sf "<cortex_mcp_url>/cortex-setup/commands.tar.gz" | tar xz -C "<install_dir>/commands/"
 ```
 
 Create the commands directory first:
@@ -1350,7 +1350,7 @@ If the download fails (e.g., no commands registered yet), warn but continue:
 - [ ] **Step 2: Commit**
 
 ```bash
-git add integrations/claude-code/extensions/archon-bootstrap/SKILL.md
+git add integrations/claude-code/extensions/cortex-bootstrap/SKILL.md
 git commit -m "feat: add commands tarball download to bootstrap skill"
 ```
 
@@ -1359,40 +1359,40 @@ git commit -m "feat: add commands tarball download to bootstrap skill"
 ## Task 12: Integration — Update Setup Scripts
 
 **Files:**
-- Modify: `integrations/claude-code/setup/archonSetup.sh`
-- Modify: `integrations/claude-code/setup/archonSetup.bat`
+- Modify: `integrations/claude-code/setup/cortexSetup.sh`
+- Modify: `integrations/claude-code/setup/cortexSetup.bat`
 
-- [ ] **Step 1: Update archonSetup.sh to use commands tarball**
+- [ ] **Step 1: Update cortexSetup.sh to use commands tarball**
 
 Find the section where individual commands are downloaded via curl (around lines 638-647). Replace the individual `curl` downloads with the tarball approach:
 
 Replace:
 ```bash
-curl -sf "$ARCHON_MCP_URL/archon-setup.md" -o "$HOME/.claude/commands/archon-setup.md"
-curl -sf "$ARCHON_MCP_URL/scan-projects.md" -o "$HOME/.claude/commands/scan-projects.md"
+curl -sf "$CORTEX_MCP_URL/cortex-setup.md" -o "$HOME/.claude/commands/cortex-setup.md"
+curl -sf "$CORTEX_MCP_URL/scan-projects.md" -o "$HOME/.claude/commands/scan-projects.md"
 ```
 
 With:
 ```bash
 echo "📦 Downloading slash commands..."
 mkdir -p "$HOME/.claude/commands"
-if curl -sf "${ARCHON_MCP_URL}/archon-setup/commands.tar.gz" | tar xz -C "$HOME/.claude/commands/"; then
+if curl -sf "${CORTEX_MCP_URL}/cortex-setup/commands.tar.gz" | tar xz -C "$HOME/.claude/commands/"; then
     echo "✓ Slash commands installed"
 else
     echo "⚠ Could not download commands from registry, trying individual files..."
-    curl -sf "$ARCHON_MCP_URL/archon-setup.md" -o "$HOME/.claude/commands/archon-setup.md" 2>/dev/null || true
-    curl -sf "$ARCHON_MCP_URL/scan-projects.md" -o "$HOME/.claude/commands/scan-projects.md" 2>/dev/null || true
+    curl -sf "$CORTEX_MCP_URL/cortex-setup.md" -o "$HOME/.claude/commands/cortex-setup.md" 2>/dev/null || true
+    curl -sf "$CORTEX_MCP_URL/scan-projects.md" -o "$HOME/.claude/commands/scan-projects.md" 2>/dev/null || true
 fi
 ```
 
-- [ ] **Step 2: Apply equivalent change to archonSetup.bat**
+- [ ] **Step 2: Apply equivalent change to cortexSetup.bat**
 
 Find the equivalent section in the `.bat` script and update similarly (using `tar` on Windows or PowerShell's `Invoke-WebRequest`).
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add integrations/claude-code/setup/archonSetup.sh integrations/claude-code/setup/archonSetup.bat
+git add integrations/claude-code/setup/cortexSetup.sh integrations/claude-code/setup/cortexSetup.bat
 git commit -m "feat: update setup scripts to use registry-backed commands tarball"
 ```
 
@@ -1403,7 +1403,7 @@ git commit -m "feat: update setup scripts to use registry-backed commands tarbal
 **Files:**
 - Modify: `integrations/claude-code/commands/` (add subdirectories)
 
-This task populates `integrations/claude-code/commands/` with the commands that should be distributed to all Archon-connected projects. Currently only `archon-setup.md` and `scan-projects.md` exist there. The `.claude/commands/` directory contains Archon-specific development commands that may or may not be appropriate for distribution.
+This task populates `integrations/claude-code/commands/` with the commands that should be distributed to all Cortex-connected projects. Currently only `cortex-setup.md` and `scan-projects.md` exist there. The `.claude/commands/` directory contains Cortex-specific development commands that may or may not be appropriate for distribution.
 
 - [ ] **Step 1: Decide which commands from `.claude/commands/` should be shared**
 
@@ -1411,7 +1411,7 @@ Review each command group and determine distribution scope:
 
 | Group | Commands | Distribute? | Rationale |
 |---|---|---|---|
-| `archon/` | archon-prime, archon-rca, archon-alpha-review, etc. | Yes — Archon-scoped | Useful for any project connected to Archon |
+| `cortex/` | cortex-prime, cortex-rca, cortex-alpha-review, etc. | Yes — Cortex-scoped | Useful for any project connected to Cortex |
 | `agent-work-orders/` | commit, planning, execute, etc. | Yes — if work orders feature enabled | Core workflow commands |
 | `prp-claude-code/` | prp-create, prp-execute, etc. | Yes | PRP framework commands |
 | `prp-any-agent/` | prp-any-cli-create, prp-any-cli-execute | Yes | Agent-agnostic PRP commands |
@@ -1423,9 +1423,9 @@ This decision should be made by the user/team. For this task, copy the commands 
 For each confirmed group, create the subdirectory and copy files:
 
 ```bash
-# Example for archon group:
-mkdir -p integrations/claude-code/commands/archon
-cp .claude/commands/archon/*.md integrations/claude-code/commands/archon/
+# Example for cortex group:
+mkdir -p integrations/claude-code/commands/cortex
+cp .claude/commands/cortex/*.md integrations/claude-code/commands/cortex/
 ```
 
 Repeat for each confirmed group.
@@ -1435,7 +1435,7 @@ Repeat for each confirmed group.
 Restart the server and check logs:
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && timeout 10 uv run python -m src.server.main 2>&1 | grep -i "command seeding"
+cd /home/winadmin/projects/Trinity/cortex && timeout 10 uv run python -m src.server.main 2>&1 | grep -i "command seeding"
 ```
 
 Expected: "Command seeding complete: N created, ..."
@@ -1456,7 +1456,7 @@ git commit -m "feat: add distributable command files to integrations directory"
 - [ ] **Step 1: Run all backend tests**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/ -v
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/ -v
 ```
 
 Expected: ALL PASS
@@ -1464,7 +1464,7 @@ Expected: ALL PASS
 - [ ] **Step 2: Run frontend type check**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit
 ```
 
 Expected: No errors
@@ -1472,7 +1472,7 @@ Expected: No errors
 - [ ] **Step 3: Run frontend linter**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npm run biome
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npm run biome
 ```
 
 Expected: No errors
@@ -1480,7 +1480,7 @@ Expected: No errors
 - [ ] **Step 4: Run backend linter**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run ruff check python/src/
+cd /home/winadmin/projects/Trinity/cortex && uv run ruff check python/src/
 ```
 
 Expected: No errors
@@ -1489,9 +1489,9 @@ Expected: No errors
 
 1. Start the server: `docker compose up --build -d`
 2. Verify commands are seeded: `curl -s http://localhost:8181/api/extensions?type=command | python -m json.tool`
-3. Verify commands tarball: `curl -sf http://localhost:8051/archon-setup/commands.tar.gz | tar tz`
+3. Verify commands tarball: `curl -sf http://localhost:8051/cortex-setup/commands.tar.gz | tar tz`
 4. Open the UI, navigate to a project's Extensions tab, verify commands appear grouped separately from skills
-5. Run `/archon-extension-sync` in a connected project and verify commands sync correctly
+5. Run `/cortex-extension-sync` in a connected project and verify commands sync correctly
 
 - [ ] **Step 6: Final commit if any fixes needed**
 
@@ -1507,9 +1507,9 @@ After all changes are complete:
 
 | What changed | How to propagate |
 |---|---|
-| Backend Python (services, API routes) | Restart Docker: `docker compose restart archon-server archon-mcp` |
+| Backend Python (services, API routes) | Restart Docker: `docker compose restart cortex-server cortex-mcp` |
 | Frontend (types, components) | Auto-reloads if `npm run dev` running; otherwise `npm run build` + refresh |
-| MCP tools | `docker compose restart archon-mcp` |
+| MCP tools | `docker compose restart cortex-mcp` |
 | Setup scripts | Re-download and re-run on each target machine |
-| Extension sync skill | Restart backend, then run `/archon-extension-sync` in each project |
-| Bootstrap skill | Restart backend, then run `/archon-bootstrap` on new machines |
+| Extension sync skill | Restart backend, then run `/cortex-extension-sync` in each project |
+| Bootstrap skill | Restart backend, then run `/cortex-bootstrap` on new machines |

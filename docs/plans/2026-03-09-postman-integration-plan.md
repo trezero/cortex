@@ -4,7 +4,7 @@
 
 **Goal:** Build a dual-mode Postman integration that maintains API collections via either Postman Cloud API or local Git YAML files, driven by a `POSTMAN_SYNC_MODE` setting.
 
-**Architecture:** Port the Postman skill's Python client library into Archon's backend. Expose `find_postman` and `manage_postman` MCP tools that proxy to the Postman Cloud API using centralized credentials. A behavioral extension (SKILL.md, already created) instructs Claude to check the mode and branch between MCP tools (api mode) and local YAML file writes (git mode). Cross-mode sync actions allow replication between modes.
+**Architecture:** Port the Postman skill's Python client library into Cortex's backend. Expose `find_postman` and `manage_postman` MCP tools that proxy to the Postman Cloud API using centralized credentials. A behavioral extension (SKILL.md, already created) instructs Claude to check the mode and branch between MCP tools (api mode) and local YAML file writes (git mode). Cross-mode sync actions allow replication between modes.
 
 **Tech Stack:** Python 3.12, FastAPI, httpx, Pydantic, MCP (FastMCP), React/TypeScript, Supabase/PostgreSQL
 
@@ -24,24 +24,24 @@
 
 ```sql
 -- 020_add_postman_collection_uid.sql
--- Add postman_collection_uid to archon_projects for API-mode collection tracking.
+-- Add postman_collection_uid to cortex_projects for API-mode collection tracking.
 
-ALTER TABLE archon_projects
+ALTER TABLE cortex_projects
   ADD COLUMN IF NOT EXISTS postman_collection_uid VARCHAR(255);
 
-COMMENT ON COLUMN archon_projects.postman_collection_uid IS 'Postman collection UID for API-mode sync. Set by manage_postman init_collection action.';
+COMMENT ON COLUMN cortex_projects.postman_collection_uid IS 'Postman collection UID for API-mode sync. Set by manage_postman init_collection action.';
 ```
 
 **Step 2: Apply migration to local database**
 
 Run: `psql` or Supabase SQL editor to execute the migration.
-Verify: `SELECT column_name FROM information_schema.columns WHERE table_name = 'archon_projects' AND column_name = 'postman_collection_uid';` returns 1 row.
+Verify: `SELECT column_name FROM information_schema.columns WHERE table_name = 'cortex_projects' AND column_name = 'postman_collection_uid';` returns 1 row.
 
 **Step 3: Commit**
 
 ```bash
 git add migration/0.1.0/020_add_postman_collection_uid.sql
-git commit -m "feat: add postman_collection_uid column to archon_projects (T1)"
+git commit -m "feat: add postman_collection_uid column to cortex_projects (T1)"
 ```
 
 ---
@@ -61,7 +61,7 @@ Port files from `~/.claude/skills/postman/` into `python/src/server/services/pos
 **Step 1: Create the package init**
 
 ```python
-"""Postman integration services for Archon."""
+"""Postman integration services for Cortex."""
 
 from .postman_service import PostmanService
 
@@ -125,7 +125,7 @@ class PostmanConfig:
     def validate(self):
         """Validate that required configuration is present."""
         if not self.api_key:
-            raise ValueError("POSTMAN_API_KEY not configured. Set it in Archon Settings → API Keys.")
+            raise ValueError("POSTMAN_API_KEY not configured. Set it in Cortex Settings → API Keys.")
         if not self.api_key.startswith("PMAK-"):
             raise ValueError("Invalid POSTMAN_API_KEY format. Keys should start with 'PMAK-'.")
 
@@ -163,7 +163,7 @@ Expected: `OK` (may show warnings about optional deps, that's fine)
 
 ```bash
 git add python/src/server/services/postman/
-git commit -m "feat: port Postman client library into Archon backend (T2)"
+git commit -m "feat: port Postman client library into Cortex backend (T2)"
 ```
 
 ---
@@ -222,11 +222,11 @@ class TestGetOrCreateCollection:
         with patch.object(service, "_get_client") as mock_client_fn:
             mock_client = MagicMock()
             mock_client.list_collections.return_value = [
-                {"name": "Archon", "uid": "col-123"}
+                {"name": "Cortex", "uid": "col-123"}
             ]
             mock_client_fn.return_value = mock_client
 
-            uid = service.get_or_create_collection("Archon")
+            uid = service.get_or_create_collection("Cortex")
             assert uid == "col-123"
             mock_client.create_collection.assert_not_called()
 
@@ -237,7 +237,7 @@ class TestGetOrCreateCollection:
             mock_client.create_collection.return_value = {"uid": "col-new"}
             mock_client_fn.return_value = mock_client
 
-            uid = service.get_or_create_collection("Archon")
+            uid = service.get_or_create_collection("Cortex")
             assert uid == "col-new"
             mock_client.create_collection.assert_called_once()
 
@@ -346,12 +346,12 @@ class PostmanService:
         return mode if mode in ("api", "git", "disabled") else "disabled"
 
     def _get_client(self) -> PostmanClient:
-        """Create a PostmanClient using credentials from archon_settings."""
+        """Create a PostmanClient using credentials from cortex_settings."""
         api_key = credential_service.get_credential("POSTMAN_API_KEY", decrypt=True)
         workspace_id = credential_service.get_credential("POSTMAN_WORKSPACE_ID", decrypt=False)
 
         if not api_key:
-            raise ValueError("POSTMAN_API_KEY not configured in Archon Settings.")
+            raise ValueError("POSTMAN_API_KEY not configured in Cortex Settings.")
 
         config = PostmanConfig(
             api_key=api_key,
@@ -739,13 +739,13 @@ class TestGetStatus:
 class TestCreateCollection:
     def test_creates_collection(self, client, mock_postman_service):
         mock_postman_service.get_or_create_collection.return_value = "col-123"
-        response = client.post("/api/postman/collections", json={"project_name": "Archon"})
+        response = client.post("/api/postman/collections", json={"project_name": "Cortex"})
         assert response.status_code == 200
         assert response.json()["collection_uid"] == "col-123"
 
     def test_skips_when_not_api_mode(self, client, mock_postman_service):
         mock_postman_service.get_sync_mode.return_value = "git"
-        response = client.post("/api/postman/collections", json={"project_name": "Archon"})
+        response = client.post("/api/postman/collections", json={"project_name": "Cortex"})
         assert response.status_code == 200
         assert response.json()["status"] == "skipped"
 
@@ -799,7 +799,7 @@ git commit -m "feat: add Postman API routes with tests (T4)"
 **Step 1: Create MCP feature init**
 
 ```python
-"""Postman integration tools for Archon MCP Server."""
+"""Postman integration tools for Cortex MCP Server."""
 
 from .postman_tools import register_postman_tools
 
@@ -937,7 +937,7 @@ def register_postman_tools(mcp: FastMCP):
 
         Args:
             action: The operation to perform
-            project_id: Archon project ID
+            project_id: Cortex project ID
             project_name: Project name for collection naming
             folder_name: Target folder in collection
             request: Request data dict (name, method, url, headers, body, test_script)
@@ -1209,8 +1209,8 @@ git commit -m "feat: add POSTMAN_SYNC_MODE to settings defaults (T6)"
 ### Task 7: Frontend Mode Selector
 
 **Files:**
-- Modify: `archon-ui-main/src/contexts/SettingsContext.tsx`
-- Modify: `archon-ui-main/src/components/settings/FeaturesSection.tsx`
+- Modify: `cortex-ui/src/contexts/SettingsContext.tsx`
+- Modify: `cortex-ui/src/components/settings/FeaturesSection.tsx`
 
 **Step 1: Add postmanSyncMode to SettingsContext**
 
@@ -1273,13 +1273,13 @@ Follow the existing toggle handler pattern: local state update → API call → 
 
 **Step 3: Verify**
 
-Run: `cd archon-ui-main && npm run build`
+Run: `cd cortex-ui && npm run build`
 Expected: No TypeScript errors
 
 **Step 4: Commit**
 
 ```bash
-git add archon-ui-main/src/contexts/SettingsContext.tsx archon-ui-main/src/components/settings/FeaturesSection.tsx
+git add cortex-ui/src/contexts/SettingsContext.tsx cortex-ui/src/components/settings/FeaturesSection.tsx
 git commit -m "feat: add Postman sync mode selector to Settings UI (T7)"
 ```
 
@@ -1290,12 +1290,12 @@ git commit -m "feat: add Postman sync mode selector to Settings UI (T7)"
 ### Task 8: Session-Start Hook .env Sync
 
 **Files:**
-- Modify: `integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py`
-- Modify: `integrations/claude-code/plugins/archon-memory/src/archon_client.py`
+- Modify: `integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py`
+- Modify: `integrations/claude-code/plugins/cortex-memory/src/cortex_client.py`
 
-**Step 1: Add sync method to ArchonClient**
+**Step 1: Add sync method to CortexClient**
 
-Add to `archon_client.py`:
+Add to `cortex_client.py`:
 
 ```python
 async def sync_postman_environment(self, system_name: str, env_content: str) -> bool:
@@ -1345,8 +1345,8 @@ try:
         env_path = Path.cwd() / ".env"
         if env_path.is_file():
             env_content = env_path.read_text(encoding="utf-8")
-            # Get system name from archon state
-            state_path = Path.cwd() / ".claude" / "archon-state.json"
+            # Get system name from cortex state
+            state_path = Path.cwd() / ".claude" / "cortex-state.json"
             system_name = "default"
             if state_path.is_file():
                 state = json.loads(state_path.read_text(encoding="utf-8"))
@@ -1364,7 +1364,7 @@ Add `import json` to the imports if not already present.
 **Step 3: Commit**
 
 ```bash
-git add integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py integrations/claude-code/plugins/archon-memory/src/archon_client.py
+git add integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py integrations/claude-code/plugins/cortex-memory/src/cortex_client.py
 git commit -m "feat: add Postman .env sync to session-start hook (T8)"
 ```
 
@@ -1398,7 +1398,7 @@ Expected: All existing + new tests pass
 
 **Step 2: Run frontend build**
 
-Run: `cd archon-ui-main && npm run build`
+Run: `cd cortex-ui && npm run build`
 Expected: No TypeScript errors
 
 **Step 3: Run linters**

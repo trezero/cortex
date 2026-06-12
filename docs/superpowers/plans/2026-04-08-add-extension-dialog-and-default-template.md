@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a `+ Extension` button in the Project Extensions tab that opens a multi-select dialog for linking extensions to a project, and add a Default Extensions section in Settings that lets users mark which extensions are installed on every new Archon-connected application.
+**Goal:** Add a `+ Extension` button in the Project Extensions tab that opens a multi-select dialog for linking extensions to a project, and add a Default Extensions section in Settings that lets users mark which extensions are installed on every new Cortex-connected application.
 
-**Architecture:** Linking an extension to a project appends the project UUID to the extension's existing `skill_groups` TEXT[] column (the mechanism `list_extensions_for_project` already filters on). A new `is_default BOOLEAN` column on `archon_extensions` powers the Settings template. Both surfaces share the same frontend service and query hooks with new methods added alongside existing ones.
+**Architecture:** Linking an extension to a project appends the project UUID to the extension's existing `skill_groups` TEXT[] column (the mechanism `list_extensions_for_project` already filters on). A new `is_default BOOLEAN` column on `cortex_extensions` powers the Settings template. Both surfaces share the same frontend service and query hooks with new methods added alongside existing ones.
 
 **Tech Stack:** Python 3.12, FastAPI, Supabase (PostgreSQL), React 18, TypeScript, TanStack Query v5, Tailwind, Radix UI Dialog primitives
 
@@ -25,13 +25,13 @@
 
 | File | Responsibility |
 |---|---|
-| `archon-ui-main/src/features/projects/extensions/types/index.ts` | MODIFY — add `is_default` to `Extension` |
-| `archon-ui-main/src/features/projects/extensions/services/extensionService.ts` | MODIFY — add `linkExtension`, `unlinkExtension`, `setExtensionDefault` |
-| `archon-ui-main/src/features/projects/extensions/hooks/useExtensionQueries.ts` | MODIFY — add `useLinkExtensions`, `useUnlinkExtension`, `useSetExtensionDefault` |
-| `archon-ui-main/src/features/projects/extensions/components/AddExtensionDialog.tsx` | CREATE — multi-select dialog |
-| `archon-ui-main/src/features/projects/extensions/ExtensionsTab.tsx` | MODIFY — add `+ Extension` button and dialog |
-| `archon-ui-main/src/components/settings/DefaultExtensionsSection.tsx` | CREATE — settings section with per-extension toggles |
-| `archon-ui-main/src/pages/SettingsPage.tsx` | MODIFY — import and render DefaultExtensionsSection |
+| `cortex-ui/src/features/projects/extensions/types/index.ts` | MODIFY — add `is_default` to `Extension` |
+| `cortex-ui/src/features/projects/extensions/services/extensionService.ts` | MODIFY — add `linkExtension`, `unlinkExtension`, `setExtensionDefault` |
+| `cortex-ui/src/features/projects/extensions/hooks/useExtensionQueries.ts` | MODIFY — add `useLinkExtensions`, `useUnlinkExtension`, `useSetExtensionDefault` |
+| `cortex-ui/src/features/projects/extensions/components/AddExtensionDialog.tsx` | CREATE — multi-select dialog |
+| `cortex-ui/src/features/projects/extensions/ExtensionsTab.tsx` | MODIFY — add `+ Extension` button and dialog |
+| `cortex-ui/src/components/settings/DefaultExtensionsSection.tsx` | CREATE — settings section with per-extension toggles |
+| `cortex-ui/src/pages/SettingsPage.tsx` | MODIFY — import and render DefaultExtensionsSection |
 
 ---
 
@@ -44,10 +44,10 @@
 
 ```sql
 -- 035_add_is_default_to_extensions.sql
--- Adds is_default flag to archon_extensions for the default template feature.
--- Extensions where is_default = true are installed on every new Archon-connected application.
+-- Adds is_default flag to cortex_extensions for the default template feature.
+-- Extensions where is_default = true are installed on every new Cortex-connected application.
 
-ALTER TABLE archon_extensions
+ALTER TABLE cortex_extensions
   ADD COLUMN IF NOT EXISTS is_default BOOLEAN NOT NULL DEFAULT false;
 ```
 
@@ -58,7 +58,7 @@ Open the Supabase SQL editor (or psql) and execute the file content. Verify:
 ```sql
 SELECT column_name, data_type, column_default
 FROM information_schema.columns
-WHERE table_name = 'archon_extensions' AND column_name = 'is_default';
+WHERE table_name = 'cortex_extensions' AND column_name = 'is_default';
 ```
 
 Expected: one row, `data_type = boolean`, `column_default = false`.
@@ -67,7 +67,7 @@ Expected: one row, `data_type = boolean`, `column_default = false`.
 
 ```bash
 git add migration/0.1.0/035_add_is_default_to_extensions.sql
-git commit -m "feat: add is_default column to archon_extensions"
+git commit -m "feat: add is_default column to cortex_extensions"
 ```
 
 ---
@@ -263,7 +263,7 @@ class TestSetExtensionDefault:
 - [ ] **Step 2: Run tests to confirm they fail**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/extensions/test_extension_service.py::TestLinkExtensionToProject python/tests/server/services/extensions/test_extension_service.py::TestUnlinkExtensionFromProject python/tests/server/services/extensions/test_extension_service.py::TestSetExtensionDefault -v 2>&1 | tail -20
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/extensions/test_extension_service.py::TestLinkExtensionToProject python/tests/server/services/extensions/test_extension_service.py::TestUnlinkExtensionFromProject python/tests/server/services/extensions/test_extension_service.py::TestSetExtensionDefault -v 2>&1 | tail -20
 ```
 
 Expected: `ERROR` — `AttributeError` or `FAILED` because the methods don't exist yet.
@@ -336,7 +336,7 @@ def unlink_extension_from_project(self, extension_id: str, project_id: str) -> d
 def set_extension_default(self, extension_id: str, is_default: bool) -> dict[str, Any]:
     """Set or clear the is_default flag on an extension.
 
-    Extensions with is_default = True are installed on every new Archon-connected application.
+    Extensions with is_default = True are installed on every new Cortex-connected application.
 
     Raises:
         RuntimeError: If the extension_id does not exist or update fails.
@@ -371,7 +371,7 @@ In both methods find the `.select(...)` call and add `is_default` to the field l
 - [ ] **Step 5: Run tests to confirm they pass**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/server/services/extensions/test_extension_service.py -v 2>&1 | tail -30
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/server/services/extensions/test_extension_service.py -v 2>&1 | tail -30
 ```
 
 Expected: ALL PASS (new and existing tests).
@@ -409,7 +409,7 @@ async def set_extension_default(extension_id: str, request: SetExtensionDefaultR
     """Toggle is_default on a single extension.
 
     Extensions with is_default=True are included in the default template installed
-    on every new Archon-connected application.
+    on every new Cortex-connected application.
     """
     try:
         logfire.info(f"Setting is_default | extension_id={extension_id} | is_default={request.is_default}")
@@ -473,7 +473,7 @@ async def unlink_extension_from_project_route(project_id: str, extension_id: str
 - [ ] **Step 4: Verify the backend starts and routes appear**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run python -c "
+cd /home/winadmin/projects/Trinity/cortex && uv run python -c "
 from src.server.api_routes.extensions_api import router
 routes = [r.path for r in router.routes]
 assert any('link' in r for r in routes), 'link routes missing'
@@ -496,9 +496,9 @@ git commit -m "feat: add link/unlink project endpoints and PATCH default to exte
 ## Task 4: Frontend Types, Service Methods, Query Hooks
 
 **Files:**
-- Modify: `archon-ui-main/src/features/projects/extensions/types/index.ts`
-- Modify: `archon-ui-main/src/features/projects/extensions/services/extensionService.ts`
-- Modify: `archon-ui-main/src/features/projects/extensions/hooks/useExtensionQueries.ts`
+- Modify: `cortex-ui/src/features/projects/extensions/types/index.ts`
+- Modify: `cortex-ui/src/features/projects/extensions/services/extensionService.ts`
+- Modify: `cortex-ui/src/features/projects/extensions/hooks/useExtensionQueries.ts`
 
 - [ ] **Step 1: Add `is_default` to the `Extension` interface in `types/index.ts`**
 
@@ -599,7 +599,7 @@ export function useSetExtensionDefault() {
 - [ ] **Step 4: Run TypeScript check**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep "extensions" | head -20
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep "extensions" | head -20
 ```
 
 Expected: no errors related to the extensions feature files.
@@ -607,9 +607,9 @@ Expected: no errors related to the extensions feature files.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/extensions/types/index.ts \
-        archon-ui-main/src/features/projects/extensions/services/extensionService.ts \
-        archon-ui-main/src/features/projects/extensions/hooks/useExtensionQueries.ts
+git add cortex-ui/src/features/projects/extensions/types/index.ts \
+        cortex-ui/src/features/projects/extensions/services/extensionService.ts \
+        cortex-ui/src/features/projects/extensions/hooks/useExtensionQueries.ts
 git commit -m "feat: add link/unlink/setDefault service methods and query hooks for extensions"
 ```
 
@@ -618,9 +618,9 @@ git commit -m "feat: add link/unlink/setDefault service methods and query hooks 
 ## Task 5: Frontend — AddExtensionDialog Component
 
 **Files:**
-- Create: `archon-ui-main/src/features/projects/extensions/components/AddExtensionDialog.tsx`
+- Create: `cortex-ui/src/features/projects/extensions/components/AddExtensionDialog.tsx`
 
-The dialog uses the same `Dialog` primitives as `AddKnowledgeDialog`. It fetches all Archon extensions, filters out those already linked to the project, lets the user multi-select, and calls `useLinkExtensions` on submit.
+The dialog uses the same `Dialog` primitives as `AddKnowledgeDialog`. It fetches all Cortex extensions, filters out those already linked to the project, lets the user multi-select, and calls `useLinkExtensions` on submit.
 
 - [ ] **Step 1: Create the component**
 
@@ -846,7 +846,7 @@ export function AddExtensionDialog({ open, onOpenChange, projectId, linkedExtens
 - [ ] **Step 2: Run TypeScript check**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep "AddExtensionDialog" | head -10
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep "AddExtensionDialog" | head -10
 ```
 
 Expected: no errors.
@@ -854,7 +854,7 @@ Expected: no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/extensions/components/AddExtensionDialog.tsx
+git add cortex-ui/src/features/projects/extensions/components/AddExtensionDialog.tsx
 git commit -m "feat: add AddExtensionDialog component for linking extensions to a project"
 ```
 
@@ -863,7 +863,7 @@ git commit -m "feat: add AddExtensionDialog component for linking extensions to 
 ## Task 6: Frontend — Wire `+ Extension` Button into ExtensionsTab
 
 **Files:**
-- Modify: `archon-ui-main/src/features/projects/extensions/ExtensionsTab.tsx`
+- Modify: `cortex-ui/src/features/projects/extensions/ExtensionsTab.tsx`
 
 The current tab renders an early-return empty state when `systems.length === 0`. We restructure so the `+ Extension` button header is always visible after data loads, and the empty state / systems layout renders below it.
 
@@ -935,7 +935,7 @@ export function ExtensionsTab({ projectId }: ExtensionsTabProps) {
         <div className="flex flex-col items-center justify-center py-12 text-zinc-400 space-y-2">
           <p className="text-sm">No systems registered to this project yet.</p>
           <p className="text-xs text-zinc-500">
-            Systems are registered when they connect via the Archon MCP server and run an extension sync.
+            Systems are registered when they connect via the Cortex MCP server and run an extension sync.
           </p>
           {allExtensions.length > 0 && (
             <p className="text-xs text-zinc-500">
@@ -997,7 +997,7 @@ export function ExtensionsTab({ projectId }: ExtensionsTabProps) {
 - [ ] **Step 2: Run TypeScript check**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep "ExtensionsTab" | head -10
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep "ExtensionsTab" | head -10
 ```
 
 Expected: no errors.
@@ -1005,7 +1005,7 @@ Expected: no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/features/projects/extensions/ExtensionsTab.tsx
+git add cortex-ui/src/features/projects/extensions/ExtensionsTab.tsx
 git commit -m "feat: add + Extension button and AddExtensionDialog to ExtensionsTab"
 ```
 
@@ -1014,9 +1014,9 @@ git commit -m "feat: add + Extension button and AddExtensionDialog to Extensions
 ## Task 7: Frontend — DefaultExtensionsSection Settings Component
 
 **Files:**
-- Create: `archon-ui-main/src/components/settings/DefaultExtensionsSection.tsx`
+- Create: `cortex-ui/src/components/settings/DefaultExtensionsSection.tsx`
 
-This component renders all Archon extensions grouped by type, each with a toggle switch. Toggling calls `useSetExtensionDefault`. It is designed to slot inside a `CollapsibleSettingsCard`.
+This component renders all Cortex extensions grouped by type, each with a toggle switch. Toggling calls `useSetExtensionDefault`. It is designed to slot inside a `CollapsibleSettingsCard`.
 
 - [ ] **Step 1: Create `DefaultExtensionsSection.tsx`**
 
@@ -1089,7 +1089,7 @@ export function DefaultExtensionsSection() {
   if (extensions.length === 0) {
     return (
       <p className="text-sm text-zinc-400">
-        No extensions found. Extensions are synced from your Archon registry.
+        No extensions found. Extensions are synced from your Cortex registry.
       </p>
     );
   }
@@ -1107,7 +1107,7 @@ export function DefaultExtensionsSection() {
     <div className="space-y-5">
       <p className="text-sm text-zinc-400">
         Extensions marked as default are installed on every new application registered via{" "}
-        <code className="text-xs bg-zinc-800 px-1.5 py-0.5 rounded">/archon-setup</code>.{" "}
+        <code className="text-xs bg-zinc-800 px-1.5 py-0.5 rounded">/cortex-setup</code>.{" "}
         <span className="text-zinc-500">{defaultCount} of {extensions.length} selected.</span>
       </p>
 
@@ -1131,7 +1131,7 @@ export function DefaultExtensionsSection() {
 - [ ] **Step 2: Run TypeScript check**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep "DefaultExtensionsSection" | head -10
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep "DefaultExtensionsSection" | head -10
 ```
 
 Expected: no errors.
@@ -1139,7 +1139,7 @@ Expected: no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add archon-ui-main/src/components/settings/DefaultExtensionsSection.tsx
+git add cortex-ui/src/components/settings/DefaultExtensionsSection.tsx
 git commit -m "feat: add DefaultExtensionsSection component for settings"
 ```
 
@@ -1148,7 +1148,7 @@ git commit -m "feat: add DefaultExtensionsSection component for settings"
 ## Task 8: Frontend — Wire DefaultExtensionsSection into SettingsPage
 
 **Files:**
-- Modify: `archon-ui-main/src/pages/SettingsPage.tsx`
+- Modify: `cortex-ui/src/pages/SettingsPage.tsx`
 
 - [ ] **Step 1: Add the import**
 
@@ -1192,7 +1192,7 @@ Place this block immediately after the existing `{projectsEnabled && ... IDEGlob
 - [ ] **Step 3: Run TypeScript check**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | grep "SettingsPage" | head -10
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | grep "SettingsPage" | head -10
 ```
 
 Expected: no errors.
@@ -1200,7 +1200,7 @@ Expected: no errors.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add archon-ui-main/src/pages/SettingsPage.tsx
+git add cortex-ui/src/pages/SettingsPage.tsx
 git commit -m "feat: add Default Extensions section to SettingsPage"
 ```
 
@@ -1213,7 +1213,7 @@ git commit -m "feat: add Default Extensions section to SettingsPage"
 - [ ] **Step 1: Run all backend tests**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run pytest python/tests/ -v 2>&1 | tail -30
+cd /home/winadmin/projects/Trinity/cortex && uv run pytest python/tests/ -v 2>&1 | tail -30
 ```
 
 Expected: ALL PASS
@@ -1221,7 +1221,7 @@ Expected: ALL PASS
 - [ ] **Step 2: Run backend linter**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon && uv run ruff check python/src/ 2>&1 | head -30
+cd /home/winadmin/projects/Trinity/cortex && uv run ruff check python/src/ 2>&1 | head -30
 ```
 
 Expected: no errors.
@@ -1229,7 +1229,7 @@ Expected: no errors.
 - [ ] **Step 3: Run frontend type check across entire project**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npx tsc --noEmit 2>&1 | head -40
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npx tsc --noEmit 2>&1 | head -40
 ```
 
 Expected: no errors.
@@ -1237,14 +1237,14 @@ Expected: no errors.
 - [ ] **Step 4: Run Biome linter on features directory**
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon/archon-ui-main && npm run biome 2>&1 | tail -20
+cd /home/winadmin/projects/Trinity/cortex/cortex-ui && npm run biome 2>&1 | tail -20
 ```
 
 Expected: no errors or only pre-existing warnings.
 
 - [ ] **Step 5: Manual end-to-end verification**
 
-1. Restart the backend: `docker compose restart archon-server`
+1. Restart the backend: `docker compose restart cortex-server`
 2. Open a project in the UI → Extensions tab → verify `+ Extension` button appears
 3. Click `+ Extension` → verify dialog opens with extensions grouped by type
 4. Select 1-2 extensions → click **Add** → verify they now appear in the Extensions tab
@@ -1257,6 +1257,6 @@ Expected: no errors or only pre-existing warnings.
 
 | What changed | How to propagate |
 |---|---|
-| Backend Python (services, API routes) | `docker compose restart archon-server` |
+| Backend Python (services, API routes) | `docker compose restart cortex-server` |
 | DB migration (`is_default` column) | Run `migration/0.1.0/035_add_is_default_to_extensions.sql` against Supabase once |
 | Frontend (new components, SettingsPage) | Auto-reloads if `npm run dev` is running; otherwise `npm run build` + refresh |

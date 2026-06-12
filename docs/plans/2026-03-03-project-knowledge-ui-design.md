@@ -5,7 +5,7 @@
 
 ## Problem
 
-When coding agents ingest documentation via MCP tools (`manage_rag_source`) with a `project_id`, those knowledge sources don't appear anywhere in the Project view. The project's "Docs" tab only shows manually-created project documents (stored in `archon_projects.docs` JSONB), while MCP-ingested sources live in `archon_sources` with chunks in `archon_documents` — a completely separate system.
+When coding agents ingest documentation via MCP tools (`manage_rag_source`) with a `project_id`, those knowledge sources don't appear anywhere in the Project view. The project's "Docs" tab only shows manually-created project documents (stored in `cortex_projects.docs` JSONB), while MCP-ingested sources live in `cortex_sources` with chunks in `cortex_documents` — a completely separate system.
 
 The RecipeRaiders project demonstrates this: 0 project documents shown, but 147 document chunks exist in the knowledge base with `metadata.project_id` pointing to the project.
 
@@ -18,7 +18,7 @@ Two complementary UI changes:
 
 ## Data Linkage
 
-Query `archon_sources WHERE metadata->>'project_id' = project_id`. This uses the existing JSONB metadata set during MCP ingestion. No schema changes needed.
+Query `cortex_sources WHERE metadata->>'project_id' = project_id`. This uses the existing JSONB metadata set during MCP ingestion. No schema changes needed.
 
 ## Backend API Changes
 
@@ -28,7 +28,7 @@ Returns knowledge source summaries associated with the project.
 
 - Add route in `python/src/server/api_routes/projects_api.py`
 - Add `get_project_knowledge_sources(project_id)` to `KnowledgeSummaryService`
-- Query: `archon_sources` filtered by `metadata->>'project_id'`
+- Query: `cortex_sources` filtered by `metadata->>'project_id'`
 - Response: `{ items: [...], total_count: number }`
 - Each item matches the existing knowledge summary format: source_id, title, url, status, document_count, code_examples_count, knowledge_type, source_type, metadata, created_at, updated_at
 
@@ -43,7 +43,7 @@ Add optional `project_id` query parameter to the existing summary endpoint.
 
 ### 1. Knowledge Tab in Project View
 
-**Location:** `archon-ui-main/src/features/projects/knowledge/`
+**Location:** `cortex-ui/src/features/projects/knowledge/`
 
 Split layout matching the Docs tab pattern (sidebar + inspector):
 
@@ -80,7 +80,7 @@ features/projects/knowledge/
 
 ### 2. Project Filter on Knowledge Page
 
-**Location:** `archon-ui-main/src/features/knowledge/`
+**Location:** `cortex-ui/src/features/knowledge/`
 
 - Add project dropdown in `KnowledgeHeader.tsx` alongside existing knowledge_type filter
 - Populate from `useProjects()` hook

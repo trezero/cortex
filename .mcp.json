@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "archon": {
+    "cortex": {
       "type": "http",
       "url": "http://172.16.1.230:8051/mcp"
     }

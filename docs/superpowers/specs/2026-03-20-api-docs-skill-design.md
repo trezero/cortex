@@ -2,7 +2,7 @@
 
 ## Overview
 
-A portable Claude Code skill that enforces FastAPI API documentation quality and generates Postman collection entries. Works in any FastAPI project by discovering project structure at runtime. Distributed through the Archon skill library.
+A portable Claude Code skill that enforces FastAPI API documentation quality and generates Postman collection entries. Works in any FastAPI project by discovering project structure at runtime. Distributed through the Cortex skill library.
 
 Supersedes the existing `fastapi-patterns` skill (located at `.claude/skills/fastapi-patterns/SKILL.md`) by absorbing its useful patterns and adding documentation enforcement, retrofit auditing, and Postman integration.
 
@@ -30,7 +30,7 @@ description: Use when creating, modifying, or reviewing FastAPI API endpoints. E
 
 `integrations/claude-code/extensions/api-docs/SKILL.md`
 
-This location ensures the Archon extension seeding service discovers and registers the skill for distribution via bootstrap and extension sync.
+This location ensures the Cortex extension seeding service discovers and registers the skill for distribution via bootstrap and extension sync.
 
 ## Guard
 

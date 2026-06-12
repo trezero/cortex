@@ -6,7 +6,7 @@
 
 | Repo | Purpose | Tech Stack |
 |------|---------|-----------|
-| **Archon** | Control plane — workflow management, HITL approvals, pattern discovery | Python/FastAPI, React, Supabase |
+| **Cortex** | Control plane — workflow management, HITL approvals, pattern discovery | Python/FastAPI, React, Supabase |
 | **Remote-Agent** | Execution engine — runs YAML workflows via DAG executor | TypeScript/Bun, Hono |
 | **Second Brain** | Generative UI — A2UI component generation for rich approvals | Python/FastAPI, React, PydanticAI |
 
@@ -43,28 +43,28 @@ This journey walks through the complete Workflows 2.0 lifecycle: defining a work
 
 ## Phase 1 — Infrastructure: Start Services and Verify Connectivity
 
-### 1.1 Start Archon (Control Plane)
+### 1.1 Start Cortex (Control Plane)
 
 ```bash
-cd ~/projects/Trinity/archon
+cd ~/projects/Trinity/cortex
 docker compose --profile trinity up --build -d
 ```
 
-**Expected:** Four Archon containers start + one Second Brain container:
+**Expected:** Four Cortex containers start + one Second Brain container:
 
 | Container | Port | Purpose |
 |-----------|------|---------|
-| `archon-server` | 8181 | Backend API |
-| `archon-mcp` | 8051 | MCP server for IDE integration |
-| `archon-ui` | 3737 | Frontend UI |
-| `archon-agents` | 8052 | AI agents |
+| `cortex-server` | 8181 | Backend API |
+| `cortex-mcp` | 8051 | MCP server for IDE integration |
+| `cortex-ui` | 3737 | Frontend UI |
+| `cortex-agents` | 8052 | AI agents |
 | `trinity-a2ui` | 8054 | Second Brain A2UI generation service |
 
 Verify:
 ```bash
 curl http://localhost:8181/health
 ```
-**Expected:** `{"status":"healthy","service":"archon-backend",...,"ready":true}`
+**Expected:** `{"status":"healthy","service":"cortex-backend",...,"ready":true}`
 
 ### 1.2 Verify A2UI Service
 
@@ -77,14 +77,14 @@ curl http://localhost:8054/health
 
 ```bash
 cd ~/projects/Trinity/remote-coding-agent
-ARCHON_URL=http://localhost:8181 bun run start
+CORTEX_URL=http://localhost:8181 bun run start
 ```
 
-**Expected:** The remote-agent starts and auto-registers with Archon:
+**Expected:** The remote-agent starts and auto-registers with Cortex:
 ```
-[archon-bridge] Registering with Archon at http://localhost:8181...
-[archon-bridge] Registered as backend be_abc123
-[archon-bridge] Heartbeat started (30s interval)
+[cortex-bridge] Registering with Cortex at http://localhost:8181...
+[cortex-bridge] Registered as backend be_abc123
+[cortex-bridge] Heartbeat started (30s interval)
 ```
 
 ### 1.4 Verify Backend Registration
@@ -104,7 +104,7 @@ curl http://localhost:8181/api/workflows/backends
 }]
 ```
 
-### 1.5 Open Archon UI
+### 1.5 Open Cortex UI
 
 Navigate to `http://localhost:3737/workflows` in a browser.
 
@@ -195,7 +195,7 @@ The dispatch service:
 1. Creates `workflow_runs` record with status `dispatched`
 2. Creates `workflow_nodes` records for each node (all `pending`)
 3. Selects the registered remote-agent backend
-4. POSTs `DispatchPayload` to `http://localhost:3000/api/archon/workflows/execute`
+4. POSTs `DispatchPayload` to `http://localhost:3000/api/cortex/workflows/execute`
 
 ---
 
@@ -291,9 +291,9 @@ At the bottom of the detail view, `ApprovalActions` shows:
 
 **Expected:**
 1. The approval status changes to `approved` (green badge)
-2. Archon sends a resume signal to the remote-agent:
+2. Cortex sends a resume signal to the remote-agent:
    ```
-   POST http://localhost:3000/api/archon/workflows/{runId}/resume
+   POST http://localhost:3000/api/cortex/workflows/{runId}/resume
    Body: { "yaml_node_id": "review-plan", "decision": "approved", "comment": "Looks good..." }
    ```
 3. The remote-agent's `ApprovalGateManager` resolves the pending promise
@@ -464,9 +464,9 @@ Click **Dismiss** on another card, add reason: "Too specific to one repo"
 ## Verification Checklist
 
 ### Infrastructure
-- [ ] Archon backend returns healthy at `localhost:8181/health`
+- [ ] Cortex backend returns healthy at `localhost:8181/health`
 - [ ] A2UI service returns healthy at `localhost:8054/health`
-- [ ] Remote-agent registered in Archon backends list
+- [ ] Remote-agent registered in Cortex backends list
 - [ ] Heartbeat keeping backend status `healthy`
 
 ### Workflow Lifecycle
@@ -507,11 +507,11 @@ Click **Dismiss** on another card, add reason: "Too specific to one repo"
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Remote-agent not in backends list | `ARCHON_URL` not set | Start remote-agent with `ARCHON_URL=http://localhost:8181` |
-| Backend status `unhealthy` | Heartbeat failing | Check network between remote-agent and Archon |
+| Remote-agent not in backends list | `CORTEX_URL` not set | Start remote-agent with `CORTEX_URL=http://localhost:8181` |
+| Backend status `unhealthy` | Heartbeat failing | Check network between remote-agent and Cortex |
 | SSE not streaming | Wrong API path | Verify `GET /api/workflows/{runId}/events` returns `text/event-stream` |
 | A2UI renders raw JSON | `trinity-a2ui` not running | `docker compose --profile trinity up -d` |
-| Approval gate hangs | Resume signal not reaching remote-agent | Check remote-agent logs for incoming POST at `/api/archon/workflows/{runId}/resume` |
-| Pattern discovery empty | No projects with local repos | Ensure `archon_projects` have `github_repo` pointing to local paths |
+| Approval gate hangs | Resume signal not reaching remote-agent | Check remote-agent logs for incoming POST at `/api/cortex/workflows/{runId}/resume` |
+| Pattern discovery empty | No projects with local repos | Ensure `cortex_projects` have `github_repo` pointing to local paths |
 | YAML parse error in editor | Invalid YAML syntax | Check for tab characters (use spaces) or unclosed quotes |
 | Definitions endpoint 500 | Router ordering | Ensure `workflow_definition_router` is registered before `workflow_router` in `main.py` |

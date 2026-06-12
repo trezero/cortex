@@ -13,7 +13,7 @@ Claude Code in user projects (e.g., RecipeRaiders, reciperaiders-spa) does not a
 
 ### Why it is broken
 
-The LeaveOff Point Protocol instructions exist only in Archon's own `CLAUDE.md` (at `/home/winadmin/projects/Trinity/archon/CLAUDE.md`, section "## LeaveOff Point Protocol"). That file is only loaded when Claude Code is working inside the Archon repository itself. User projects have their own `CLAUDE.md` (or none at all) and never see these instructions.
+The LeaveOff Point Protocol instructions exist only in Cortex's own `CLAUDE.md` (at `/home/winadmin/projects/Trinity/cortex/CLAUDE.md`, section "## LeaveOff Point Protocol"). That file is only loaded when Claude Code is working inside the Cortex repository itself. User projects have their own `CLAUDE.md` (or none at all) and never see these instructions.
 
 ### What already works
 
@@ -24,9 +24,9 @@ The full infrastructure is in place -- only the "tell Claude to use it" piece is
 | MCP tool | `python/src/mcp_server/features/leaveoff/leaveoff_tools.py` | Working |
 | Backend API | `python/src/server/api_routes/leaveoff_api.py` | Working |
 | Backend service | `python/src/server/services/leaveoff/leaveoff_service.py` | Working |
-| Session start hook (reads LeaveOff) | `integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py` | Working -- displays existing LeaveOff Points in `<archon-context>` |
-| Session end hook | `integrations/claude-code/plugins/archon-memory/scripts/session_end_hook.py` | Working -- flushes session buffer |
-| Archon CLAUDE.md protocol | `CLAUDE.md` section "## LeaveOff Point Protocol" | Working **only for Archon repo** |
+| Session start hook (reads LeaveOff) | `integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py` | Working -- displays existing LeaveOff Points in `<cortex-context>` |
+| Session end hook | `integrations/claude-code/plugins/cortex-memory/scripts/session_end_hook.py` | Working -- flushes session buffer |
+| Cortex CLAUDE.md protocol | `CLAUDE.md` section "## LeaveOff Point Protocol" | Working **only for Cortex repo** |
 
 ### The missing link
 
@@ -52,13 +52,13 @@ No mechanism tells Claude in user projects to call `manage_leaveoff_point` after
 
 ### User impact
 
-Without this fix, every session in every user project starts from scratch. Claude has no memory of what was done last time, what files were changed, or what to do next. This defeats a core value proposition of the Archon memory system.
+Without this fix, every session in every user project starts from scratch. Claude has no memory of what was done last time, what files were changed, or what to do next. This defeats a core value proposition of the Cortex memory system.
 
 ---
 
 ## 3. Option A: Extension SKILL.md
 
-Create a new extension `archon-leaveoff-protocol` that gets installed to `<install_dir>/skills/archon-leaveoff-protocol/SKILL.md`.
+Create a new extension `cortex-leaveoff-protocol` that gets installed to `<install_dir>/skills/cortex-leaveoff-protocol/SKILL.md`.
 
 ### How it would work
 
@@ -69,15 +69,15 @@ Claude Code loads all `SKILL.md` files from `~/.claude/skills/` (or `.claude/ski
 ### File structure
 
 ```
-integrations/claude-code/extensions/archon-leaveoff-protocol/SKILL.md
+integrations/claude-code/extensions/cortex-leaveoff-protocol/SKILL.md
 ```
 
-Content would be the LeaveOff Point Protocol section from Archon's CLAUDE.md, adapted to reference the `manage_leaveoff_point` MCP tool with proper parameter documentation.
+Content would be the LeaveOff Point Protocol section from Cortex's CLAUDE.md, adapted to reference the `manage_leaveoff_point` MCP tool with proper parameter documentation.
 
 ### Pros
 
-- Follows the existing extension distribution pattern (tarball via `archon-bootstrap`, sync via `archon-extension-sync`)
-- User can see it in `~/.claude/skills/archon-leaveoff-protocol/SKILL.md` -- transparent
+- Follows the existing extension distribution pattern (tarball via `cortex-bootstrap`, sync via `cortex-extension-sync`)
+- User can see it in `~/.claude/skills/cortex-leaveoff-protocol/SKILL.md` -- transparent
 - User can customize, override, or delete it per-project
 - No code changes needed -- only a new SKILL.md file plus adding it to the extensions tarball
 - Works immediately after bootstrap without requiring any hook changes
@@ -97,15 +97,15 @@ Claude Code's SKILL.md loading behavior: SKILL.md files are loaded as "available
 
 ## 4. Option B: SessionStart Hook Injection
 
-Modify `session_start_hook.py` to inject the LeaveOff Point Protocol instructions into the `<archon-context>` block alongside the existing LeaveOff Point data.
+Modify `session_start_hook.py` to inject the LeaveOff Point Protocol instructions into the `<cortex-context>` block alongside the existing LeaveOff Point data.
 
 ### How it would work
 
-The `_format_context()` function in `integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py` already outputs an `<archon-context>` block. This block is printed to stdout and Claude Code injects it into the system prompt. The modification would add a new section containing the behavioral protocol instructions.
+The `_format_context()` function in `integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py` already outputs an `<cortex-context>` block. This block is printed to stdout and Claude Code injects it into the system prompt. The modification would add a new section containing the behavioral protocol instructions.
 
 ### What changes
 
-In `session_start_hook.py`, the `_format_context()` function would be extended to append a `## LeaveOff Point Protocol` section to the `<archon-context>` block. This section would contain the same instructions currently in Archon's CLAUDE.md.
+In `session_start_hook.py`, the `_format_context()` function would be extended to append a `## LeaveOff Point Protocol` section to the `<cortex-context>` block. This section would contain the same instructions currently in Cortex's CLAUDE.md.
 
 ### Pros
 
@@ -120,12 +120,12 @@ In `session_start_hook.py`, the `_format_context()` function would be extended t
 
 - Adds ~300-500 tokens to every session start (the protocol instructions are relatively short)
 - Cannot be easily disabled per-project without modifying the hook or adding a config flag
-- Mixes behavioral instructions ("you MUST do X") with data context ("here is your last LeaveOff Point") in the same `<archon-context>` block
+- Mixes behavioral instructions ("you MUST do X") with data context ("here is your last LeaveOff Point") in the same `<cortex-context>` block
 - Requires a code change + rebuild of the plugin, vs. Option A which is just adding a file
 
 ### Token cost estimate
 
-The LeaveOff Point Protocol section from Archon's CLAUDE.md is approximately 350 tokens. At typical session lengths of 50,000-200,000 tokens, this is a negligible overhead (0.2-0.7%).
+The LeaveOff Point Protocol section from Cortex's CLAUDE.md is approximately 350 tokens. At typical session lengths of 50,000-200,000 tokens, this is a negligible overhead (0.2-0.7%).
 
 ---
 
@@ -147,7 +147,7 @@ The LeaveOff Point Protocol section from Archon's CLAUDE.md is approximately 350
 
 ### Risk mitigation
 
-- Add a config flag (`leaveoff_protocol_enabled` in `archon-config.json`, default `true`) so users can disable the injection if needed
+- Add a config flag (`leaveoff_protocol_enabled` in `cortex-config.json`, default `true`) so users can disable the injection if needed
 - Keep the protocol section concise (the current CLAUDE.md version can be tightened for user-project context)
 
 ### Why not Option A
@@ -172,15 +172,15 @@ Modify the session start hook to inject the LeaveOff Point Protocol into every s
 
 #### What to change
 
-**File**: `integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py`
+**File**: `integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py`
 
-**In the `_format_context()` function**, after the existing `<archon-context>` content is built but before the closing `</archon-context>` tag, inject a new section containing the LeaveOff Point Protocol.
+**In the `_format_context()` function**, after the existing `<cortex-context>` content is built but before the closing `</cortex-context>` tag, inject a new section containing the LeaveOff Point Protocol.
 
-The protocol section should be added conditionally: only when the client is configured (i.e., `archon-config.json` has `project_id` and `archon_api_url`). If the client is not configured, skip the protocol injection (the `_setup_message()` path already handles unconfigured state).
+The protocol section should be added conditionally: only when the client is configured (i.e., `cortex-config.json` has `project_id` and `cortex_api_url`). If the client is not configured, skip the protocol injection (the `_setup_message()` path already handles unconfigured state).
 
 #### Protocol content to inject
 
-Add the following as a new section in the `<archon-context>` block. Place it AFTER the LeaveOff Point data section (if present) and BEFORE the closing tag:
+Add the following as a new section in the `<cortex-context>` block. Place it AFTER the LeaveOff Point data section (if present) and BEFORE the closing tag:
 
 ```markdown
 ## LeaveOff Point Protocol
@@ -190,7 +190,7 @@ After completing any coding task that adds, modifies, or removes functionality, 
 update the LeaveOff Point before moving to the next task:
 
 1. Call `manage_leaveoff_point(action="update")` with:
-   - `project_id`: Use the project ID from the archon-context above
+   - `project_id`: Use the project ID from the cortex-context above
    - `content`: What was accomplished in this task (be specific about files changed and why)
    - `component`: The architectural module or feature area being worked on
    - `next_steps`: Concrete, actionable items for the next session (include file paths, not vague descriptions)
@@ -217,7 +217,7 @@ Upon detecting these signals:
 
 1. **Add a helper function** `_leaveoff_protocol_section()` that returns the protocol text as a string. This keeps the `_format_context()` function clean.
 
-2. **Modify `_format_context()`** to accept a `project_id` parameter (or extract it from the leaveoff data). Append the protocol section by calling `_leaveoff_protocol_section()` just before the closing `</archon-context>` tag.
+2. **Modify `_format_context()`** to accept a `project_id` parameter (or extract it from the leaveoff data). Append the protocol section by calling `_leaveoff_protocol_section()` just before the closing `</cortex-context>` tag.
 
 3. **Make it conditional** on the client being configured. The `main()` function already checks `client.is_configured()` before calling `_format_context()`, so if we reach `_format_context()` the client is necessarily configured. However, include the `project_id` in the protocol text so Claude knows which project to pass to the MCP tool.
 
@@ -235,7 +235,7 @@ Upon detecting these signals:
 
 #### Config flag (optional but recommended)
 
-Add support for a `leaveoff_protocol_enabled` key in `archon-config.json` (default: `true`). If set to `false`, skip injecting the protocol section. This gives users an escape hatch.
+Add support for a `leaveoff_protocol_enabled` key in `cortex-config.json` (default: `true`). If set to `false`, skip injecting the protocol section. This gives users an escape hatch.
 
 In `_format_context()`:
 ```python
@@ -247,26 +247,26 @@ For the initial implementation, skip the config flag -- just always inject the p
 
 #### Testing
 
-1. **Unit test**: Add a test in `integrations/claude-code/plugins/archon-memory/tests/` that verifies `_format_context()` includes the protocol section when `project_id` is provided.
+1. **Unit test**: Add a test in `integrations/claude-code/plugins/cortex-memory/tests/` that verifies `_format_context()` includes the protocol section when `project_id` is provided.
 
 2. **Integration test**: Run the session start hook manually and verify the output includes both the LeaveOff Point data (if any) and the protocol instructions:
    ```bash
    cd /path/to/user-project
-   python integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py
+   python integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py
    ```
 
 3. **End-to-end test**: Start a new Claude Code session in a user project, complete a coding task, and verify Claude calls `manage_leaveoff_point` without being asked.
 
 #### Files to modify
 
-- `integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py` -- main change
-- `integrations/claude-code/plugins/archon-memory/tests/test_session_start_hook.py` -- add test (create if not exists)
+- `integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py` -- main change
+- `integrations/claude-code/plugins/cortex-memory/tests/test_session_start_hook.py` -- add test (create if not exists)
 
 #### Files for reference (do not modify)
 
 - `python/src/mcp_server/features/leaveoff/leaveoff_tools.py` -- MCP tool signature and parameters
 - `CLAUDE.md` section "## LeaveOff Point Protocol" -- original protocol text (adapt for user projects)
-- `integrations/claude-code/plugins/archon-memory/src/archon_client.py` -- client.project_id source
+- `integrations/claude-code/plugins/cortex-memory/src/cortex_client.py` -- client.project_id source
 
 ---
 
@@ -274,11 +274,11 @@ For the initial implementation, skip the config flag -- just always inject the p
 
 | File | Purpose |
 |------|---------|
-| `integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py` | Hook that injects context on session start (PRIMARY CHANGE TARGET) |
-| `integrations/claude-code/plugins/archon-memory/scripts/session_end_hook.py` | Hook that flushes session buffer on end |
-| `integrations/claude-code/plugins/archon-memory/src/archon_client.py` | HTTP client with project_id, get_leaveoff_point() |
+| `integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py` | Hook that injects context on session start (PRIMARY CHANGE TARGET) |
+| `integrations/claude-code/plugins/cortex-memory/scripts/session_end_hook.py` | Hook that flushes session buffer on end |
+| `integrations/claude-code/plugins/cortex-memory/src/cortex_client.py` | HTTP client with project_id, get_leaveoff_point() |
 | `python/src/mcp_server/features/leaveoff/leaveoff_tools.py` | MCP tool: manage_leaveoff_point |
 | `python/src/server/api_routes/leaveoff_api.py` | REST API for LeaveOff Points |
 | `python/src/server/services/leaveoff/leaveoff_service.py` | Backend service layer |
-| `CLAUDE.md` | Archon-repo-only protocol (source of protocol text) |
-| `integrations/claude-code/extensions/archon-bootstrap/SKILL.md` | Bootstrap extension (installs other extensions) |
+| `CLAUDE.md` | Cortex-repo-only protocol (source of protocol text) |
+| `integrations/claude-code/extensions/cortex-bootstrap/SKILL.md` | Bootstrap extension (installs other extensions) |

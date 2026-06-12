@@ -1,5 +1,5 @@
 <h2>Section 2: HITL Router & Approval Flow</h2>
-<p class="subtitle">Channel-agnostic approval system supporting Archon UI and Telegram</p>
+<p class="subtitle">Channel-agnostic approval system supporting Cortex UI and Telegram</p>
 
 <div class="section">
   <h3>Approval Request Lifecycle</h3>
@@ -16,7 +16,7 @@
     created_at, expires_at, approved_by, approved_via, resolved_at}
 <span style="color:#6f8;">5.</span> HITL Router dispatches to all configured channels:
 
-<span style="color:#0cf; font-weight:bold;">   → Archon UI (SSE):</span>
+<span style="color:#0cf; font-weight:bold;">   → Cortex UI (SSE):</span>
      Fire event: {type: 'approval_requested', approval_id, workflow_run_id,
                   node_id, approval_type, payload}
      UI renders rich approval view (plan diff, code preview, etc.)
@@ -26,7 +26,7 @@
      Send message to project's chat_id:
        "🔍 Approval needed: [workflow_name] — [node_name]"
        "[summary — first 500 chars of payload]"
-       "View full details: https://archon.local/workflows/{run_id}/approvals/{id}"
+       "View full details: https://cortex.local/workflows/{run_id}/approvals/{id}"
        InlineKeyboard: [✅ Approve] [❌ Reject]
      Telegram callback_query handler calls same REST endpoint
 
@@ -159,7 +159,7 @@ class ApprovalChannel(Protocol):
 <div class="section">
   <h3>Telegram Integration Detail</h3>
   <div class="mockup">
-    <div class="mockup-header">How Archon Talks to the Per-Project Telegram Bot</div>
+    <div class="mockup-header">How Cortex Talks to the Per-Project Telegram Bot</div>
     <div class="mockup-body" style="padding:20px; font-size:12px;">
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
         <div>
@@ -178,8 +178,8 @@ class ApprovalChannel(Protocol):
             1. User taps inline button in Telegram<br>
             2. Telegram sends <code>callback_query</code> to bot<br>
             3. Bot extracts <code>approval_id</code> + <code>decision</code> from callback data<br>
-            4. Bot calls Archon REST: <code>POST /api/workflows/approvals/{id}/resolve</code><br>
-            5. Archon processes approval, fires SSE, resumes DAG<br>
+            4. Bot calls Cortex REST: <code>POST /api/workflows/approvals/{id}/resolve</code><br>
+            5. Cortex processes approval, fires SSE, resumes DAG<br>
             6. Bot answers callback_query with confirmation toast
           </div>
         </div>
@@ -189,8 +189,8 @@ class ApprovalChannel(Protocol):
         <div style="color:#c8f; font-weight:bold; margin-bottom:6px; font-size:11px;">CRITICAL: Where does the Telegram bot run?</div>
         <div style="color:#aaa; font-size:11px; line-height:1.6;">
           The remote-coding-agent already runs per-project Telegram bots. Two options:<br><br>
-          <strong style="color:#6f8;">Option 1 (Recommended):</strong> Archon sends approval requests to the remote-agent via REST, which forwards them through its existing Telegram adapter. The remote-agent's callback_query handler calls Archon's approval REST endpoint. <em>No new Telegram bot needed in Archon.</em><br><br>
-          <strong style="color:#888;">Option 2:</strong> Archon runs its own Telegram bot for approvals only. Separate from the remote-agent's per-project bots. More infrastructure to manage.
+          <strong style="color:#6f8;">Option 1 (Recommended):</strong> Cortex sends approval requests to the remote-agent via REST, which forwards them through its existing Telegram adapter. The remote-agent's callback_query handler calls Cortex's approval REST endpoint. <em>No new Telegram bot needed in Cortex.</em><br><br>
+          <strong style="color:#888;">Option 2:</strong> Cortex runs its own Telegram bot for approvals only. Separate from the remote-agent's per-project bots. More infrastructure to manage.
         </div>
       </div>
     </div>

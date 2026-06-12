@@ -15,7 +15,7 @@ jobs:
         github.event_name == 'pull_request_review_comment'
       ) &&
       contains(github.event.comment.body, '@claude-fix') &&
-      contains(fromJSON('["Wirasm", "coleam00", "sean-eskerium"]'), github.event.comment.user.login)
+      contains(fromJSON('["trezero"]'), github.event.comment.user.login)
 
     runs-on: ubuntu-latest
 
@@ -47,7 +47,7 @@ jobs:
             You are authorized to IMPLEMENT FIXES and CREATE PULL REQUESTS.
 
             ## Your Role
-            You are fixing issues in Archon V2 Beta. Follow CLAUDE.md for project principles and commands.
+            You are fixing issues in Cortex V2 Beta. Follow CLAUDE.md for project principles and commands.
 
             ## Architecture Context
             - Frontend: React + TypeScript + Vite (port 3737)
@@ -123,7 +123,7 @@ jobs:
         github.event_name == 'pull_request_review_comment'
       ) &&
       contains(github.event.comment.body, '@claude-fix') &&
-      !contains(fromJSON('["Wirasm", "coleam00", "sean-eskerium"]'), github.event.comment.user.login)
+      !contains(fromJSON('["trezero"]'), github.event.comment.user.login)
 
     runs-on: ubuntu-latest
 

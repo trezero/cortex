@@ -2,11 +2,11 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Create a `/link-to-project` Claude Code skill that walks users through linking the current repo to an Archon project ecosystem — establishing hierarchy, associating knowledge sources, and optionally ingesting local docs.
+**Goal:** Create a `/link-to-project` Claude Code skill that walks users through linking the current repo to an Cortex project ecosystem — establishing hierarchy, associating knowledge sources, and optionally ingesting local docs.
 
 **Architecture:** A single SKILL.md file that orchestrates existing MCP tools (`find_projects`, `manage_project`, `rag_get_available_sources`, `manage_rag_source`, `rag_check_progress`) through a sequential wizard flow. Also requires adding `technical_sources` parameter to the `manage_project` MCP tool so the skill can link existing knowledge sources to a project.
 
-**Tech Stack:** Claude Code skill (SKILL.md markdown), Python (MCP tool update), existing Archon MCP infrastructure
+**Tech Stack:** Claude Code skill (SKILL.md markdown), Python (MCP tool update), existing Cortex MCP infrastructure
 
 ---
 
@@ -146,27 +146,27 @@ git commit -m "feat: add technical_sources param to manage_project MCP tool"
 ### Task 2: Create the SKILL.md file — Phase 0 (Health Check & State Load)
 
 **Files:**
-- Create: `integrations/claude-code/skills/archon-link-project/SKILL.md`
+- Create: `integrations/claude-code/skills/cortex-link-project/SKILL.md`
 
 **Step 1: Create the skill directory and file**
 
 ```bash
-mkdir -p integrations/claude-code/skills/archon-link-project
+mkdir -p integrations/claude-code/skills/cortex-link-project
 ```
 
 **Step 2: Write the skill frontmatter and Phase 0**
 
-Create `integrations/claude-code/skills/archon-link-project/SKILL.md` with:
+Create `integrations/claude-code/skills/cortex-link-project/SKILL.md` with:
 
 ```markdown
 ---
-name: archon-link-project
-description: Link the current repo to an Archon project ecosystem. Establishes project hierarchy (parent/child), associates knowledge sources, and optionally ingests local docs. Use when the user says "link project", "connect to project", "set up project hierarchy", or needs to associate repos within a multi-project ecosystem.
+name: cortex-link-project
+description: Link the current repo to an Cortex project ecosystem. Establishes project hierarchy (parent/child), associates knowledge sources, and optionally ingests local docs. Use when the user says "link project", "connect to project", "set up project hierarchy", or needs to associate repos within a multi-project ecosystem.
 ---
 
 # Link to Project — Multi-Repo Ecosystem Setup
 
-Links the current repo to an Archon project ecosystem by establishing hierarchy, associating knowledge sources, and optionally ingesting local documentation.
+Links the current repo to an Cortex project ecosystem by establishing hierarchy, associating knowledge sources, and optionally ingesting local documentation.
 
 **Invocation:** `/link-to-project`
 
@@ -176,26 +176,26 @@ Links the current repo to an Archon project ecosystem by establishing hierarchy,
 
 Run this before any operation.
 
-### 0a. Verify Archon is reachable
+### 0a. Verify Cortex is reachable
 
 ```
 health_check()
 ```
 
-If Archon is down or `api_service` is false:
-> "Archon server is not reachable. Check that it's running on the configured host. The archon MCP server must be configured in .mcp.json or ~/.claude/mcp.json."
+If Cortex is down or `api_service` is false:
+> "Cortex server is not reachable. Check that it's running on the configured host. The cortex MCP server must be configured in .mcp.json or ~/.claude/mcp.json."
 
 Stop here if unhealthy.
 
 ### 0b. Load state file
 
-Read `.claude/archon-state.json` if it exists.
+Read `.claude/cortex-state.json` if it exists.
 
 ### 0c. Check for existing link
 
-If `.claude/archon-state.json` exists and has `archon_project_id` AND `parent_project_id`:
-> "This repo is already linked to an Archon project ecosystem:
-> - **Project:** <project_name> (<archon_project_id>)
+If `.claude/cortex-state.json` exists and has `cortex_project_id` AND `parent_project_id`:
+> "This repo is already linked to an Cortex project ecosystem:
+> - **Project:** <project_name> (<cortex_project_id>)
 > - **Parent:** <parent_project_name> (<parent_project_id>)
 > - **Linked at:** <linked_at>
 >
@@ -216,7 +216,7 @@ If state file exists but has NO `parent_project_id` (project exists but no hiera
 **Step 3: Commit**
 
 ```bash
-git add integrations/claude-code/skills/archon-link-project/SKILL.md
+git add integrations/claude-code/skills/cortex-link-project/SKILL.md
 git commit -m "feat: create link-to-project skill with Phase 0"
 ```
 
@@ -225,7 +225,7 @@ git commit -m "feat: create link-to-project skill with Phase 0"
 ### Task 3: Add Phase 1 (Project Discovery) to SKILL.md
 
 **Files:**
-- Modify: `integrations/claude-code/skills/archon-link-project/SKILL.md`
+- Modify: `integrations/claude-code/skills/cortex-link-project/SKILL.md`
 
 **Step 1: Append Phase 1 to the SKILL.md**
 
@@ -248,14 +248,14 @@ Get the project directory name as fallback:
 basename $(git rev-parse --show-toplevel 2>/dev/null || pwd)
 ```
 
-### 1b. List existing Archon projects
+### 1b. List existing Cortex projects
 
 ```
 find_projects()
 ```
 
 Present the list to the user:
-> "Here are the existing Archon projects:
+> "Here are the existing Cortex projects:
 >
 > | # | Project | ID | Parent | Tags |
 > |---|---------|----|---------|----|
@@ -286,9 +286,9 @@ manage_project(
 
 Store the new `project_id` as `target_project_id`. Continue to Phase 2.
 
-### 1d. Ensure current repo has an Archon project
+### 1d. Ensure current repo has an Cortex project
 
-If `.claude/archon-state.json` has no `archon_project_id`, the current repo needs its own project too.
+If `.claude/cortex-state.json` has no `cortex_project_id`, the current repo needs its own project too.
 
 Check if one exists:
 ```
@@ -311,7 +311,7 @@ Store as `this_project_id`.
 **Step 2: Commit**
 
 ```bash
-git add integrations/claude-code/skills/archon-link-project/SKILL.md
+git add integrations/claude-code/skills/cortex-link-project/SKILL.md
 git commit -m "feat: add Phase 1 (Project Discovery) to link-to-project skill"
 ```
 
@@ -320,7 +320,7 @@ git commit -m "feat: add Phase 1 (Project Discovery) to link-to-project skill"
 ### Task 4: Add Phase 2 (Establish Hierarchy) to SKILL.md
 
 **Files:**
-- Modify: `integrations/claude-code/skills/archon-link-project/SKILL.md`
+- Modify: `integrations/claude-code/skills/cortex-link-project/SKILL.md`
 
 **Step 1: Append Phase 2 to the SKILL.md**
 
@@ -399,7 +399,7 @@ Go back to 2a.
 **Step 2: Commit**
 
 ```bash
-git add integrations/claude-code/skills/archon-link-project/SKILL.md
+git add integrations/claude-code/skills/cortex-link-project/SKILL.md
 git commit -m "feat: add Phase 2 (Establish Hierarchy) to link-to-project skill"
 ```
 
@@ -408,7 +408,7 @@ git commit -m "feat: add Phase 2 (Establish Hierarchy) to link-to-project skill"
 ### Task 5: Add Phase 3 (Source Linking) to SKILL.md
 
 **Files:**
-- Modify: `integrations/claude-code/skills/archon-link-project/SKILL.md`
+- Modify: `integrations/claude-code/skills/cortex-link-project/SKILL.md`
 
 **Step 1: Append Phase 3 to the SKILL.md**
 
@@ -429,7 +429,7 @@ rag_get_available_sources()
 ```
 
 Present sources to the user:
-> "Here are the available knowledge sources in Archon:
+> "Here are the available knowledge sources in Cortex:
 >
 > | # | Title | Source ID | Summary |
 > |---|-------|----------|---------|
@@ -475,7 +475,7 @@ Continue to Phase 4.
 **Step 2: Commit**
 
 ```bash
-git add integrations/claude-code/skills/archon-link-project/SKILL.md
+git add integrations/claude-code/skills/cortex-link-project/SKILL.md
 git commit -m "feat: add Phase 3 (Source Linking) to link-to-project skill"
 ```
 
@@ -484,7 +484,7 @@ git commit -m "feat: add Phase 3 (Source Linking) to link-to-project skill"
 ### Task 6: Add Phase 4 (Local Doc Ingestion) to SKILL.md
 
 **Files:**
-- Modify: `integrations/claude-code/skills/archon-link-project/SKILL.md`
+- Modify: `integrations/claude-code/skills/cortex-link-project/SKILL.md`
 
 **Step 1: Append Phase 4 to the SKILL.md**
 
@@ -498,11 +498,11 @@ Add after Phase 3:
 
 ### 4a. Ask about ingestion
 
-> "Would you like to ingest documentation from this repo into Archon's knowledge base? This enables semantic search across this project's docs."
+> "Would you like to ingest documentation from this repo into Cortex's knowledge base? This enables semantic search across this project's docs."
 
 Options:
 - **Yes** — Scan and ingest docs
-- **Skip** — Skip ingestion (can do later with `/archon-memory ingest`)
+- **Skip** — Skip ingestion (can do later with `/cortex-memory ingest`)
 
 If "Skip": continue to Phase 5.
 
@@ -549,7 +549,7 @@ For each discovered file:
 
 Use sub-agents to read files in parallel batches for speed (groups of 5-10 files).
 
-### 4d. Ingest via Archon
+### 4d. Ingest via Cortex
 
 ```
 manage_rag_source(
@@ -577,7 +577,7 @@ Poll every 5 seconds. Report progress:
 
 Continue until `status` is `"completed"`, `"failed"`, or `"error"`.
 
-**If failed:** Report error details. Suggest checking Archon server logs. Continue to Phase 5 (save what we have).
+**If failed:** Report error details. Suggest checking Cortex server logs. Continue to Phase 5 (save what we have).
 
 **If progress_id returns 404:** Check `rag_get_available_sources()` to verify the source was created.
 
@@ -600,7 +600,7 @@ If results are returned, ingestion is confirmed.
 **Step 2: Commit**
 
 ```bash
-git add integrations/claude-code/skills/archon-link-project/SKILL.md
+git add integrations/claude-code/skills/cortex-link-project/SKILL.md
 git commit -m "feat: add Phase 4 (Local Doc Ingestion) to link-to-project skill"
 ```
 
@@ -609,7 +609,7 @@ git commit -m "feat: add Phase 4 (Local Doc Ingestion) to link-to-project skill"
 ### Task 7: Add Phase 5 (Save State) and Important Notes to SKILL.md
 
 **Files:**
-- Modify: `integrations/claude-code/skills/archon-link-project/SKILL.md`
+- Modify: `integrations/claude-code/skills/cortex-link-project/SKILL.md`
 
 **Step 1: Append Phase 5 and notes to the SKILL.md**
 
@@ -623,10 +623,10 @@ Add after Phase 4:
 
 ### 5a. Update state file
 
-Write or update `.claude/archon-state.json`:
+Write or update `.claude/cortex-state.json`:
 ```json
 {
-  "archon_project_id": "<this_project_id>",
+  "cortex_project_id": "<this_project_id>",
   "parent_project_id": "<parent_project_id>",
   "project_name": "<this-project-name>",
   "parent_project_name": "<parent-project-name>",
@@ -642,19 +642,19 @@ Write or update `.claude/archon-state.json`:
 }
 ```
 
-Merge with existing state — preserve `sources` entries from prior ingestion (archon-memory skill).
+Merge with existing state — preserve `sources` entries from prior ingestion (cortex-memory skill).
 
 ### 5b. Ensure state file is gitignored
 
 ```bash
-grep -q "archon-state.json" .gitignore 2>/dev/null || echo ".claude/archon-state.json" >> .gitignore
+grep -q "cortex-state.json" .gitignore 2>/dev/null || echo ".claude/cortex-state.json" >> .gitignore
 ```
 
 ### 5c. Update MEMORY.md
 
-Add or update an "Archon Project Ecosystem" section:
+Add or update an "Cortex Project Ecosystem" section:
 ```markdown
-## Archon Project Ecosystem
+## Cortex Project Ecosystem
 - Project: <project-name> (<project-id>)
 - Parent: <parent-name> (<parent-id>)
 - Relationship: child of <parent-name>
@@ -682,12 +682,12 @@ Add or update an "Archon Project Ecosystem" section:
 
 ### Documents Ingested
 - <N> documents, <M> chunks stored, <K> code examples extracted
-(or "Skipped — use `/archon-memory ingest` later")
+(or "Skipped — use `/cortex-memory ingest` later")
 
 ### What's Next
-- `/archon-memory search <query>` — Search this project's knowledge
-- `/archon-memory search-all <query>` — Search all projects including parent
-- `/archon-memory sync` — Re-sync after doc changes
+- `/cortex-memory search <query>` — Search this project's knowledge
+- `/cortex-memory search-all <query>` — Search all projects including parent
+- `/cortex-memory sync` — Re-sync after doc changes
 - `/link-to-project` — Modify links or add more sources
 ```
 
@@ -699,13 +699,13 @@ Add or update an "Archon Project Ecosystem" section:
 When `include_parent=true` (the default), searching with this project's `project_id` will also return results from the parent project's sources. This enables shared knowledge (design systems, common APIs) to be accessible from any child project.
 
 ### State File Compatibility
-This skill shares `.claude/archon-state.json` with the `archon-memory` skill. Fields are merged — this skill adds `parent_project_id`, `parent_project_name`, `linked_at`, and `relationship`. The `sources` dict is shared: archon-memory manages `source_id`, `last_synced`, `file_hashes`; this skill adds `type` (technical/business).
+This skill shares `.claude/cortex-state.json` with the `cortex-memory` skill. Fields are merged — this skill adds `parent_project_id`, `parent_project_name`, `linked_at`, and `relationship`. The `sources` dict is shared: cortex-memory manages `source_id`, `last_synced`, `file_hashes`; this skill adds `type` (technical/business).
 
 ### Circular Hierarchy Prevention
-Archon supports single-level hierarchy only. A project can have one parent. The skill checks for cycles before applying hierarchy changes.
+Cortex supports single-level hierarchy only. A project can have one parent. The skill checks for cycles before applying hierarchy changes.
 
 ### Error Recovery
-- If Archon is unreachable, fail fast with a clear message
+- If Cortex is unreachable, fail fast with a clear message
 - If hierarchy update fails, report error and suggest manual `manage_project` call
 - If source linking fails, report which sources failed and continue
 - If ingestion partially fails, report failures and save state for successful items
@@ -715,7 +715,7 @@ Archon supports single-level hierarchy only. A project can have one parent. The 
 **Step 2: Commit**
 
 ```bash
-git add integrations/claude-code/skills/archon-link-project/SKILL.md
+git add integrations/claude-code/skills/cortex-link-project/SKILL.md
 git commit -m "feat: add Phase 5 (Save State) and notes to link-to-project skill"
 ```
 
@@ -724,7 +724,7 @@ git commit -m "feat: add Phase 5 (Save State) and notes to link-to-project skill
 ### Task 8: Register the skill in the skills index
 
 **Files:**
-- Modify: `integrations/claude-code/skills/archon-link-project/SKILL.md` (verify final)
+- Modify: `integrations/claude-code/skills/cortex-link-project/SKILL.md` (verify final)
 - Check: Any skill registration file or config that needs updating
 
 **Step 1: Verify the skill file is complete**
@@ -746,7 +746,7 @@ Check that the `description` field in the SKILL.md frontmatter includes trigger 
 **Step 4: Commit final state**
 
 ```bash
-git add -A integrations/claude-code/skills/archon-link-project/
+git add -A integrations/claude-code/skills/cortex-link-project/
 git commit -m "feat: complete link-to-project skill implementation"
 ```
 

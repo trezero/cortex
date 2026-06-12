@@ -5,7 +5,7 @@
       "args": ["@upstash/context7-mcp"],
       "env": {}
     },
-    "archon": {
+    "cortex": {
       "command": "npx",
       "args": [
         "mcp-remote",

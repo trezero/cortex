@@ -4,7 +4,7 @@
 
 **Goal:** Implement per-project LeaveOff Points that capture development state after every coding task and are automatically loaded at session start, with a 90% usage guardrail.
 
-**Architecture:** Standalone service with dedicated DB table (`archon_leaveoff_points`), REST API nested under `/api/projects/{id}/leaveoff`, MCP tool (`manage_leaveoff_point`), SessionStart hook integration, and PostToolUse observation counter. File + database dual storage.
+**Architecture:** Standalone service with dedicated DB table (`cortex_leaveoff_points`), REST API nested under `/api/projects/{id}/leaveoff`, MCP tool (`manage_leaveoff_point`), SessionStart hook integration, and PostToolUse observation counter. File + database dual storage.
 
 **Tech Stack:** Python 3.12, FastAPI, Supabase (PostgreSQL), httpx, Pydantic, pytest
 
@@ -23,9 +23,9 @@
 -- 019_add_leaveoff_points.sql
 -- Per-project singleton capturing current development state for session continuity
 
-CREATE TABLE IF NOT EXISTS archon_leaveoff_points (
+CREATE TABLE IF NOT EXISTS cortex_leaveoff_points (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id      UUID NOT NULL UNIQUE REFERENCES archon_projects(id) ON DELETE CASCADE,
+    project_id      UUID NOT NULL UNIQUE REFERENCES cortex_projects(id) ON DELETE CASCADE,
     machine_id      TEXT,
     last_session_id UUID,
     content         TEXT NOT NULL,
@@ -37,14 +37,14 @@ CREATE TABLE IF NOT EXISTS archon_leaveoff_points (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_leaveoff_project ON archon_leaveoff_points(project_id);
+CREATE INDEX IF NOT EXISTS idx_leaveoff_project ON cortex_leaveoff_points(project_id);
 ```
 
 **Step 2: Apply the migration**
 
 Run:
 ```bash
-cd /home/winadmin/projects/Trinity/archon
+cd /home/winadmin/projects/Trinity/cortex
 # Apply via psql or Supabase dashboard — depends on local setup
 # If using docker compose with local Supabase:
 docker compose exec supabase-db psql -U postgres -d postgres -f /docker-entrypoint-initdb.d/migrations/019_add_leaveoff_points.sql
@@ -56,7 +56,7 @@ Alternatively, apply manually via Supabase SQL editor.
 
 ```bash
 git add migration/0.1.0/019_add_leaveoff_points.sql
-git commit -m "feat: add archon_leaveoff_points migration (019)"
+git commit -m "feat: add cortex_leaveoff_points migration (019)"
 ```
 
 ---
@@ -134,7 +134,7 @@ async def test_upsert_creates_new_record(service, mock_supabase):
         "updated_at": "2026-03-08T14:00:00Z",
         "created_at": "2026-03-08T14:00:00Z",
     }])
-    mock_supabase.table.side_effect = lambda name: table_mock if name == "archon_leaveoff_points" else MagicMock()
+    mock_supabase.table.side_effect = lambda name: table_mock if name == "cortex_leaveoff_points" else MagicMock()
 
     result = await service.upsert(**upsert_data)
 
@@ -166,7 +166,7 @@ async def test_upsert_replaces_existing_record(service, mock_supabase):
         "updated_at": "2026-03-08T15:00:00Z",
         "created_at": "2026-03-08T14:00:00Z",
     }])
-    mock_supabase.table.side_effect = lambda name: table_mock if name == "archon_leaveoff_points" else MagicMock()
+    mock_supabase.table.side_effect = lambda name: table_mock if name == "cortex_leaveoff_points" else MagicMock()
 
     result = await service.upsert(**upsert_data)
 
@@ -200,7 +200,7 @@ async def test_get_returns_record(service, mock_supabase):
     table_mock.select.return_value = table_mock
     table_mock.eq.return_value = table_mock
     table_mock.execute.return_value = MagicMock(data=[record])
-    mock_supabase.table.side_effect = lambda name: table_mock if name == "archon_leaveoff_points" else MagicMock()
+    mock_supabase.table.side_effect = lambda name: table_mock if name == "cortex_leaveoff_points" else MagicMock()
 
     result = await service.get("proj-1")
 
@@ -226,7 +226,7 @@ async def test_delete_removes_record(service, mock_supabase):
     table_mock.delete.return_value = table_mock
     table_mock.eq.return_value = table_mock
     table_mock.execute.return_value = MagicMock(data=[{"id": "lop-1"}])
-    mock_supabase.table.side_effect = lambda name: table_mock if name == "archon_leaveoff_points" else MagicMock()
+    mock_supabase.table.side_effect = lambda name: table_mock if name == "cortex_leaveoff_points" else MagicMock()
 
     result = await service.delete("proj-1")
 
@@ -243,7 +243,7 @@ async def test_delete_returns_false_when_not_found(service, mock_supabase):
 
 **Step 3: Run tests to verify they fail**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/services/leaveoff/ -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/services/leaveoff/ -v`
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'src.server.services.leaveoff'`
 
@@ -298,7 +298,7 @@ from ...utils import get_supabase_client
 
 logger = get_logger(__name__)
 
-TABLE = "archon_leaveoff_points"
+TABLE = "cortex_leaveoff_points"
 
 
 class LeaveOffService:
@@ -377,7 +377,7 @@ class LeaveOffService:
 
 **Step 4: Run tests to verify they pass**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/services/leaveoff/ -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/services/leaveoff/ -v`
 
 Expected: All 6 tests PASS
 
@@ -507,7 +507,7 @@ def test_delete_leaveoff_not_found(mock_leaveoff_service):
 
 **Step 2: Run tests to verify they fail**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/api_routes/test_leaveoff_api.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/api_routes/test_leaveoff_api.py -v`
 
 Expected: FAIL (import errors — `leaveoff_api` module doesn't exist yet)
 
@@ -619,13 +619,13 @@ app.include_router(leaveoff_router)
 
 **Step 4: Run API tests to verify they pass**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/api_routes/test_leaveoff_api.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/api_routes/test_leaveoff_api.py -v`
 
 Expected: All 5 tests PASS
 
 **Step 5: Run full backend test suite to verify no regressions**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest -v`
 
 Expected: All tests PASS
 
@@ -656,7 +656,7 @@ mkdir -p python/src/mcp_server/features/leaveoff
 Create `python/src/mcp_server/features/leaveoff/__init__.py`:
 
 ```python
-"""LeaveOff Point tools for Archon MCP Server."""
+"""LeaveOff Point tools for Cortex MCP Server."""
 
 from .leaveoff_tools import register_leaveoff_tools
 
@@ -711,7 +711,7 @@ def register_leaveoff_tools(mcp: FastMCP):
 
         Args:
             action: One of "update", "get", "delete"
-            project_id: The Archon project ID
+            project_id: The Cortex project ID
             content: What was accomplished (required for "update")
             next_steps: Concrete next actions with file paths (required for "update")
             component: Architectural module or feature area being worked on
@@ -789,7 +789,7 @@ Modify `python/src/mcp_server/mcp_server.py`. After the materialization tools bl
 
 **Step 5: Verify MCP server starts cleanly**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run python -c "from src.mcp_server.features.leaveoff import register_leaveoff_tools; print('Import OK')"`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run python -c "from src.mcp_server.features.leaveoff import register_leaveoff_tools; print('Import OK')"`
 
 Expected: `Import OK`
 
@@ -824,8 +824,8 @@ from ...utils import get_supabase_client
 
 logger = get_logger(__name__)
 
-TABLE = "archon_leaveoff_points"
-KNOWLEDGE_DIR = ".archon/knowledge"
+TABLE = "cortex_leaveoff_points"
+KNOWLEDGE_DIR = ".cortex/knowledge"
 FILENAME = "LeaveOffPoint.md"
 
 
@@ -881,7 +881,7 @@ class LeaveOffService:
         return record
 
     def _write_file(self, project_path: str, record: dict) -> str:
-        """Write LeaveOffPoint.md to .archon/knowledge/ with YAML frontmatter."""
+        """Write LeaveOffPoint.md to .cortex/knowledge/ with YAML frontmatter."""
         knowledge_dir = os.path.join(project_path, KNOWLEDGE_DIR)
         os.makedirs(knowledge_dir, exist_ok=True)
 
@@ -981,7 +981,7 @@ Add `project_path: str | None = None` to the tool function signature, add it to 
 
 **Step 3: Run all tests**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest tests/server/services/leaveoff/ tests/server/api_routes/test_leaveoff_api.py -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest tests/server/services/leaveoff/ tests/server/api_routes/test_leaveoff_api.py -v`
 
 Expected: All tests PASS (existing tests don't use project_path, so they're unaffected)
 
@@ -997,12 +997,12 @@ git commit -m "feat: add LeaveOffPoint.md file writing to upsert flow"
 ### Task 8: SessionStart Hook — Fetch and Inject LeaveOff Point
 
 **Files:**
-- Modify: `integrations/claude-code/plugins/archon-memory/src/archon_client.py`
-- Modify: `integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py`
+- Modify: `integrations/claude-code/plugins/cortex-memory/src/cortex_client.py`
+- Modify: `integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py`
 
-**Step 1: Add `get_leaveoff_point` to the Archon client**
+**Step 1: Add `get_leaveoff_point` to the Cortex client**
 
-Modify `integrations/claude-code/plugins/archon-memory/src/archon_client.py`. Add after the `get_knowledge_status` method (after line 113):
+Modify `integrations/claude-code/plugins/cortex-memory/src/cortex_client.py`. Add after the `get_knowledge_status` method (after line 113):
 
 ```python
     async def get_leaveoff_point(self) -> dict | None:
@@ -1025,13 +1025,13 @@ Modify `integrations/claude-code/plugins/archon-memory/src/archon_client.py`. Ad
 
 **Step 2: Update session_start_hook.py to fetch and format the LeaveOff point**
 
-Modify `integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py`.
+Modify `integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py`.
 
 Update the `_format_context` function signature to accept `leaveoff`:
 
 ```python
 def _format_context(sessions: list[dict], tasks: list[dict], knowledge: dict, leaveoff: dict | None = None) -> str:
-    parts: list[str] = ["<archon-context>"]
+    parts: list[str] = ["<cortex-context>"]
 
     # LeaveOff Point goes first — it's the most important context
     if leaveoff:
@@ -1073,7 +1073,7 @@ Update the `main()` function to add `client.get_leaveoff_point()` to the paralle
             timeout=_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
-        print("<!-- archon-memory: Archon unreachable (timeout), skipping context -->")
+        print("<!-- cortex-memory: Cortex unreachable (timeout), skipping context -->")
         return
     except Exception:
         return
@@ -1093,14 +1093,14 @@ Update the `main()` function to add `client.get_leaveoff_point()` to the paralle
 
 **Step 3: Test manually**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && python3 integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py`
+Run: `cd /home/winadmin/projects/Trinity/cortex && python3 integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py`
 
-Expected: Should print `<archon-context>` block. If Archon is running and a LeaveOff point exists, it appears first in the output.
+Expected: Should print `<cortex-context>` block. If Cortex is running and a LeaveOff point exists, it appears first in the output.
 
 **Step 4: Commit**
 
 ```bash
-git add integrations/claude-code/plugins/archon-memory/src/archon_client.py integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py
+git add integrations/claude-code/plugins/cortex-memory/src/cortex_client.py integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py
 git commit -m "feat: inject LeaveOff Point into SessionStart context"
 ```
 
@@ -1109,11 +1109,11 @@ git commit -m "feat: inject LeaveOff Point into SessionStart context"
 ### Task 9: PostToolUse Observation Counter (90% Rule Safety Net)
 
 **Files:**
-- Modify: `integrations/claude-code/plugins/archon-memory/scripts/observation_hook.py`
+- Modify: `integrations/claude-code/plugins/cortex-memory/scripts/observation_hook.py`
 
 **Step 1: Add observation counting and warning emission**
 
-Modify `integrations/claude-code/plugins/archon-memory/scripts/observation_hook.py`. Add the counter logic after the `tracker.append_observation()` call.
+Modify `integrations/claude-code/plugins/cortex-memory/scripts/observation_hook.py`. Add the counter logic after the `tracker.append_observation()` call.
 
 Add at the top of the file (after the existing imports):
 
@@ -1158,11 +1158,11 @@ Call it at the end of `main()`, after the `tracker.append_observation()` try/exc
 Create a test buffer with 80 lines and run the hook:
 
 ```bash
-cd /home/winadmin/projects/Trinity/archon
+cd /home/winadmin/projects/Trinity/cortex
 # Create a fake buffer with 80 lines
 python3 -c "
 from pathlib import Path
-buf = Path('.claude/archon-memory-buffer.jsonl')
+buf = Path('.claude/cortex-memory-buffer.jsonl')
 buf.parent.mkdir(parents=True, exist_ok=True)
 with buf.open('w') as f:
     for i in range(80):
@@ -1170,20 +1170,20 @@ with buf.open('w') as f:
 print(f'Created {sum(1 for _ in buf.open())} lines')
 "
 # Run observation hook with mock input
-echo '{"tool_name": "Edit", "tool_input": {"file_path": "test.py"}, "session_id": "test-123"}' | python3 integrations/claude-code/plugins/archon-memory/scripts/observation_hook.py
+echo '{"tool_name": "Edit", "tool_input": {"file_path": "test.py"}, "session_id": "test-123"}' | python3 integrations/claude-code/plugins/cortex-memory/scripts/observation_hook.py
 ```
 
 Expected: Should print the `<system-reminder>` warning block.
 
 ```bash
 # Clean up test buffer
-rm -f .claude/archon-memory-buffer.jsonl
+rm -f .claude/cortex-memory-buffer.jsonl
 ```
 
 **Step 3: Commit**
 
 ```bash
-git add integrations/claude-code/plugins/archon-memory/scripts/observation_hook.py
+git add integrations/claude-code/plugins/cortex-memory/scripts/observation_hook.py
 git commit -m "feat: add observation counter with 90% rule warning"
 ```
 
@@ -1247,13 +1247,13 @@ git commit -m "feat: add LeaveOff Point Protocol to CLAUDE.md"
 
 **Step 1: Run the full backend test suite**
 
-Run: `cd /home/winadmin/projects/Trinity/archon/python && uv run pytest -v`
+Run: `cd /home/winadmin/projects/Trinity/cortex/python && uv run pytest -v`
 
 Expected: All tests PASS (including new LeaveOff tests)
 
 **Step 2: Run linters**
 
-Run: `cd /home/winadmin/projects/Trinity/archon && make lint-be`
+Run: `cd /home/winadmin/projects/Trinity/cortex && make lint-be`
 
 Expected: No errors from ruff or mypy
 
@@ -1263,7 +1263,7 @@ Start the server and test the endpoints:
 
 ```bash
 # If using Docker:
-docker compose restart archon-server
+docker compose restart cortex-server
 
 # Test PUT (create LeaveOff point)
 curl -X PUT http://localhost:8181/api/projects/<your-project-id>/leaveoff \
@@ -1288,7 +1288,7 @@ Expected: PUT returns the record, GET returns same record, DELETE returns `{"suc
 ```bash
 curl http://localhost:8051/health
 # Check MCP server logs for "LeaveOff Point module registered"
-docker compose logs archon-mcp | grep -i leaveoff
+docker compose logs cortex-mcp | grep -i leaveoff
 ```
 
 Expected: Health check returns OK, logs show the module registered.
@@ -1296,10 +1296,10 @@ Expected: Health check returns OK, logs show the module registered.
 **Step 5: Verify SessionStart hook**
 
 ```bash
-python3 integrations/claude-code/plugins/archon-memory/scripts/session_start_hook.py
+python3 integrations/claude-code/plugins/cortex-memory/scripts/session_start_hook.py
 ```
 
-Expected: If a LeaveOff point exists, it appears in the `<archon-context>` block.
+Expected: If a LeaveOff point exists, it appears in the `<cortex-context>` block.
 
 ---
 

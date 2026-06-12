@@ -97,7 +97,7 @@
     <div class="mockup-header">Foreign Key Relationships</div>
     <div class="mockup-body" style="padding:24px; font-family:monospace; font-size:11px; color:#ccc; line-height:1.8;">
       <pre style="margin:0; white-space:pre-wrap;">
-<span style="color:#6f8;">archon_projects</span>
+<span style="color:#6f8;">cortex_projects</span>
   ├─← <span style="color:#0cf;">workflow_definitions</span>.project_id
   ├─← <span style="color:#0cf;">workflow_commands</span>.project_id
   ├─← <span style="color:#0cf;">workflow_runs</span>.project_id
@@ -145,7 +145,7 @@
         <div style="border:1px solid rgba(0,200,255,0.2); border-radius:8px; padding:12px;">
           <div style="color:#0cf; font-weight:bold; margin-bottom:8px;">Phase 2: Bridge & Verify</div>
           <div style="color:#aaa; font-size:11px; line-height:1.6;">
-            • Archon local executor wraps existing <code>AgentCLIExecutor</code><br>
+            • Cortex local executor wraps existing <code>AgentCLIExecutor</code><br>
             • Register as execution backend to new DAG engine<br>
             • Run same workflows through both systems, compare results<br>
             • Add HITL gates to the converted workflow<br>
@@ -185,7 +185,7 @@
           <div>✗ Linear WorkflowOrchestrator → DAG engine</div>
           <div>✗ In-memory state → Supabase persistence</div>
           <div>✗ Hardcoded command_map → YAML definitions</div>
-          <div>✗ Separate microservice → integrated into Archon server</div>
+          <div>✗ Separate microservice → integrated into Cortex server</div>
           <div>✗ /api/agent-work-orders/ → /api/workflows/</div>
           <div>✗ WorkflowStep enum → dynamic node definitions</div>
         </div>
@@ -202,27 +202,27 @@
       <div style="color:#aaa; font-size:11px; line-height:1.8;">
         <div style="display:grid; grid-template-columns:auto 1fr; gap:8px 16px;">
           <span style="color:#f84; font-weight:bold;">New module:</span>
-          <span><code>packages/core/src/archon-bridge/</code> in remote-coding-agent repo</span>
+          <span><code>packages/core/src/cortex-bridge/</code> in remote-coding-agent repo</span>
 
           <span style="color:#f84; font-weight:bold;">Responsibility:</span>
-          <span>Registers with Archon, connects SSE, claims + executes nodes, reports results</span>
+          <span>Registers with Cortex, connects SSE, claims + executes nodes, reports results</span>
 
           <span style="color:#f84; font-weight:bold;">Node execution:</span>
           <span>Routes to existing workflow engine — DAG nodes → remote-agent's <code>executeDagWorkflow()</code> for local sub-DAGs, or single AI steps via <code>sendQuery()</code></span>
 
           <span style="color:#f84; font-weight:bold;">Telegram bridge:</span>
-          <span>When Archon sends approval request → bridge forwards to the project's Telegram adapter → user approves → bridge calls Archon's resolve endpoint</span>
+          <span>When Cortex sends approval request → bridge forwards to the project's Telegram adapter → user approves → bridge calls Cortex's resolve endpoint</span>
 
           <span style="color:#f84; font-weight:bold;">Session continuity:</span>
-          <span>Node results include <code>session_id</code> from Claude Agent SDK → stored in Archon's workflow_nodes → passed back as context to dependent nodes</span>
+          <span>Node results include <code>session_id</code> from Claude Agent SDK → stored in Cortex's workflow_nodes → passed back as context to dependent nodes</span>
 
           <span style="color:#f84; font-weight:bold;">Isolation:</span>
-          <span>Reuses existing <code>IsolationResolver</code> for worktree lifecycle — Archon doesn't need to know about isolation details</span>
+          <span>Reuses existing <code>IsolationResolver</code> for worktree lifecycle — Cortex doesn't need to know about isolation details</span>
         </div>
       </div>
 
       <div style="margin-top:16px; padding:12px; background:rgba(255,200,0,0.05); border:1px solid rgba(255,200,0,0.15); border-radius:8px; font-size:11px;">
-        <strong style="color:#fa0;">Minimal changes to remote-agent:</strong> The bridge is an <em>additive</em> module. The remote-agent's existing orchestrator, adapters, and workflow engine remain untouched. The bridge sits alongside them as an alternative entry point for Archon-orchestrated work. Users can still use the remote-agent standalone without Archon.
+        <strong style="color:#fa0;">Minimal changes to remote-agent:</strong> The bridge is an <em>additive</em> module. The remote-agent's existing orchestrator, adapters, and workflow engine remain untouched. The bridge sits alongside them as an alternative entry point for Cortex-orchestrated work. Users can still use the remote-agent standalone without Cortex.
       </div>
     </div>
   </div>

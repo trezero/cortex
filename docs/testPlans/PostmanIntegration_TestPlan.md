@@ -2,9 +2,9 @@
 
 ## Overview
 
-This test plan validates the Dual-Mode Postman Integration feature end-to-end. The feature maintains Postman collections per Archon project in two modes:
+This test plan validates the Dual-Mode Postman Integration feature end-to-end. The feature maintains Postman collections per Cortex project in two modes:
 
-- **API mode** — Claude calls MCP tools, Archon backend proxies to Postman Cloud API
+- **API mode** — Claude calls MCP tools, Cortex backend proxies to Postman Cloud API
 - **Git mode** — Claude writes `.request.yaml` files directly to the repo
 - **Disabled** — No Postman integration (default)
 
@@ -12,10 +12,10 @@ Testing covers: database migration, settings UI, MCP tool registration, API mode
 
 ## Prerequisites
 
-- Archon stack running and accessible (default: `http://localhost:3737`)
-- At least one project configured in Archon
-- Claude Code CLI installed and connected to Archon MCP server
-- The `archon-memory` plugin installed (run `/archon-setup` if not)
+- Cortex stack running and accessible (default: `http://localhost:3737`)
+- At least one project configured in Cortex
+- Claude Code CLI installed and connected to Cortex MCP server
+- The `cortex-memory` plugin installed (run `/cortex-setup` if not)
 - Migration `020_add_postman_collection_uid.sql` applied to your database
 - For API mode tests: A valid Postman API key (starts with `PMAK-`) and workspace ID
   - Get your API key from: https://web.postman.co/settings/me/api-keys
@@ -33,7 +33,7 @@ Testing covers: database migration, settings UI, MCP tool registration, API mode
 ```sql
 SELECT column_name, data_type
 FROM information_schema.columns
-WHERE table_name = 'archon_projects'
+WHERE table_name = 'cortex_projects'
   AND column_name = 'postman_collection_uid'
 ORDER BY ordinal_position;
 ```
@@ -45,7 +45,7 @@ ORDER BY ordinal_position;
 ```sql
 SELECT column_name, is_nullable
 FROM information_schema.columns
-WHERE table_name = 'archon_projects'
+WHERE table_name = 'cortex_projects'
   AND column_name = 'postman_collection_uid';
 ```
 
@@ -59,7 +59,7 @@ WHERE table_name = 'archon_projects'
 
 ### 2.1 Postman Sync Mode selector appears
 
-1. Open Archon UI at `http://localhost:3737/settings`
+1. Open Cortex UI at `http://localhost:3737/settings`
 2. Scroll to the **Features** section
 
 **Expected:** A card labeled "Postman Integration" (or similar) with a dropdown selector. Default value should be "Disabled".
@@ -212,7 +212,7 @@ curl -s http://localhost:8051/health
 ### 4.2 Verify Postman tools are registered
 
 ```bash
-docker compose logs archon-mcp 2>&1 | grep -i "postman"
+docker compose logs cortex-mcp 2>&1 | grep -i "postman"
 ```
 
 **Expected:**
@@ -222,8 +222,8 @@ docker compose logs archon-mcp 2>&1 | grep -i "postman"
 
 ### 4.3 Verify tools visible in Claude Code
 
-1. Open Claude Code in a project connected to Archon
-2. Ask: "What Archon MCP tools do you have access to?"
+1. Open Claude Code in a project connected to Cortex
+2. Ask: "What Cortex MCP tools do you have access to?"
 
 **Expected:** Claude lists `find_postman` and `manage_postman` among the available tools.
 
@@ -250,7 +250,7 @@ docker compose logs archon-mcp 2>&1 | grep -i "postman"
 - In Postman, a new collection appears in your workspace named after the project
 - The project's `postman_collection_uid` is now set in the database:
 ```sql
-SELECT name, postman_collection_uid FROM archon_projects WHERE name = '<project name>';
+SELECT name, postman_collection_uid FROM cortex_projects WHERE name = '<project name>';
 ```
 
 ### 5.3 Add a request
@@ -399,10 +399,10 @@ color: null
 
 ### 7.1 Verify hook runs on session start
 
-1. Start a new Claude Code session in a project with Archon connected
-2. Check the Archon server logs:
+1. Start a new Claude Code session in a project with Cortex connected
+2. Check the Cortex server logs:
 ```bash
-docker compose logs archon-server 2>&1 | grep -i "postman\|environment\|sync" | tail -5
+docker compose logs cortex-server 2>&1 | grep -i "postman\|environment\|sync" | tail -5
 ```
 
 **Expected:** If the project has a `.env` file and mode is "api", the log should show an environment sync request (or at least the endpoint being hit). The sync is best-effort — no errors should be visible to the user.
@@ -606,7 +606,7 @@ cd python && uv run pytest tests/ -v --timeout=60
 ### 11.5 Frontend build
 
 ```bash
-cd archon-ui-main && npm run build
+cd cortex-ui && npm run build
 ```
 
 **Expected:** Build completes without TypeScript errors.

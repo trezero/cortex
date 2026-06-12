@@ -2,7 +2,7 @@
 
 **Status**: Approved
 
-**Feature**: Automatic Postman collection and environment management per Archon project
+**Feature**: Automatic Postman collection and environment management per Cortex project
 
 
 
@@ -10,7 +10,7 @@
 
 
 
-Automatically maintain a Postman collection and environment per Archon project so that every API endpoint Claude suggests testing is captured as a reusable, executable Postman request — replacing ad-hoc curl commands with a living API test suite.
+Automatically maintain a Postman collection and environment per Cortex project so that every API endpoint Claude suggests testing is captured as a reusable, executable Postman request — replacing ad-hoc curl commands with a living API test suite.
 
 
 
@@ -24,7 +24,7 @@ Automatically maintain a Postman collection and environment per Archon project s
 
 3. When Claude is working in a project and suggests testing an API call, it:
 
-   - Checks if a Postman collection exists for this Archon project (or creates one)
+   - Checks if a Postman collection exists for this Cortex project (or creates one)
 
    - Adds the request to the collection in a folder matching the resource domain (e.g., `Projects`, `Tasks`)
 
@@ -50,7 +50,7 @@ Automatically maintain a Postman collection and environment per Archon project s
 
 
 
-## Architecture: Archon-Native MCP
+## Architecture: Cortex-Native MCP
 
 
 
@@ -58,15 +58,15 @@ Automatically maintain a Postman collection and environment per Archon project s
 
 
 
-Port the Postman skill's core Python modules directly into the Archon backend. The agent never possesses the Postman API key — it calls MCP tools, and Archon handles all Postman API communication server-side.
+Port the Postman skill's core Python modules directly into the Cortex backend. The agent never possesses the Postman API key — it calls MCP tools, and Cortex handles all Postman API communication server-side.
 
 
 
 **Key properties:**
 
-- **Zero client installation** — agent connects to Archon MCP, calls tools, done
+- **Zero client installation** — agent connects to Cortex MCP, calls tools, done
 
-- **Centralized keys** — `PostmanService` fetches `POSTMAN_API_KEY` from `archon_settings` at call time
+- **Centralized keys** — `PostmanService` fetches `POSTMAN_API_KEY` from `cortex_settings` at call time
 
 - **Programmatic config** — bypass `os.environ` reading, inject credentials directly into `PostmanConfig`
 
@@ -198,7 +198,7 @@ This preserves any manual edits users make directly in Postman.
 
 
 
-**New column on `archon_projects`:**
+**New column on `cortex_projects`:**
 
 
 
@@ -214,7 +214,7 @@ This preserves any manual edits users make directly in Postman.
 
 
 
-**Credentials in `archon_settings` (existing table):**
+**Credentials in `cortex_settings` (existing table):**
 
 
 
@@ -310,7 +310,7 @@ Write operations with an `action` parameter.
 
     "body": {"name": "My Project", "description": "..."},
 
-    "description": "Creates a new Archon project",
+    "description": "Creates a new Cortex project",
 
     "test_script": "pm.environment.set('project_id', pm.response.json().id);"
 
@@ -332,13 +332,13 @@ Write operations with an `action` parameter.
 
 
 
-The session-start hook (`session_start_hook.py`) runs as a plain Python script before the LLM loop — it cannot call MCP tools. It uses the `ArchonClient` HTTP client to hit REST endpoints.
+The session-start hook (`session_start_hook.py`) runs as a plain Python script before the LLM loop — it cannot call MCP tools. It uses the `CortexClient` HTTP client to hit REST endpoints.
 
 
 
 **Flow:**
 
-1. Read `.claude/archon-state.json` → extract `system_name`, `archon_project_id`, Archon server URL
+1. Read `.claude/cortex-state.json` → extract `system_name`, `cortex_project_id`, Cortex server URL
 
 2. Check if Postman integration is enabled: `GET /api/credentials/POSTMAN_INTEGRATION_ENABLED`
 
@@ -346,7 +346,7 @@ The session-start hook (`session_start_hook.py`) runs as a plain Python script b
 
 4. Call `POST /api/postman/environments/sync` with `{project_id, system_name, env_file_content}`
 
-5. Archon backend parses `.env`, applies auto-secret detection, pushes to Postman API
+5. Cortex backend parses `.env`, applies auto-secret detection, pushes to Postman API
 
 6. Runs silently — no output unless error
 
@@ -364,7 +364,7 @@ Postman environments are workspace-scoped, not collection-scoped. Association by
 
 
 
-- Format: `{Project Name} - {System Name}` (e.g., `Archon - WIN-DEV-01`)
+- Format: `{Project Name} - {System Name}` (e.g., `Cortex - WIN-DEV-01`)
 
 - All team members see all system environments in the shared workspace
 
@@ -376,11 +376,11 @@ Postman environments are workspace-scoped, not collection-scoped. Association by
 
 
 
-- Primary: Archon project name (e.g., `Archon`)
+- Primary: Cortex project name (e.g., `Cortex`)
 
-- Fallback: Git repo name (just repo name, no owner prefix — `Archon` not `coleam00-Archon`)
+- Fallback: Git repo name (just repo name, no owner prefix — `Cortex` not `coleam00-Cortex`)
 
-- Stored as `postman_collection_uid` on `archon_projects` after creation
+- Stored as `postman_collection_uid` on `cortex_projects` after creation
 
 
 
@@ -392,7 +392,7 @@ Location: `integrations/claude-code/extensions/postman-integration/SKILL.md`
 
 
 
-Auto-seeded into extension registry on server start, distributed via `/archon-setup`.
+Auto-seeded into extension registry on server start, distributed via `/cortex-setup`.
 
 
 
@@ -458,7 +458,7 @@ When adding a request that uses variables not yet in the environment, call `mana
 
 
 
-**Note:** Do not manually redact API keys or passwords when passing them to `update_environment`. The Archon backend automatically detects sensitive keys and safely marks them as secret in Postman.
+**Note:** Do not manually redact API keys or passwords when passing them to `update_environment`. The Cortex backend automatically detects sensitive keys and safely marks them as secret in Postman.
 
 
 
@@ -578,7 +578,7 @@ One new toggle in the existing grid:
 
 - Test 400 responses when Postman not configured
 
-- Test credential retrieval from `archon_settings`
+- Test credential retrieval from `cortex_settings`
 
 
 
@@ -656,7 +656,7 @@ One new toggle in the existing grid:
 
 | `integrations/claude-code/extensions/postman-integration/SKILL.md` | Behavioral extension |
 
-| `migration/0.1.0/020_add_postman_collection_uid.sql` | Add column to archon_projects |
+| `migration/0.1.0/020_add_postman_collection_uid.sql` | Add column to cortex_projects |
 
 | `tests/server/services/postman/test_postman_service.py` | Service tests |
 
@@ -680,11 +680,11 @@ One new toggle in the existing grid:
 
 | `python/src/mcp_server/mcp_server.py` | Register Postman MCP tools |
 
-| `archon-ui-main/src/components/settings/FeaturesSection.tsx` | Add Postman toggle |
+| `cortex-ui/src/components/settings/FeaturesSection.tsx` | Add Postman toggle |
 
-| `archon-ui-main/src/contexts/SettingsContext.tsx` | Add `postmanIntegrationEnabled` state |
+| `cortex-ui/src/contexts/SettingsContext.tsx` | Add `postmanIntegrationEnabled` state |
 
-| `integrations/claude-code/plugins/archon-memory/hooks/session_start_hook.py` | Add `.env` sync step |
+| `integrations/claude-code/plugins/cortex-memory/hooks/session_start_hook.py` | Add `.env` sync step |
 
 
 
@@ -692,9 +692,9 @@ One new toggle in the existing grid:
 
 
 
-1. **Archon-native MCP** — ported client, centralized keys, zero client installation
+1. **Cortex-native MCP** — ported client, centralized keys, zero client installation
 
-2. **Collection per project** — named after Archon project, fallback to repo name (no owner prefix)
+2. **Collection per project** — named after Cortex project, fallback to repo name (no owner prefix)
 
 3. **Folders mirror resource domains** — framework-agnostic derivation from controller/router names
 
@@ -702,7 +702,7 @@ One new toggle in the existing grid:
 
 5. **Environments per system** — pushed from `.env` via session-start hook REST call to Postman API
 
-6. **No `.env` in Archon DB** — hook pushes directly to Postman, eliminating security concern
+6. **No `.env` in Cortex DB** — hook pushes directly to Postman, eliminating security concern
 
 7. **Settings integration** — keys in existing API Keys section, toggle in existing Features grid
 

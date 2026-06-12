@@ -1,6 +1,6 @@
 # TanStack Query Patterns Guide
 
-This guide documents the standardized patterns for using TanStack Query v5 in the Archon frontend.
+This guide documents the standardized patterns for using TanStack Query v5 in the Cortex frontend.
 
 ## Core Principles
 

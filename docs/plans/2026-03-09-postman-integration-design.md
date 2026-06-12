@@ -2,17 +2,17 @@
 
 **Date**: 2026-03-09
 **Status**: Approved (v3 — dual-mode: API + Git YAML)
-**Feature**: Automatic Postman collection and environment management per Archon project
+**Feature**: Automatic Postman collection and environment management per Cortex project
 
 ## Overview
 
-Automatically maintain a Postman collection and environment per Archon project so that every API endpoint Claude suggests testing is captured as a reusable, executable Postman request — replacing ad-hoc curl commands with a living API test suite.
+Automatically maintain a Postman collection and environment per Cortex project so that every API endpoint Claude suggests testing is captured as a reusable, executable Postman request — replacing ad-hoc curl commands with a living API test suite.
 
 **Two sync modes, one behavioral extension:**
 
 | Mode | How It Works | Requires |
 |------|-------------|----------|
-| `api` | Claude calls MCP tools → Archon backend pushes to Postman Cloud API | `POSTMAN_API_KEY`, `POSTMAN_WORKSPACE_ID` |
+| `api` | Claude calls MCP tools → Cortex backend pushes to Postman Cloud API | `POSTMAN_API_KEY`, `POSTMAN_WORKSPACE_ID` |
 | `git` | Claude writes `.request.yaml` files directly to the repo | Nothing — works offline |
 | `disabled` | No Postman integration (default) | Nothing |
 
@@ -37,18 +37,18 @@ The behavioral extension (SKILL.md) is the single entry point. On first use per 
 ```
 find_postman() → { sync_mode: "api" | "git" | "disabled" }
 
-if "api"      → use manage_postman() MCP tools (Archon backend → Postman Cloud API)
+if "api"      → use manage_postman() MCP tools (Cortex backend → Postman Cloud API)
 if "git"      → write .request.yaml / .environment.yaml files directly to repo
 if "disabled" → provide curl commands only, skip Postman entirely
 ```
 
-### API Mode Architecture (Archon-Native MCP)
+### API Mode Architecture (Cortex-Native MCP)
 
-Port the Postman skill's core Python modules into the Archon backend. The agent never possesses the API key — it calls MCP tools, and Archon handles all Postman API communication server-side.
+Port the Postman skill's core Python modules into the Cortex backend. The agent never possesses the API key — it calls MCP tools, and Cortex handles all Postman API communication server-side.
 
 **Key properties:**
 - **Zero client installation** — agent calls MCP tools, done
-- **Centralized keys** — `PostmanService` fetches `POSTMAN_API_KEY` from `archon_settings`
+- **Centralized keys** — `PostmanService` fetches `POSTMAN_API_KEY` from `cortex_settings`
 - **Programmatic config** — bypass `os.environ`, inject credentials directly into `PostmanConfig`
 
 ### Git Mode Architecture (Collections as Code)
@@ -127,7 +127,7 @@ This preserves any manual edits users make directly in Postman.
 
 ### Database Changes
 
-**New column on `archon_projects`:**
+**New column on `cortex_projects`:**
 
 | Column | Type | Purpose |
 |--------|------|---------|
@@ -135,7 +135,7 @@ This preserves any manual edits users make directly in Postman.
 
 **Migration:** `migration/0.1.0/020_add_postman_collection_uid.sql`
 
-**Credentials in `archon_settings` (existing table):**
+**Credentials in `cortex_settings` (existing table):**
 
 | Key | Category | Encrypted | Purpose |
 |-----|----------|-----------|---------|
@@ -188,7 +188,7 @@ Write operations via Postman Cloud API. **Only functional in `api` mode.** Retur
     "url": "{{base_url}}/api/projects",
     "headers": {"Content-Type": "application/json"},
     "body": {"name": "My Project", "description": "..."},
-    "description": "Creates a new Archon project",
+    "description": "Creates a new Cortex project",
     "test_script": "pm.environment.set('project_id', pm.response.json().id);"
 }
 ```
@@ -200,11 +200,11 @@ Write operations via Postman Cloud API. **Only functional in `api` mode.** Retur
 The session-start hook runs as a plain Python script before the LLM loop — it calls REST endpoints, not MCP tools.
 
 **Flow:**
-1. Read `.claude/archon-state.json` → extract `system_name`, `archon_project_id`, Archon server URL
+1. Read `.claude/cortex-state.json` → extract `system_name`, `cortex_project_id`, Cortex server URL
 2. Check sync mode: `GET /api/credentials/POSTMAN_SYNC_MODE`
 3. If `api`, read the project's local `.env` file
 4. Call `POST /api/postman/environments/sync` with `{project_id, system_name, env_file_content}`
-5. Archon backend parses `.env`, applies auto-secret detection, pushes to Postman API
+5. Cortex backend parses `.env`, applies auto-secret detection, pushes to Postman API
 6. Runs silently — no output unless error
 
 In `git` mode, the hook skips Postman entirely — environment files are written by Claude during the session.
@@ -259,7 +259,7 @@ $kind: http-request
 name: Create Project
 url: "{{baseUrl}}/api/projects"
 method: POST
-description: Creates a new Archon project
+description: Creates a new Cortex project
 
 headers:
   Content-Type: application/json
@@ -312,7 +312,7 @@ color: null
 
 Location: `integrations/claude-code/extensions/postman-integration/SKILL.md`
 
-Auto-seeded into extension registry on server start, distributed via `/archon-setup`.
+Auto-seeded into extension registry on server start, distributed via `/cortex-setup`.
 
 The extension contains all rules for both modes. Claude checks the mode first via `find_postman()`, then follows the appropriate rules.
 
@@ -380,14 +380,14 @@ Replaces a simple boolean toggle with a three-way selector:
 
 ### Collection Name
 
-- **Primary**: Archon project name (e.g., `Archon`)
+- **Primary**: Cortex project name (e.g., `Cortex`)
 - **Fallback**: Git repo name — just repo name, no owner prefix
-- **API mode**: stored as `postman_collection_uid` on `archon_projects`
+- **API mode**: stored as `postman_collection_uid` on `cortex_projects`
 - **Git mode**: directory name under `postman/collections/`
 
 ### Environment Naming
 
-- **API mode**: `{Project Name} - {System Name}` (e.g., `Archon - WIN-DEV-01`) — workspace-scoped in Postman Cloud
+- **API mode**: `{Project Name} - {System Name}` (e.g., `Cortex - WIN-DEV-01`) — workspace-scoped in Postman Cloud
 - **Git mode**: `{Project Name} - Local.environment.yaml` — committed to repo, user populates secrets locally
 
 ---
@@ -406,7 +406,7 @@ Replaces a simple boolean toggle with a three-way selector:
 **`tests/server/api_routes/test_postman_api.py`**
 - Test each endpoint with mocked `PostmanService`
 - Test 400 responses when Postman not configured
-- Test credential retrieval from `archon_settings`
+- Test credential retrieval from `cortex_settings`
 
 **`tests/mcp_server/features/postman/test_postman_tools.py`**
 - Test `find_postman` returns correct `sync_mode` for each mode
@@ -457,7 +457,7 @@ Replaces a simple boolean toggle with a three-way selector:
 | `python/src/mcp_server/features/postman/__init__.py` | MCP feature init |
 | `python/src/mcp_server/features/postman/postman_tools.py` | MCP tools (find + manage) |
 | `integrations/claude-code/extensions/postman-integration/SKILL.md` | Behavioral extension (dual-mode) |
-| `migration/0.1.0/020_add_postman_collection_uid.sql` | Add column to archon_projects |
+| `migration/0.1.0/020_add_postman_collection_uid.sql` | Add column to cortex_projects |
 | `tests/server/services/postman/test_postman_service.py` | Service tests |
 | `tests/server/api_routes/test_postman_api.py` | API route tests |
 | `tests/mcp_server/features/postman/test_postman_tools.py` | MCP tool tests |
@@ -469,9 +469,9 @@ Replaces a simple boolean toggle with a three-way selector:
 | `python/src/server/main.py` | Register `postman_router` |
 | `python/src/server/api_routes/settings_api.py` | Add `POSTMAN_SYNC_MODE` to defaults |
 | `python/src/mcp_server/mcp_server.py` | Register Postman MCP tools |
-| `archon-ui-main/src/components/settings/FeaturesSection.tsx` | Add mode selector |
-| `archon-ui-main/src/contexts/SettingsContext.tsx` | Add `postmanSyncMode` state |
-| `integrations/claude-code/plugins/archon-memory/hooks/session_start_hook.py` | Add `.env` sync (API mode only) |
+| `cortex-ui/src/components/settings/FeaturesSection.tsx` | Add mode selector |
+| `cortex-ui/src/contexts/SettingsContext.tsx` | Add `postmanSyncMode` state |
+| `integrations/claude-code/plugins/cortex-memory/hooks/session_start_hook.py` | Add `.env` sync (API mode only) |
 
 ---
 
@@ -480,9 +480,9 @@ Replaces a simple boolean toggle with a three-way selector:
 1. **Dual-mode** — `api` for cloud sync, `git` for local YAML, `disabled` as default
 2. **Single behavioral extension** — one SKILL.md handles both modes via mode check
 3. **Mode dispatch via `find_postman()`** — returns `sync_mode` so Claude branches correctly
-4. **Archon-native MCP for API mode** — ported client, centralized keys, zero client installation
+4. **Cortex-native MCP for API mode** — ported client, centralized keys, zero client installation
 5. **Collections as Code for Git mode** — human-readable YAML, no API keys, works offline
-6. **Collection per project** — named after Archon project, fallback to repo name (no owner prefix)
+6. **Collection per project** — named after Cortex project, fallback to repo name (no owner prefix)
 7. **Folders mirror resource domains** — framework-agnostic derivation from controller/router names
 8. **Test scripts on every request** — verify status, validate shape, capture IDs
 9. **Session-start hook for API mode only** — pushes `.env` to Postman Cloud environments

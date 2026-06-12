@@ -4,14 +4,14 @@
 
 This test plan validates the LeaveOff Point feature end-to-end from a user's perspective. The feature ensures context continuity across Claude Code sessions by automatically saving development state after coding tasks and restoring it when a new session begins.
 
-No direct API calls are used in this plan. All interactions are through Claude Code, the Archon UI, or filesystem inspection.
+No direct API calls are used in this plan. All interactions are through Claude Code, the Cortex UI, or filesystem inspection.
 
 ## Prerequisites
 
-- Archon stack running and accessible (default: `http://localhost:3737`)
-- At least one project configured in Archon (or create a new one during testing)
-- Claude Code CLI installed and connected to Archon MCP server
-- The `archon-memory` plugin installed (run `/archon-setup` if not)
+- Cortex stack running and accessible (default: `http://localhost:3737`)
+- At least one project configured in Cortex (or create a new one during testing)
+- Claude Code CLI installed and connected to Cortex MCP server
+- The `cortex-memory` plugin installed (run `/cortex-setup` if not)
 - Access to the test project's filesystem to inspect generated files
 - Migration `019_add_leaveoff_points.sql` applied to your database
 
@@ -27,7 +27,7 @@ Verify the LeaveOff Points table exists in your Supabase instance.
 2. Run:
 ```sql
 SELECT column_name, data_type FROM information_schema.columns
-WHERE table_name = 'archon_leaveoff_points'
+WHERE table_name = 'cortex_leaveoff_points'
 ORDER BY ordinal_position;
 ```
 
@@ -38,13 +38,13 @@ ORDER BY ordinal_position;
 Run:
 ```sql
 SELECT constraint_name, constraint_type FROM information_schema.table_constraints
-WHERE table_name = 'archon_leaveoff_points';
+WHERE table_name = 'cortex_leaveoff_points';
 ```
 
 **Expected:** You should see:
 - A `PRIMARY KEY` constraint on `id`
 - A `UNIQUE` constraint on `project_id`
-- A `FOREIGN KEY` constraint referencing `archon_projects(id)`
+- A `FOREIGN KEY` constraint referencing `cortex_projects(id)`
 
 > **If the table doesn't exist:** Run the migration at `migration/0.1.0/019_add_leaveoff_points.sql` in your Supabase SQL editor.
 
@@ -64,7 +64,7 @@ Verify the `manage_leaveoff_point` tool is available to Claude Code.
 
 1. Check the MCP server logs:
    ```bash
-   docker compose logs archon-mcp | grep -i "leaveoff"
+   docker compose logs cortex-mcp | grep -i "leaveoff"
    ```
 
 **Expected:** You should see:
@@ -74,8 +74,8 @@ Verify the `manage_leaveoff_point` tool is available to Claude Code.
 
 ### 2.3 Verify tool is visible in Claude Code
 
-1. Open Claude Code in a project connected to Archon
-2. Ask: "What Archon MCP tools do you have access to?"
+1. Open Claude Code in a project connected to Cortex
+2. Ask: "What Cortex MCP tools do you have access to?"
 
 **Expected:** Claude should list `manage_leaveoff_point` among the available tools, or you should see it in the MCP tools list.
 
@@ -85,7 +85,7 @@ Verify the `manage_leaveoff_point` tool is available to Claude Code.
 
 ### 3.1 Ask Claude to save a LeaveOff Point
 
-1. Open Claude Code in a project that is registered with Archon
+1. Open Claude Code in a project that is registered with Cortex
 2. Do some small coding task (e.g., add a comment to a file, create a small utility function)
 3. After the task is complete, tell Claude:
 
@@ -95,7 +95,7 @@ Verify the `manage_leaveoff_point` tool is available to Claude Code.
 
 **Expected:** Claude calls `manage_leaveoff_point` with:
 - `action: "update"`
-- `project_id`: your project's Archon ID
+- `project_id`: your project's Cortex ID
 - `content`: a description of what was accomplished
 - `next_steps`: a list of actionable next steps
 - `component`: the area of the codebase that was worked on
@@ -107,7 +107,7 @@ The tool should return a JSON response with the saved record including an `id`, 
 1. In Supabase SQL editor, run:
 ```sql
 SELECT id, project_id, component, next_steps, updated_at
-FROM archon_leaveoff_points;
+FROM cortex_leaveoff_points;
 ```
 
 **Expected:** Exactly one row for your project with the content Claude provided.
@@ -117,7 +117,7 @@ FROM archon_leaveoff_points;
 1. Navigate to your project directory
 2. Check for the file:
    ```bash
-   cat .archon/knowledge/LeaveOffPoint.md
+   cat .cortex/knowledge/LeaveOffPoint.md
    ```
 
 **Expected:** A markdown file with:
@@ -145,7 +145,7 @@ FROM archon_leaveoff_points;
 
 1. In Supabase SQL editor, run:
 ```sql
-SELECT COUNT(*) FROM archon_leaveoff_points
+SELECT COUNT(*) FROM cortex_leaveoff_points
 WHERE project_id = '<your-project-id>';
 ```
 
@@ -155,7 +155,7 @@ WHERE project_id = '<your-project-id>';
 
 1. Run:
 ```sql
-SELECT content, next_steps, updated_at FROM archon_leaveoff_points
+SELECT content, next_steps, updated_at FROM cortex_leaveoff_points
 WHERE project_id = '<your-project-id>';
 ```
 
@@ -198,7 +198,7 @@ This is the most important user experience test. It validates that the LeaveOff 
 2. Open a new Claude Code session in the same project directory
 3. Wait for the session to initialize
 
-**Expected:** During startup, you should see the Archon context being loaded. The `<archon-context>` block injected into the system prompt should now include a **"LeaveOff Point (Last Session State)"** section at the top, before recent sessions and active tasks.
+**Expected:** During startup, you should see the Cortex context being loaded. The `<cortex-context>` block injected into the system prompt should now include a **"LeaveOff Point (Last Session State)"** section at the top, before recent sessions and active tasks.
 
 ### 6.3 Verify Claude acknowledges the context
 
@@ -214,7 +214,7 @@ This is the most important user experience test. It validates that the LeaveOff 
 
 ### 6.4 Verify the LeaveOff Point appears first
 
-1. Check the session startup output for the `<archon-context>` block
+1. Check the session startup output for the `<cortex-context>` block
 2. The LeaveOff Point section should appear **before** Recent Sessions, Active Tasks, and Knowledge Sources
 
 **Expected order:**
@@ -231,7 +231,7 @@ This is the most important user experience test. It validates that the LeaveOff 
 
 1. Open the observation hook file and confirm the constants:
    ```bash
-   grep -n "WARNING_THRESHOLD\|WARNING_REPEAT" integrations/claude-code/plugins/archon-memory/scripts/observation_hook.py
+   grep -n "WARNING_THRESHOLD\|WARNING_REPEAT" integrations/claude-code/plugins/cortex-memory/scripts/observation_hook.py
    ```
 
 **Expected:** You should see `_WARNING_THRESHOLD = 80` and `_WARNING_REPEAT_INTERVAL = 10`.
@@ -242,7 +242,7 @@ This is the most important user experience test. It validates that the LeaveOff 
    ```bash
    python3 -c "
    from pathlib import Path
-   buf = Path('.claude/archon-memory-buffer.jsonl')
+   buf = Path('.claude/cortex-memory-buffer.jsonl')
    buf.parent.mkdir(parents=True, exist_ok=True)
    with buf.open('w') as f:
        for i in range(80):
@@ -253,7 +253,7 @@ This is the most important user experience test. It validates that the LeaveOff 
 
 2. Trigger the observation hook with a mock tool use:
    ```bash
-   echo '{"tool_name": "Edit", "tool_input": {"file_path": "test.py"}, "session_id": "test-123"}' | python3 integrations/claude-code/plugins/archon-memory/scripts/observation_hook.py
+   echo '{"tool_name": "Edit", "tool_input": {"file_path": "test.py"}, "session_id": "test-123"}' | python3 integrations/claude-code/plugins/cortex-memory/scripts/observation_hook.py
    ```
 
 **Expected:** The hook should print a `<system-reminder>` block containing:
@@ -265,7 +265,7 @@ This is the most important user experience test. It validates that the LeaveOff 
 ### 7.3 Clean up the test buffer
 
 ```bash
-rm -f .claude/archon-memory-buffer.jsonl
+rm -f .claude/cortex-memory-buffer.jsonl
 ```
 
 ### 7.4 Verify CLAUDE.md protocol exists
@@ -296,7 +296,7 @@ rm -f .claude/archon-memory-buffer.jsonl
 
 1. Check the database:
 ```sql
-SELECT COUNT(*) FROM archon_leaveoff_points
+SELECT COUNT(*) FROM cortex_leaveoff_points
 WHERE project_id = '<your-project-id>';
 ```
 
@@ -307,7 +307,7 @@ WHERE project_id = '<your-project-id>';
 1. Close and reopen Claude Code
 2. Check the startup context
 
-**Expected:** The `<archon-context>` block should NOT contain a "LeaveOff Point" section (it should gracefully skip it).
+**Expected:** The `<cortex-context>` block should NOT contain a "LeaveOff Point" section (it should gracefully skip it).
 
 ---
 
@@ -322,7 +322,7 @@ WHERE project_id = '<your-project-id>';
 
 1. Check the database:
 ```sql
-SELECT project_id, component, content FROM archon_leaveoff_points ORDER BY updated_at;
+SELECT project_id, component, content FROM cortex_leaveoff_points ORDER BY updated_at;
 ```
 
 **Expected:** Two separate rows, one per project, with different content.
@@ -368,13 +368,13 @@ This is the full "real world" test.
 
 | Symptom | Likely Cause | Fix |
 |---------|-------------|-----|
-| `manage_leaveoff_point` tool not found | MCP server doesn't have the module | Check `docker compose logs archon-mcp` for registration errors; rebuild if needed |
-| LeaveOff Point not injected at session start | Plugin not configured or Archon unreachable | Run `/archon-setup` and verify `.claude/archon-config.json` exists |
+| `manage_leaveoff_point` tool not found | MCP server doesn't have the module | Check `docker compose logs cortex-mcp` for registration errors; rebuild if needed |
+| LeaveOff Point not injected at session start | Plugin not configured or Cortex unreachable | Run `/cortex-setup` and verify `.claude/cortex-config.json` exists |
 | 500 error on PUT | Database migration not applied | Run `019_add_leaveoff_points.sql` in Supabase SQL editor |
 | Duplicate records | UNIQUE constraint missing | Verify migration was applied correctly (check constraints in Phase 1.2) |
 | File not written to disk | `project_path` not provided in tool call | This is optional; the database record is the source of truth |
-| Warning not firing at 80 observations | Buffer file path mismatch | Check that `.claude/archon-memory-buffer.jsonl` exists and is writable |
-| Context not loading at session start | Archon server down or timeout | Check server health at `http://localhost:8181/api/projects` |
+| Warning not firing at 80 observations | Buffer file path mismatch | Check that `.claude/cortex-memory-buffer.jsonl` exists and is writable |
+| Context not loading at session start | Cortex server down or timeout | Check server health at `http://localhost:8181/api/projects` |
 
 ---
 

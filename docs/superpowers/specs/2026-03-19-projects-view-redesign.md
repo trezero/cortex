@@ -14,9 +14,9 @@ Replace the horizontal card row with a toolbar + adaptive grid/table layout that
 
 Horizontal toolbar pinned above the project list. Contents left-to-right:
 
-1. **Active toggle** — Pill-shaped button with glowing dot when ON. Persisted to `localStorage` under `archon_projects_active_filter`. When ON, only shows **pinned** projects — pinning is the mechanism users use to mark projects as "active." Visually distinct: purple glow border, lit dot, gradient background. When OFF, flat/muted appearance. This is the most prominent control in the bar. **Note**: The current codebase enforces single-pin (pinning one project unpins all others). This must be changed to support multi-pin — users should be able to pin multiple projects simultaneously. The unpin-others logic in `useProjectQueries.ts` optimistic update must be removed. **Empty state**: If Active is ON and no projects are pinned, show a centered message: "No active projects. Pin projects to see them here."
+1. **Active toggle** — Pill-shaped button with glowing dot when ON. Persisted to `localStorage` under `cortex_projects_active_filter`. When ON, only shows **pinned** projects — pinning is the mechanism users use to mark projects as "active." Visually distinct: purple glow border, lit dot, gradient background. When OFF, flat/muted appearance. This is the most prominent control in the bar. **Note**: The current codebase enforces single-pin (pinning one project unpins all others). This must be changed to support multi-pin — users should be able to pin multiple projects simultaneously. The unpin-others logic in `useProjectQueries.ts` optimistic update must be removed. **Empty state**: If Active is ON and no projects are pinned, show a centered message: "No active projects. Pin projects to see them here."
 
-2. **System dropdown** — `<select>` populated from `archon_systems` table. Options: "All Systems" (default) + one entry per registered system. Filtering is **client-side**: the projects list API response already includes `system_registrations` (see Data Fetching section below). The frontend filters the list in memory by checking if the selected system ID appears in a project's registrations. Not persisted — resets to "All Systems" on page load.
+2. **System dropdown** — `<select>` populated from `cortex_systems` table. Options: "All Systems" (default) + one entry per registered system. Filtering is **client-side**: the projects list API response already includes `system_registrations` (see Data Fetching section below). The frontend filters the list in memory by checking if the selected system ID appears in a project's registrations. Not persisted — resets to "All Systems" on page load.
 
 3. **Tags dropdown** — Populated from the union of all project `tags[]` arrays. Single-select. Options: "All Tags" (default) + distinct tag values. Not persisted.
 
@@ -26,7 +26,7 @@ Horizontal toolbar pinned above the project list. Contents left-to-right:
 
 6. **Search** — Text input, filters by title substring (case-insensitive). Same behavior as current `ProjectHeader` search, relocated into the filter bar. Not persisted.
 
-7. **View toggle** — Grid icon / list icon pair. Switches between grid and table views. Persisted to `localStorage` under `archon_projects_view_mode`. Default: grid.
+7. **View toggle** — Grid icon / list icon pair. Switches between grid and table views. Persisted to `localStorage` under `cortex_projects_view_mode`. Default: grid.
 
 8. **+ New button** — Opens project creation modal. Same as current `NewProjectModal`.
 
@@ -44,7 +44,7 @@ Horizontal toolbar pinned above the project list. Contents left-to-right:
 
 3. **Task pills row** — Compact inline pills: `N todo` (pink), `N doing` (blue), `N done` (green). Only non-zero counts shown.
 
-4. **Activity timestamp** — Bottom, muted text. Relative format: "2 hours ago", "1 day ago". Derived from `updated_at` on the `archon_projects` table (already in the API response). No session join needed — `updated_at` is sufficient and already reflects project mutations.
+4. **Activity timestamp** — Bottom, muted text. Relative format: "2 hours ago", "1 day ago". Derived from `updated_at` on the `cortex_projects` table (already in the API response). No session join needed — `updated_at` is sufficient and already reflects project mutations.
 
 **Card interaction**:
 - Click to select — purple glow border + subtle background gradient shift (same aurora effect as current design, adapted to smaller card).
@@ -72,7 +72,7 @@ Full-width table with sticky header row. Replaces the grid entirely when table m
 **Table interaction**:
 - Click column headers to sort (ascending/descending toggle).
 - Default sort: pinned first, then by activity descending.
-- Sort column + direction persisted to `localStorage` under `archon_projects_sort`.
+- Sort column + direction persisted to `localStorage` under `cortex_projects_sort`.
 - Click row to select project — subtle purple background highlight.
 - Selecting opens the same project detail area below the table.
 - Hover highlight on rows.
@@ -87,22 +87,22 @@ New data path to power the amber dot indicator on cards and table rows. **This i
 
 **Schema change** (migration 023):
 ```sql
-ALTER TABLE archon_project_system_registrations
+ALTER TABLE cortex_project_system_registrations
   ADD COLUMN git_dirty boolean DEFAULT false,
   ADD COLUMN git_dirty_checked_at timestamptz;
 ```
 
 **New backend endpoint: `PUT /api/projects/{project_id}/systems/{system_id}/git-status`**:
 
-Accepts `{ git_dirty: boolean }` and updates the `git_dirty` and `git_dirty_checked_at` columns on `archon_project_system_registrations`. This is what the hooks call.
+Accepts `{ git_dirty: boolean }` and updates the `git_dirty` and `git_dirty_checked_at` columns on `cortex_project_system_registrations`. This is what the hooks call.
 
 **Session end hook changes** (primary signal — `session_end_hook.py`):
 
 The existing hook flushes observation buffers and materializes LeaveOffPoint.md. Add after those steps:
 1. Run `subprocess.run(["git", "status", "--porcelain"], capture_output=True)` in the current working directory.
 2. Set `git_dirty = True` if stdout is non-empty, `False` otherwise.
-3. Read `project_id` from `.claude/archon-state.json` (already loaded by the hook for other purposes).
-4. Read `system_id` from `.claude/archon-state.json` (already contains `system_id` from registration).
+3. Read `project_id` from `.claude/cortex-state.json` (already loaded by the hook for other purposes).
+4. Read `system_id` from `.claude/cortex-state.json` (already contains `system_id` from registration).
 5. Call `PUT /api/projects/{project_id}/systems/{system_id}/git-status` with `{ git_dirty }`.
 6. If `project_id` or `system_id` is missing (project not linked), skip silently.
 
@@ -114,16 +114,16 @@ Same `git status --porcelain` check and API call. This handles the case where a 
 
 **Staleness handling**: Amber dot tooltip shows "Uncommitted changes on WIN-AI-PC as of 2h ago". If `git_dirty_checked_at` is older than 24 hours, the dot dims slightly to indicate stale information.
 
-**Relationship to LeaveOff Points**: The LeaveOff Point protocol tracks `git_clean` on `archon_leaveoff_points` — this is written by Claude Code itself via the `manage_leaveoff_point` MCP tool, not by the hooks. The new `git_dirty` on `archon_project_system_registrations` is a separate concern: LeaveOff captures session continuity state, while `git_dirty` captures persistent per-system dirty state for the Projects UI. They are independent data paths.
+**Relationship to LeaveOff Points**: The LeaveOff Point protocol tracks `git_clean` on `cortex_leaveoff_points` — this is written by Claude Code itself via the `manage_leaveoff_point` MCP tool, not by the hooks. The new `git_dirty` on `cortex_project_system_registrations` is a separate concern: LeaveOff captures session continuity state, while `git_dirty` captures persistent per-system dirty state for the Projects UI. They are independent data paths.
 
 ### 5. Data Fetching & API Changes
 
 **Backend changes to `GET /api/projects`**:
 
-The existing `ProjectService.list_projects()` returns rows from `archon_projects` including `tags` and `parent_project_id` (these are already in the backend response but missing from the frontend `Project` TypeScript type). The endpoint must be extended to **also** include system registration data per project via a batch query (same pattern as task counts):
+The existing `ProjectService.list_projects()` returns rows from `cortex_projects` including `tags` and `parent_project_id` (these are already in the backend response but missing from the frontend `Project` TypeScript type). The endpoint must be extended to **also** include system registration data per project via a batch query (same pattern as task counts):
 
-1. Fetch all projects from `archon_projects` (existing).
-2. Batch query `archon_project_system_registrations` joined with `archon_systems` to get `system_name`, `os`, `git_dirty`, `git_dirty_checked_at` per project.
+1. Fetch all projects from `cortex_projects` (existing).
+2. Batch query `cortex_project_system_registrations` joined with `cortex_systems` to get `system_name`, `os`, `git_dirty`, `git_dirty_checked_at` per project.
 3. Merge into response as `system_registrations: [{system_id, system_name, os, git_dirty, git_dirty_checked_at}]` per project.
 4. Compute `has_uncommitted_changes: boolean` (true if any registration has `git_dirty = true`).
 
@@ -194,7 +194,7 @@ The current codebase enforces single-pin: pinning project A unpins all others (s
 
 **Changes**:
 - Remove the "unpin all others" logic from the `useUpdateProject` optimistic update.
-- The `pinned` column on `archon_projects` is already a boolean per row — no schema change needed.
+- The `pinned` column on `cortex_projects` is already a boolean per row — no schema change needed.
 - The PINNED badge on cards/rows remains, just multiple projects can have it.
 - Backend `update_project` endpoint already supports setting `pinned: true/false` per project — no backend change needed.
 
@@ -214,9 +214,9 @@ No functional change to the project detail area (Tasks, Docs, Knowledge, Extensi
 
 | Key | Values | Default |
 |-----|--------|---------|
-| `archon_projects_active_filter` | `true` / `false` | `false` |
-| `archon_projects_view_mode` | `"grid"` / `"table"` | `"grid"` |
-| `archon_projects_sort` | `{column, direction}` | `{column: "activity", direction: "desc"}` |
+| `cortex_projects_active_filter` | `true` / `false` | `false` |
+| `cortex_projects_view_mode` | `"grid"` / `"table"` | `"grid"` |
+| `cortex_projects_sort` | `{column, direction}` | `{column: "activity", direction: "desc"}` |
 
 **Not persisted** (reset on page load):
 - System filter — "All Systems"
@@ -249,11 +249,11 @@ No functional change to the project detail area (Tasks, Docs, Knowledge, Extensi
 - `projectService.ts` — update to consume new response fields
 - Session end hook script — add `git status --porcelain` check and report
 - Session start hook script — add `git status --porcelain` check and report
-- `archon_project_system_registrations` table — add `git_dirty`, `git_dirty_checked_at` columns (migration 023)
+- `cortex_project_system_registrations` table — add `git_dirty`, `git_dirty_checked_at` columns (migration 023)
 - `project_service.py` — extend `list_projects` to batch-query system registrations
 - `projects_api.py` — include system registration data in list response; add `PUT /api/projects/{project_id}/systems/{system_id}/git-status` endpoint
-- `session_end_hook.py` — add git status capture and report to Archon
-- `session_start_hook.py` — add git status capture and report to Archon
+- `session_end_hook.py` — add git status capture and report to Cortex
+- `session_start_hook.py` — add git status capture and report to Cortex
 
 ## System Badge Color Scheme
 
@@ -264,7 +264,7 @@ No functional change to the project detail area (Tasks, Docs, Knowledge, Extensi
 | Linux / WSL | Orange (`rgba(234,88,12,*)`) | `WSL-Ubuntu` |
 | Unknown / null | Gray (`rgba(255,255,255,0.1)`) | `unknown-host` |
 
-OS value is already stored in `archon_systems.os` column.
+OS value is already stored in `cortex_systems.os` column.
 
 ## Accessibility
 

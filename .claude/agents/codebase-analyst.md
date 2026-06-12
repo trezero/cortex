@@ -118,14 +118,14 @@ Remember: Your analysis directly determines implementation success. Be thorough,
 When analyzing a topic or pattern in a project:
 
 1. **Check local context first:**
-   - Read `.archon/index.md` if it exists — this lists all materialized knowledge
+   - Read `.cortex/index.md` if it exists — this lists all materialized knowledge
    - Search project source files and documentation for the topic
    - Check CLAUDE.md and any docs/ directory
 
 2. **Escalate to Vector DB if local context is insufficient:**
    - If the topic is not covered locally, or local docs are incomplete/outdated
    - Call `materialize_knowledge` with the topic, project_id, and project_path
-   - This will search the global knowledge base, synthesize results, and write a Markdown file to `.archon/knowledge/`
+   - This will search the global knowledge base, synthesize results, and write a Markdown file to `.cortex/knowledge/`
 
 3. **Continue with enriched context:**
    - Read the newly materialized file

@@ -2,7 +2,7 @@
 
 ## Problem
 
-As Archon grows, API endpoints are created with varying levels of documentation. FastAPI auto-generates OpenAPI docs at `/docs` and `/redoc`, but the quality depends on how thoroughly each endpoint is annotated. There's no enforcement or consistency check.
+As Cortex grows, API endpoints are created with varying levels of documentation. FastAPI auto-generates OpenAPI docs at `/docs` and `/redoc`, but the quality depends on how thoroughly each endpoint is annotated. There's no enforcement or consistency check.
 
 ## Concept
 
@@ -37,7 +37,7 @@ Flags gaps or auto-fills them.
 ## Brainstorming Prompt
 
 ```
-I want to create a Claude Code skill that enforces API documentation for FastAPI endpoints in the Archon project. Read the idea at docs/ideas/api-documentation-skill.md, then use /brainstorm to design it. Key considerations:
+I want to create a Claude Code skill that enforces API documentation for FastAPI endpoints in the Cortex project. Read the idea at docs/ideas/api-documentation-skill.md, then use /brainstorm to design it. Key considerations:
 
 1. The skill should work in two modes: template-driven creation (when building new endpoints) and post-coding review (scanning for documentation gaps)
 2. It should leverage FastAPI's built-in OpenAPI generation — the goal is to ensure the auto-generated docs are high quality, not to create a parallel documentation system

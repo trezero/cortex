@@ -1,12 +1,12 @@
 <h2>Workflows 2.0 — Architectural Approaches</h2>
-<p class="subtitle">Three approaches to building the orchestration protocol between Archon and execution backends</p>
+<p class="subtitle">Three approaches to building the orchestration protocol between Cortex and execution backends</p>
 
 <div class="options">
   <div class="option" data-choice="a" onclick="toggleSelect(this)">
     <div class="letter">A</div>
     <div class="content">
       <h3>REST Gateway — Stateless Bridge</h3>
-      <p><strong>Archon</strong> exposes a Workflow Execution API. The remote-agent (and future backends) call Archon to register workflows, report step completions, and poll for HITL approvals.</p>
+      <p><strong>Cortex</strong> exposes a Workflow Execution API. The remote-agent (and future backends) call Cortex to register workflows, report step completions, and poll for HITL approvals.</p>
       <div class="pros-cons">
         <div class="pros">
           <h4>Pros</h4>
@@ -14,7 +14,7 @@
             <li>Simple — standard REST, no new infrastructure</li>
             <li>Backends are fully independent processes</li>
             <li>Easy to add new execution backends</li>
-            <li>Archon DB is single source of truth</li>
+            <li>Cortex DB is single source of truth</li>
           </ul>
         </div>
         <div class="cons">
@@ -28,7 +28,7 @@
       </div>
       <div style="margin-top:12px; padding:12px; background:rgba(0,200,255,0.05); border:1px solid rgba(0,200,255,0.15); border-radius:6px;">
         <p style="margin:0; font-size:13px; color:#8af;">
-          <strong>Flow:</strong> Backend starts step → reports completion to Archon API → Archon evaluates DAG → if HITL needed: pauses, notifies UI + Telegram → user approves via either channel → Archon marks approved → backend polls and resumes
+          <strong>Flow:</strong> Backend starts step → reports completion to Cortex API → Cortex evaluates DAG → if HITL needed: pauses, notifies UI + Telegram → user approves via either channel → Cortex marks approved → backend polls and resumes
         </p>
       </div>
     </div>
@@ -38,14 +38,14 @@
     <div class="letter">B</div>
     <div class="content">
       <h3>Event Bus — SSE + Webhooks</h3>
-      <p><strong>Archon</strong> pushes DAG state changes to backends via SSE streams. Backends push step results via webhooks. HITL approvals are pushed to the waiting backend instantly.</p>
+      <p><strong>Cortex</strong> pushes DAG state changes to backends via SSE streams. Backends push step results via webhooks. HITL approvals are pushed to the waiting backend instantly.</p>
       <div class="pros-cons">
         <div class="pros">
           <h4>Pros</h4>
           <ul>
             <li>Real-time — no polling latency for HITL or UI</li>
             <li>Push-based: backends react immediately to approvals</li>
-            <li>SSE reuses existing Archon pattern (progress tracking)</li>
+            <li>SSE reuses existing Cortex pattern (progress tracking)</li>
             <li>Clean event-driven architecture</li>
           </ul>
         </div>
@@ -61,7 +61,7 @@
       </div>
       <div style="margin-top:12px; padding:12px; background:rgba(0,200,255,0.05); border:1px solid rgba(0,200,255,0.15); border-radius:6px;">
         <p style="margin:0; font-size:13px; color:#8af;">
-          <strong>Flow:</strong> Backend connects SSE → Archon pushes "run node X" → Backend executes, webhooks result → Archon evaluates DAG → if HITL: pushes pause event to UI SSE + Telegram → user approves → Archon pushes "resume" to backend SSE
+          <strong>Flow:</strong> Backend connects SSE → Cortex pushes "run node X" → Backend executes, webhooks result → Cortex evaluates DAG → if HITL: pushes pause event to UI SSE + Telegram → user approves → Cortex pushes "resume" to backend SSE
         </p>
       </div>
     </div>
@@ -79,7 +79,7 @@
             <li>REST for reliability — every state change is an explicit API call</li>
             <li>SSE for speed — instant notifications, no polling delay</li>
             <li>Graceful degradation: if SSE disconnects, backend can poll REST</li>
-            <li>Matches Archon's existing architecture (REST + smart polling)</li>
+            <li>Matches Cortex's existing architecture (REST + smart polling)</li>
             <li>UI gets real-time updates via same SSE pattern</li>
           </ul>
         </div>
@@ -93,11 +93,11 @@
       </div>
       <div style="margin-top:12px; padding:12px; background:rgba(0,200,255,0.05); border:1px solid rgba(0,200,255,0.15); border-radius:6px;">
         <p style="margin:0; font-size:13px; color:#8af;">
-          <strong>Flow:</strong> Backend calls REST to start workflow → Archon evaluates DAG, returns next nodes → Backend executes, calls REST with result → if HITL: Archon persists pause state (REST), fires SSE to UI + sends Telegram notification → user approves via REST endpoint → Archon fires SSE "resume" to backend → backend calls REST to get next nodes
+          <strong>Flow:</strong> Backend calls REST to start workflow → Cortex evaluates DAG, returns next nodes → Backend executes, calls REST with result → if HITL: Cortex persists pause state (REST), fires SSE to UI + sends Telegram notification → user approves via REST endpoint → Cortex fires SSE "resume" to backend → backend calls REST to get next nodes
         </p>
       </div>
       <div style="margin-top:8px; padding:8px 12px; background:rgba(0,255,100,0.08); border:1px solid rgba(0,255,100,0.2); border-radius:6px;">
-        <p style="margin:0; font-size:13px; color:#6f8;">⭐ <strong>Recommended</strong> — aligns with Archon's existing patterns and provides both reliability and real-time UX</p>
+        <p style="margin:0; font-size:13px; color:#6f8;">⭐ <strong>Recommended</strong> — aligns with Cortex's existing patterns and provides both reliability and real-time UX</p>
       </div>
     </div>
   </div>

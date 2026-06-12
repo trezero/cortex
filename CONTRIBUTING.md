@@ -1,16 +1,16 @@
-# Contributing to Archon
+# Contributing to Cortex
 
-Help us build the definitive knowledge and task management engine for AI coding assistants! This guide shows you how to contribute new features, bug fixes, and improvements to the Archon platform.
+Help us build the definitive knowledge and task management engine for AI coding assistants! This guide shows you how to contribute new features, bug fixes, and improvements to the Cortex platform.
 
-## 🎯 What is Archon?
+## 🎯 What is Cortex?
 
-Archon is a **microservices-based engine** that provides AI coding assistants with access to your documentation, project knowledge, and task management through the Model Context Protocol (MCP). The platform consists of four main services that work together to deliver comprehensive knowledge management and project automation.
+Cortex is a **microservices-based engine** that provides AI coding assistants with access to your documentation, project knowledge, and task management through the Model Context Protocol (MCP). The platform consists of four main services that work together to deliver comprehensive knowledge management and project automation.
 
 ## 🏗️ Architecture Overview
 
 ### Microservices Structure
 
-Archon uses true microservices architecture with clear separation of concerns:
+Cortex uses true microservices architecture with clear separation of concerns:
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -36,7 +36,7 @@ Archon uses true microservices architecture with clear separation of concerns:
 
 | Service        | Location             | Purpose                      | Key Features                                                               |
 | -------------- | -------------------- | ---------------------------- | -------------------------------------------------------------------------- |
-| **Frontend**   | `archon-ui-main/`    | Web interface and dashboard  | React, TypeScript, TailwindCSS, Socket.IO client                           |
+| **Frontend**   | `cortex-ui/`    | Web interface and dashboard  | React, TypeScript, TailwindCSS, Socket.IO client                           |
 | **Server**     | `python/src/server/` | Core business logic and APIs | FastAPI, service layer, Socket.IO broadcasts, all LLM/embedding operations |
 | **MCP Server** | `python/src/mcp/`    | MCP protocol interface       | Lightweight HTTP wrapper, 14 MCP tools, session management                 |
 | **Agents**     | `python/src/agents/` | PydanticAI agent hosting     | Document and RAG agents, streaming responses                               |
@@ -89,11 +89,11 @@ After forking the repository, you'll need to:
 
 ## 👑 Important Standards for Contributing
 
-There are a few very important rules that we ask you follow when contributing to Archon.
+There are a few very important rules that we ask you follow when contributing to Cortex.
 Some things like testing are covered more later in this document but there are a few
 very important specifics to call out here.
 
-**1. Check the list of PRs** to make sure you aren't about to fix or implement something that's already been done! Also be sure to check the [Archon Kanban board](https://github.com/users/coleam00/projects/1) where the maintainers are manage issues/features.
+**1. Check the list of PRs** to make sure you aren't about to fix or implement something that's already been done!
 
 **2. Try to keep the changes to less than 2,000 lines of code.** The more granular the PR, the better! If your changes must be larger, it's very important to go into extra detail in your PR and explain why the larger changes are necessary.
 
@@ -107,7 +107,7 @@ very important specifics to call out here.
    - sitemap.xml: https://mem0.ai/sitemap.xml
    - Normal URL: https://docs.anthropic.com/en/docs/claude-code/overview
 
-Make sure the crawling completes end to end, the code examples exist, and the Archon MCP can be used to successfully search through the documentation.
+Make sure the crawling completes end to end, the code examples exist, and the Cortex MCP can be used to successfully search through the documentation.
 
 **6. If your code changes touch the project/task management in any way**, please test all the CRUD (Create, Read, Update, Delete) operations on both projects and tasks. Generally you will:
    - Create a new project
@@ -115,9 +115,9 @@ Make sure the crawling completes end to end, the code examples exist, and the Ar
    - Move the tasks around the kanban board
    - Edit descriptions
 
-Test these things using both the UI and the MCP server. This process will be similar if your code changes touch the docs part of Archon too.
+Test these things using both the UI and the MCP server. This process will be similar if your code changes touch the docs part of Cortex too.
 
-**7. If your code changes touch the MCP server instructions or anything else more high level** that could affect how AI coding assistants use the Archon MCP, please retest by creating a simple project from scratch that leverages Archon for RAG, task management, etc.
+**7. If your code changes touch the MCP server instructions or anything else more high level** that could affect how AI coding assistants use the Cortex MCP, please retest by creating a simple project from scratch that leverages Cortex for RAG, task management, etc.
 
 ## 🔄 Contribution Process
 
@@ -144,30 +144,30 @@ Test these things using both the UI and the MCP server. This process will be sim
 ### 2. Development Process
 
 1. **Fork the Repository**
-   - Go to https://github.com/coleam00/archon
+   - Go to https://github.com/trezero/cortex
    - Click the "Fork" button in the top right corner
    - This creates your own copy of the repository
 
    ```bash
    # Clone your fork from main branch for contributing (replace 'your-username' with your GitHub username)
-   git clone https://github.com/your-username/archon.git
-   cd archon
+   git clone https://github.com/your-username/cortex.git
+   cd cortex
 
    # Add upstream remote to sync with main repository later
-   git remote add upstream https://github.com/coleam00/archon.git
+   git remote add upstream https://github.com/trezero/cortex.git
    ```
 
-   **Note:** The `main` branch is used for contributions and contains the latest development work. The `stable` branch is for users who want a more tested, stable version of Archon.
+   **Note:** The `main` branch is used for contributions and contains the latest development work. The `stable` branch is for users who want a more tested, stable version of Cortex.
 
 2. **🤖 AI Coding Assistant Setup**
 
-   **IMPORTANT**: If you're using AI coding assistants to help contribute to Archon, set up our global rules for optimal results.
+   **IMPORTANT**: If you're using AI coding assistants to help contribute to Cortex, set up our global rules for optimal results.
    - **Claude Code**: ✅ Already configured! The `CLAUDE.md` file is automatically used
    - **Cursor**: Copy `CLAUDE.md` content to a new `.cursorrules` file in the project root
    - **Windsurf**: Copy `CLAUDE.md` content to a new `.windsurfrules` file in the project root
    - **Other assistants**: Copy `CLAUDE.md` content to your assistant's global rules/context file
 
-   These rules contain essential context about Archon's architecture, service patterns, MCP implementation, and development best practices. Using them will help your AI assistant follow our conventions and implement features correctly.
+   These rules contain essential context about Cortex's architecture, service patterns, MCP implementation, and development best practices. Using them will help your AI assistant follow our conventions and implement features correctly.
 
 3. **Create Feature Branch**
 
@@ -202,7 +202,7 @@ Test these things using both the UI and the MCP server. This process will be sim
    ```
 
 2. **Create Pull Request via GitHub UI**
-   - Go to your fork on GitHub (https://github.com/your-username/archon)
+   - Go to your fork on GitHub (https://github.com/your-username/cortex)
    - Click "Contribute" then "Open pull request"
    - GitHub will automatically detect your branch and show a comparison
    - The PR template will be automatically filled in the description
@@ -227,7 +227,7 @@ Test these things using both the UI and the MCP server. This process will be sim
    
    # Or manually
    cd python && python -m pytest       # Backend tests
-   cd archon-ui-main && npm run test   # Frontend tests
+   cd cortex-ui && npm run test   # Frontend tests
 
    # Full integration test
    docker compose --profile full up --build -d
@@ -274,10 +274,10 @@ Test these things using both the UI and the MCP server. This process will be sim
 
 **Key locations:**
 
-- **Components**: `archon-ui-main/src/components/` - Reusable UI components organized by feature
-- **Pages**: `archon-ui-main/src/pages/` - Main application routes
-- **Services**: `archon-ui-main/src/services/` - API communication and business logic
-- **Contexts**: `archon-ui-main/src/contexts/` - React context providers for global state
+- **Components**: `cortex-ui/src/components/` - Reusable UI components organized by feature
+- **Pages**: `cortex-ui/src/pages/` - Main application routes
+- **Services**: `cortex-ui/src/services/` - API communication and business logic
+- **Contexts**: `cortex-ui/src/contexts/` - React context providers for global state
 
 **Development patterns:**
 
@@ -359,10 +359,10 @@ Test these things using both the UI and the MCP server. This process will be sim
 
    ```bash
    # Create in appropriate category
-   archon-ui-main/src/components/your-category/YourComponent.tsx
+   cortex-ui/src/components/your-category/YourComponent.tsx
 
    # Add to appropriate page or parent component
-   archon-ui-main/src/pages/YourPage.tsx
+   cortex-ui/src/pages/YourPage.tsx
    ```
 
 2. **UI Design Standards**
@@ -372,7 +372,7 @@ Test these things using both the UI and the MCP server. This process will be sim
    - **Style Guide**: Enable in Settings → scroll to "Feature Flags" → Enable "Style Guide Page"
      - Access at http://localhost:3737/style-guide
      - View all available primitives, colors, layouts, and component patterns
-   - **UI Consistency Review**: Run `/archon:archon-ui-consistency-review <path>` to automatically check your components for compliance
+   - **UI Consistency Review**: Run `/cortex:cortex-ui-consistency-review <path>` to automatically check your components for compliance
 
 3. **Testing Your Changes**
 
@@ -381,7 +381,7 @@ Test these things using both the UI and the MCP server. This process will be sim
    make test-fe
 
    # Or manually
-   cd archon-ui-main && npm run test
+   cd cortex-ui && npm run test
 
    # Run with coverage
    npm run test:coverage
@@ -396,7 +396,7 @@ Test these things using both the UI and the MCP server. This process will be sim
    make dev  # Backend in Docker, frontend local
 
    # Or manually for faster iteration
-   cd archon-ui-main && npm run dev
+   cd cortex-ui && npm run dev
    # Still connects to Docker backend services
    ```
 
@@ -516,4 +516,4 @@ Contributors receive:
 
 ---
 
-**Ready to contribute?** Start by exploring the codebase, reading the architecture documentation, and finding an area that interests you. Every contribution makes Archon better for the entire AI development community.
+**Ready to contribute?** Start by exploring the codebase, reading the architecture documentation, and finding an area that interests you. Every contribution makes Cortex better for the entire AI development community.
