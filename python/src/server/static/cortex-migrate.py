@@ -41,10 +41,20 @@ OLD_SKILLS = [
     "archon-extension-sync",
     "archon-skill-sync",
     "archon-move-project",
+    "archon-prime",
+    "archon-prime-simple",
+    "archon-setup",
+    "archon-ui-consistency-review",
+    "archon-coderabbit-helper",
+    "archon-rca",
+    "archon-alpha-review",
+    "archon-onboarding",
     "api-docs",
     "postman-integration",
     "scan-projects",
 ]
+# Skills named exactly "archon" or "archon-dev" belong to the upstream
+# Archon V2 CLI (a different product) and must never be removed or renamed.
 OLD_COMMANDS = ["archon-setup.md", "scan-projects.md", "archon"]
 
 RULES_RE = re.compile(
@@ -567,13 +577,21 @@ class Migrator:
         settings_path.write_text(new_raw, encoding="utf-8")
 
     def _step_rename_archon_dir(self, proj_dir: Path) -> None:
-        """Rename .archon/ -> .cortex/ if present."""
+        """Rename .archon/ -> .cortex/ if present and owned by this system.
+
+        The upstream Archon V2 CLI (a different product) also uses .archon/
+        with a workflows/ + config.yaml layout — leave those alone.
+        """
         archon_dir = proj_dir / ".archon"
         cortex_dir = proj_dir / ".cortex"
-        if archon_dir.is_dir():
-            self.log_action(f"Rename .archon -> .cortex")
-            if not self.dry_run:
-                archon_dir.rename(cortex_dir)
+        if not archon_dir.is_dir():
+            return
+        if (archon_dir / "workflows").is_dir() or (archon_dir / "config.yaml").exists():
+            self.log_skip(".archon/ has the Archon V2 CLI layout (workflows/config.yaml) — left untouched")
+            return
+        self.log_action(f"Rename .archon -> .cortex")
+        if not self.dry_run:
+            archon_dir.rename(cortex_dir)
 
     def _step_write_cortex_config(
         self,
@@ -617,6 +635,45 @@ class Migrator:
                     self.log_ok("Updated ~/.claude/settings.json")
             else:
                 self.log_skip("~/.claude/settings.json: no archon references found")
+
+        # Rename user-scoped MCP entries in ~/.claude.json (projects configured
+        # via `claude mcp add` without a project .mcp.json live here). Key
+        # "archon" -> "cortex", gated on the URL matching our known hosts so an
+        # upstream Archon V2 entry is never touched.
+        claude_json = home / ".claude.json"
+        if claude_json.exists():
+            try:
+                data = json.loads(claude_json.read_text(encoding="utf-8"))
+                changed = 0
+                scopes = [data] + list(data.get("projects", {}).values())
+                for scope in scopes:
+                    servers = scope.get("mcpServers")
+                    if not isinstance(servers, dict) or "archon" not in servers:
+                        continue
+                    entry = servers["archon"]
+                    url = entry.get("url", "") or " ".join(entry.get("args", []) or [])
+                    if KNOWN_HOST_PAT.search(url):
+                        if isinstance(entry.get("url"), str):
+                            entry["url"] = entry["url"].replace(
+                                "archon.persalto.io", "cortex.persalto.io"
+                            )
+                        servers["cortex"] = entry
+                        del servers["archon"]
+                        changed += 1
+                if changed:
+                    self.log_action(
+                        f"~/.claude.json: rename {changed} user-scoped 'archon' MCP entries -> 'cortex'"
+                    )
+                    if not self.dry_run:
+                        backup = claude_json.with_name(".claude.json.pre-cortex-rename.bak")
+                        if not backup.exists():
+                            shutil.copy2(claude_json, backup)
+                        claude_json.write_text(
+                            json.dumps(data, indent=2) + "\n", encoding="utf-8"
+                        )
+                        self.log_ok(f"Updated ~/.claude.json ({changed} entries; backup kept)")
+            except Exception as exc:  # noqa: BLE001
+                self.log_warn(f"Could not migrate ~/.claude.json MCP entries: {exc}")
 
         # Rename ~/.claude/archon-state.json -> cortex-state.json with ren_keys
         archon_state = home / ".claude" / "archon-state.json"
