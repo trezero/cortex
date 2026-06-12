@@ -29,7 +29,7 @@ def mock_release_data():
     return {
         "tag_name": "v0.2.0",
         "name": "Cortex v0.2.0",
-        "html_url": "https://github.com/coleam00/Cortex/releases/tag/v0.2.0",
+        "html_url": "https://github.com/trezero/cortex/releases/tag/v0.2.0",
         "body": "## Release Notes\n\nNew features and bug fixes",
         "published_at": "2025-01-01T00:00:00Z",
         "author": {"login": "coleam00"},
@@ -38,7 +38,7 @@ def mock_release_data():
                 "name": "cortex-v0.2.0.zip",
                 "size": 1024000,
                 "download_count": 100,
-                "browser_download_url": "https://github.com/coleam00/Cortex/releases/download/v0.2.0/cortex-v0.2.0.zip",
+                "browser_download_url": "https://github.com/trezero/cortex/releases/download/v0.2.0/cortex-v0.2.0.zip",
                 "content_type": "application/zip",
             }
         ],

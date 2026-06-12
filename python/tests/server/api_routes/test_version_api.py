@@ -25,7 +25,7 @@ def mock_version_data():
         "current": CORTEX_VERSION,
         "latest": "0.2.0",
         "update_available": True,
-        "release_url": "https://github.com/coleam00/Cortex/releases/tag/v0.2.0",
+        "release_url": "https://github.com/trezero/cortex/releases/tag/v0.2.0",
         "release_notes": "New features and bug fixes",
         "published_at": datetime(2025, 1, 1, 0, 0, 0),
         "check_error": None,

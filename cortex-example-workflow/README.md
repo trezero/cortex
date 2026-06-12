@@ -87,7 +87,7 @@ Think of it as the command center that keeps your AI coding assistant informed a
    ```
 
 2. **Install Cortex MCP server** (if not already installed):
-   - Follow instructions at [github.com/coleam00/Cortex](https://github.com/trezero/cortex)
+   - Follow instructions at [github.com/trezero/cortex](https://github.com/trezero/cortex)
    - Configure in your Claude Code settings
 
 3. **Start using workflows:**
