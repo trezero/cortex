@@ -281,6 +281,22 @@ class Migrator:
             if not self.dry_run:
                 buffer_path.rename(new_buffer_path)
 
+        # Docs-sync state (present on machines using the docs-sync flow).
+        docs_sync_path = dot_claude / "archon-docs-sync.json"
+        if docs_sync_path.exists():
+            new_docs_sync_path = dot_claude / "cortex-docs-sync.json"
+            self.log_action(f"Rename {docs_sync_path.name} -> {new_docs_sync_path.name} with key renames")
+            if not self.dry_run:
+                try:
+                    docs_data = json.loads(docs_sync_path.read_text(encoding="utf-8"))
+                    new_docs_sync_path.write_text(
+                        json.dumps(ren_keys(docs_data), indent=2) + "\n",
+                        encoding="utf-8",
+                    )
+                    docs_sync_path.unlink()
+                except (json.JSONDecodeError, OSError):
+                    docs_sync_path.rename(new_docs_sync_path)
+
     def _step_update_mcp_json(self, proj_dir: Path) -> None:
         """Rename 'archon' key -> 'cortex' in .mcp.json if URL matches known host pattern."""
         mcp_path = proj_dir / ".mcp.json"
