@@ -741,6 +741,60 @@ class Migrator:
                 except Exception as exc:  # noqa: BLE001
                     self.log_warn(f"Could not migrate ~/.config/archon: {exc}")
 
+        self._remove_global_archon_extensions()
+
+    def _remove_global_archon_extensions(self) -> None:
+        """Remove globally-installed archon-* extensions from ~/.claude.
+
+        Extensions are meant to be project-scoped, so any archon-named skills,
+        commands, or the archon-memory plugin installed in the global ~/.claude
+        are removed (not reinstalled). The upstream Archon V2 CLI skills named
+        exactly 'archon' or 'archon-dev' are preserved.
+        """
+        gclaude = Path.home() / ".claude"
+        removed: list[str] = []
+
+        def _rm(target: Path, label: str) -> None:
+            removed.append(label)
+            if not self.dry_run:
+                if target.is_dir():
+                    shutil.rmtree(target, ignore_errors=True)
+                else:
+                    try:
+                        target.unlink()
+                    except OSError:
+                        pass
+
+        skills_dir = gclaude / "skills"
+        if skills_dir.is_dir():
+            for child in sorted(skills_dir.iterdir()):
+                name = child.name
+                if name in ("archon", "archon-dev"):
+                    continue  # upstream Archon V2 CLI — never touch
+                if name.startswith("archon-"):
+                    _rm(child, f"skills/{name}")
+
+        commands_dir = gclaude / "commands"
+        if commands_dir.is_dir():
+            archon_group = commands_dir / "archon"
+            if archon_group.is_dir():
+                _rm(archon_group, "commands/archon")
+            for child in sorted(commands_dir.glob("archon-*")):
+                _rm(child, f"commands/{child.name}")
+
+        plugin_dir = gclaude / "plugins" / "archon-memory"
+        if plugin_dir.is_dir():
+            _rm(plugin_dir, "plugins/archon-memory")
+
+        if removed:
+            self.log_action(
+                f"~/.claude: remove {len(removed)} global archon extension(s): {', '.join(removed)}"
+            )
+            if not self.dry_run:
+                self.log_ok(f"Removed {len(removed)} global archon extension(s)")
+        else:
+            self.log_skip("~/.claude: no global archon extensions found")
+
     # ------------------------------------------------------------------
     # Main run
     # ------------------------------------------------------------------
@@ -791,6 +845,26 @@ class Migrator:
 # ---------------------------------------------------------------------------
 
 
+def default_roots() -> list[str]:
+    """Common project-root locations that actually exist on this machine.
+
+    Repos don't always live under ~/projects — on Windows they're often on a
+    secondary drive (e.g. E:\\Projects). Scan the home dir plus common drive
+    roots so a default run doesn't silently miss them.
+    """
+    candidates = [Path.home() / "projects", Path.home() / "Projects"]
+    if os.name == "nt":
+        for drive in ("C", "D", "E", "F", "G"):
+            candidates.append(Path(f"{drive}:\\Projects"))
+            candidates.append(Path(f"{drive}:\\projects"))
+    roots: list[str] = []
+    for c in candidates:
+        s = str(c)
+        if c.is_dir() and s not in roots:
+            roots.append(s)
+    return roots or [str(Path.home() / "projects")]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Migrate Archon-connected projects to Cortex naming.",
@@ -810,8 +884,9 @@ def main() -> int:
     parser.add_argument(
         "--roots",
         nargs="+",
-        default=[str(Path.home() / "projects")],
-        help="Root directories to search for projects (default: ~/projects)",
+        default=default_roots(),
+        help="Root directories to search for projects "
+        "(default: ~/projects plus common drive roots like E:\\Projects on Windows)",
     )
     parser.add_argument(
         "--dry-run",
