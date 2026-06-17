@@ -220,7 +220,7 @@ class Migrator:
 
         try:
             # Read archon-config content now; will be written last as the marker
-            archon_config_content = json.loads(archon_config_path.read_text(encoding="utf-8"))
+            archon_config_content = json.loads(archon_config_path.read_text(encoding="utf-8-sig"))
 
             # 1. Rename state files (archon-state, archon-memory-buffer)
             self._step_rename_state_files(dot_claude)
@@ -266,7 +266,7 @@ class Migrator:
             new_state_path = dot_claude / "cortex-state.json"
             self.log_action(f"Rename {state_path.name} -> {new_state_path.name} with key renames")
             if not self.dry_run:
-                state_data = json.loads(state_path.read_text(encoding="utf-8"))
+                state_data = json.loads(state_path.read_text(encoding="utf-8-sig"))
                 new_state_path.write_text(
                     json.dumps(ren_keys(state_data), indent=2) + "\n",
                     encoding="utf-8",
@@ -288,7 +288,7 @@ class Migrator:
             self.log_action(f"Rename {docs_sync_path.name} -> {new_docs_sync_path.name} with key renames")
             if not self.dry_run:
                 try:
-                    docs_data = json.loads(docs_sync_path.read_text(encoding="utf-8"))
+                    docs_data = json.loads(docs_sync_path.read_text(encoding="utf-8-sig"))
                     new_docs_sync_path.write_text(
                         json.dumps(ren_keys(docs_data), indent=2) + "\n",
                         encoding="utf-8",
@@ -303,7 +303,7 @@ class Migrator:
         if not mcp_path.exists():
             return
 
-        raw = mcp_path.read_text(encoding="utf-8")
+        raw = mcp_path.read_text(encoding="utf-8-sig")
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
@@ -532,7 +532,7 @@ class Migrator:
         if not claude_md.exists():
             return
 
-        content = claude_md.read_text(encoding="utf-8")
+        content = claude_md.read_text(encoding="utf-8-sig")
         if not RULES_RE.search(content):
             return
 
@@ -555,7 +555,7 @@ class Migrator:
         if not gitignore.exists():
             return
 
-        lines = gitignore.read_text(encoding="utf-8").splitlines(keepends=True)
+        lines = gitignore.read_text(encoding="utf-8-sig").splitlines(keepends=True)
         new_lines = []
         changed = False
         for line in lines:
@@ -581,7 +581,7 @@ class Migrator:
         if not settings_path.exists():
             return
 
-        raw = settings_path.read_text(encoding="utf-8")
+        raw = settings_path.read_text(encoding="utf-8-sig")
         if "mcp__archon__" not in raw:
             return
 
@@ -643,7 +643,7 @@ class Migrator:
 
         # Update ~/.claude/settings.json (hook paths)
         if global_settings.exists():
-            raw = global_settings.read_text(encoding="utf-8")
+            raw = global_settings.read_text(encoding="utf-8-sig")
             if "archon" in raw or "ARCHON" in raw:
                 self.log_action("~/.claude/settings.json: rename archon references (hook paths)")
                 if not self.dry_run:
@@ -659,7 +659,7 @@ class Migrator:
         claude_json = home / ".claude.json"
         if claude_json.exists():
             try:
-                data = json.loads(claude_json.read_text(encoding="utf-8"))
+                data = json.loads(claude_json.read_text(encoding="utf-8-sig"))
                 changed = 0
                 scopes = [data] + list(data.get("projects", {}).values())
                 for scope in scopes:
@@ -698,7 +698,7 @@ class Migrator:
             self.log_action(f"Rename {archon_state} -> {cortex_state.name} with key renames")
             if not self.dry_run:
                 try:
-                    state_data = json.loads(archon_state.read_text(encoding="utf-8"))
+                    state_data = json.loads(archon_state.read_text(encoding="utf-8-sig"))
                     renamed_data = ren_keys(state_data)
                     cortex_state.write_text(json.dumps(renamed_data, indent=2) + "\n", encoding="utf-8")
                     archon_state.unlink()
@@ -729,7 +729,7 @@ class Migrator:
                     for item in cortex_config_dir.rglob("*"):
                         if item.is_file() and item.suffix in (".env", ".json", ""):
                             try:
-                                text = item.read_text(encoding="utf-8")
+                                text = item.read_text(encoding="utf-8-sig")
                                 new_text = ren(text)
                                 if new_text != text:
                                     item.write_text(new_text, encoding="utf-8")
