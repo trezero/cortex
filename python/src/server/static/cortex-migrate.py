@@ -859,9 +859,13 @@ def default_roots() -> list[str]:
             candidates.append(Path(f"{drive}:\\projects"))
     roots: list[str] = []
     for c in candidates:
-        s = str(c)
-        if c.is_dir() and s not in roots:
-            roots.append(s)
+        if not c.is_dir():
+            continue
+        # Dedupe by real directory, not by string — case-insensitive filesystems
+        # (macOS, Windows) make ~/projects and ~/Projects the same folder.
+        if any(os.path.samefile(c, r) for r in roots):
+            continue
+        roots.append(str(c))
     return roots or [str(Path.home() / "projects")]
 
 
