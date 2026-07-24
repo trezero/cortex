@@ -9,10 +9,15 @@ Handles:
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..config.logfire_config import get_logger, logfire
-from ..services.extensions import ExtensionService, ExtensionValidationService, SystemService
+from ..services.extensions import (
+    ExtensionService,
+    ExtensionTargetService,
+    ExtensionValidationService,
+    SystemService,
+)
 
 logger = get_logger(__name__)
 
@@ -65,6 +70,7 @@ class RegisterSystemRequest(BaseModel):
     name: str
     hostname: str | None = None
     os: str | None = None
+    agent: str = Field(default="claude", pattern=r"^[a-z][a-z0-9-]{0,31}$")
 
 
 class SyncSystemRequest(BaseModel):
@@ -72,7 +78,25 @@ class SyncSystemRequest(BaseModel):
     system_name: str | None = None
     hostname: str | None = None
     os: str | None = None
-    local_extensions: list[dict[str, Any]] = []
+    agent: str = Field(default="claude", pattern=r"^[a-z][a-z0-9-]{0,31}$")
+    local_extensions: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class ReviewExtensionTargetRequest(BaseModel):
+    mode: str
+    scope: str = "repository"
+    reviewed_by: str
+    adapted_content: str | None = None
+    expected_source_hash: str | None = None
+
+
+class AgentSyncRequest(BaseModel):
+    agent: str = Field(pattern=r"^[a-z][a-z0-9-]{0,31}$")
+    fingerprint: str
+    system_name: str | None = None
+    hostname: str | None = None
+    os: str | None = None
+    local_extensions: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class SetExtensionDefaultRequest(BaseModel):
@@ -312,7 +336,7 @@ async def register_system(request: RegisterSystemRequest):
         service = SystemService()
 
         # Check if system already exists by fingerprint
-        existing = service.find_by_fingerprint(request.fingerprint)
+        existing = service.find_by_fingerprint(request.fingerprint, request.agent)
         if existing:
             # Update last seen and return existing
             service.update_last_seen(existing["id"])
@@ -323,6 +347,7 @@ async def register_system(request: RegisterSystemRequest):
             name=request.name,
             hostname=request.hostname,
             os=request.os,
+            agent=request.agent,
         )
         logfire.info(f"System registered | system_id={system.get('id')}")
         return {"system": system, "is_new": True}
@@ -426,7 +451,142 @@ async def set_extension_default(extension_id: str, request: SetExtensionDefaultR
         raise HTTPException(status_code=500, detail={"error": str(e)}) from e
 
 
+# ── Agent compatibility targets ──────────────────────────────────────────────
+
+
+@router.get("/extensions/{extension_id}/targets")
+async def list_extension_targets(extension_id: str):
+    """List reviewed agent projections for an extension."""
+    extension = ExtensionService().get_extension(extension_id)
+    if extension is None:
+        raise HTTPException(status_code=404, detail=f"Extension '{extension_id}' not found")
+    targets = ExtensionTargetService().attach_targets([extension])[0]["targets"]
+    return {"targets": targets, "count": len(targets)}
+
+
+@router.put("/extensions/{extension_id}/targets/{agent}")
+async def review_extension_target(
+    extension_id: str,
+    agent: str,
+    request: ReviewExtensionTargetRequest,
+):
+    """Review and publish an agent-specific extension payload snapshot."""
+    try:
+        extension = ExtensionService().get_extension(extension_id)
+        if extension is None:
+            raise HTTPException(status_code=404, detail=f"Extension '{extension_id}' not found")
+        target_service = ExtensionTargetService()
+        target = target_service.review_target(
+            extension=extension,
+            agent=agent,
+            mode=request.mode,
+            scope=request.scope,
+            reviewed_by=request.reviewed_by,
+            adapted_content=request.adapted_content,
+            expected_source_hash=request.expected_source_hash,
+        )
+        return {
+            **target,
+            "compatibility_state": target_service.compatibility_state(extension, target),
+        }
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail={"error": str(e)}) from e
+    except Exception as e:
+        logfire.error(
+            f"Failed to review target | extension_id={extension_id} | agent={agent} | error={e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail={"error": str(e)}) from e
+
+
+@router.delete("/extensions/{extension_id}/targets/{agent}")
+async def delete_extension_target(extension_id: str, agent: str):
+    """Delete an agent target, returning it to pending review."""
+    deleted = ExtensionTargetService().delete_target(extension_id, agent)
+    if not deleted:
+        raise HTTPException(status_code=404, detail={"error": "Extension target not found"})
+    return {"status": "deleted", "extension_id": extension_id, "agent": agent}
+
+
 # ── Project-scoped extensions ─────────────────────────────────────────────────
+
+
+@router.post("/projects/{project_id}/agent-sync")
+async def sync_agent_targets(project_id: str, request: AgentSyncRequest):
+    """Register an agent installation and return a deterministic reconciliation plan."""
+    try:
+        system_service = SystemService()
+        extension_service = ExtensionService()
+        target_service = ExtensionTargetService()
+
+        existing = system_service.find_by_fingerprint(request.fingerprint, request.agent)
+        if existing:
+            system_service.update_last_seen(existing["id"])
+            system = existing
+            is_new = False
+        else:
+            system = system_service.register_system(
+                fingerprint=request.fingerprint,
+                name=request.system_name or request.fingerprint,
+                hostname=request.hostname,
+                os=request.os,
+                agent=request.agent,
+            )
+            is_new = True
+
+        from ..services.extensions.extension_sync_service import ExtensionSyncService
+
+        sync_service = ExtensionSyncService()
+        sync_service.register_system_for_project(system["id"], project_id)
+        extensions = extension_service.list_extensions_for_project(
+            project_id,
+            include_content=True,
+            type="skill",
+        )
+        targets = target_service.list_targets(
+            [extension["id"] for extension in extensions],
+            agent=request.agent,
+        )
+        system_extensions = sync_service.get_system_extensions(system["id"], project_id)
+        report = target_service.compute_sync_report(
+            extensions=extensions,
+            targets=targets,
+            local_extensions=request.local_extensions,
+            system_extensions=system_extensions,
+        )
+
+        extension_by_id = {extension["id"]: extension for extension in extensions}
+        for state in report["states"]:
+            extension = extension_by_id[state["extension_id"]]
+            if state["installation"] == "current":
+                target = state["target"]
+                sync_service.set_install_status(
+                    system_id=system["id"],
+                    extension_id=extension["id"],
+                    project_id=project_id,
+                    status="installed",
+                    installed_content_hash=target["payload_hash"],
+                    installed_version=extension.get("current_version"),
+                )
+            elif state["installation"] == "removed" and state["desired_status"] == "pending_remove":
+                sync_service.set_install_status(
+                    system_id=system["id"],
+                    extension_id=extension["id"],
+                    project_id=project_id,
+                    status="removed",
+                )
+
+        return {"system": {**system, "is_new": is_new}, **report}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logfire.error(
+            f"Failed agent sync | project_id={project_id} | agent={request.agent} | error={e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail={"error": str(e)}) from e
 
 
 @router.post("/projects/{project_id}/sync")
@@ -448,7 +608,7 @@ async def sync_system(project_id: str, request: SyncSystemRequest):
         sync_service = ExtensionSyncService()
 
         # Register or look up system
-        existing = system_service.find_by_fingerprint(request.fingerprint)
+        existing = system_service.find_by_fingerprint(request.fingerprint, request.agent)
         if existing:
             system_service.update_last_seen(existing["id"])
             system = existing
@@ -460,6 +620,7 @@ async def sync_system(project_id: str, request: SyncSystemRequest):
                 name=name,
                 hostname=request.hostname,
                 os=request.os,
+                agent=request.agent,
             )
             is_new = True
 
@@ -524,6 +685,7 @@ async def get_project_extensions(project_id: str, type: str | None = Query(None)
         logfire.debug(f"Getting project extensions | project_id={project_id}")
         extension_service = ExtensionService()
         all_extensions = extension_service.list_extensions_for_project(project_id, type=type)
+        all_extensions = ExtensionTargetService().attach_targets(all_extensions)
 
         # Build systems with nested extension install state
         systems_with_extensions: list[dict[str, Any]] = []

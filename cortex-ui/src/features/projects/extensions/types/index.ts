@@ -11,6 +11,21 @@ export interface CommandMetadata {
   filename: string;
 }
 
+export type AgentCompatibilityState = "pending" | "stale" | "invalid" | "current";
+
+export interface ExtensionTarget {
+  id: string;
+  extension_id: string;
+  agent?: string;
+  mode: "direct" | "adapted";
+  scope: "repository" | "global";
+  reviewed_source_hash: string;
+  payload_hash: string;
+  reviewed_by: string;
+  reviewed_at: string;
+  compatibility_state: AgentCompatibilityState;
+}
+
 export interface Extension {
   id: string;
   name: string;
@@ -28,6 +43,7 @@ export interface Extension {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  targets?: ExtensionTarget[];
 }
 
 export interface System {
@@ -36,6 +52,7 @@ export interface System {
   name: string;
   hostname: string | null;
   os: string | null;
+  agent: string;
   last_seen_at: string;
   created_at: string;
 }

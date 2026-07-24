@@ -33,12 +33,13 @@ class SystemService:
 
     # ── Lookup ────────────────────────────────────────────────────────────
 
-    def find_by_fingerprint(self, fingerprint: str) -> dict[str, Any] | None:
-        """Return the system record matching *fingerprint*, or ``None``."""
+    def find_by_fingerprint(self, fingerprint: str, agent: str = "claude") -> dict[str, Any] | None:
+        """Return the system record matching *fingerprint* and agent."""
         response = (
             self.supabase_client.table(TABLE)
             .select("*")
             .eq("fingerprint", fingerprint)
+            .eq("agent", agent)
             .execute()
         )
         if response.data:
@@ -77,6 +78,7 @@ class SystemService:
         name: str,
         hostname: str | None = None,
         os: str | None = None,
+        agent: str = "claude",
     ) -> dict[str, Any]:
         """Insert a new system record and return it.
 
@@ -87,6 +89,7 @@ class SystemService:
             "name": name,
             "hostname": hostname,
             "os": os,
+            "agent": agent,
         }
 
         response = self.supabase_client.table(TABLE).insert(record).execute()

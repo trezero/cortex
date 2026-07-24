@@ -1,4 +1,5 @@
 import type { Extension, SystemExtension } from "../types";
+import { CodexTargetControl } from "./CodexTargetControl";
 import { ExtensionStatusBadge } from "./ExtensionStatusBadge";
 
 interface SystemExtensionListProps {
@@ -48,6 +49,7 @@ export function SystemExtensionList({
   onRemove,
 }: SystemExtensionListProps) {
   const installedExtensionIds = new Set(systemExtensions.map((se) => se.extension_id));
+  const extensionsById = new Map(allExtensions.map((extension) => [extension.id, extension]));
   const availableExtensions = allExtensions.filter((e) => !installedExtensionIds.has(e.id));
 
   // Group installed by type (via joined extension data)
@@ -73,26 +75,40 @@ export function SystemExtensionList({
               <div key={type}>
                 <div className="text-[11px] text-zinc-500 font-medium mb-1">{TYPE_LABELS[type] ?? type}</div>
                 <div className="space-y-1">
-                  {installedByType[type].map((se) => (
-                    <div key={se.id} className="flex items-center justify-between p-2 rounded-md bg-white/5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-white">
-                          {se.cortex_extensions?.display_name || se.cortex_extensions?.name || se.extension_id}
-                        </span>
-                        <TypeBadge type={type} />
+                  {installedByType[type].map((se) => {
+                    const extension = extensionsById.get(se.extension_id);
+                    return (
+                      <div key={se.id} className="flex items-center justify-between p-2 rounded-md bg-white/5">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-white">
+                              {extension?.display_name ||
+                                extension?.name ||
+                                se.cortex_extensions?.display_name ||
+                                se.cortex_extensions?.name ||
+                                se.extension_id}
+                            </span>
+                            <TypeBadge type={type} />
+                          </div>
+                          {extension?.type === "skill" && (
+                            <div className="mt-1">
+                              <CodexTargetControl extension={extension} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <ExtensionStatusBadge status={se.status} hasLocalChanges={se.has_local_changes} />
+                          <button
+                            type="button"
+                            onClick={() => onRemove(se.extension_id)}
+                            className="px-2 py-1 text-xs rounded-md bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <ExtensionStatusBadge status={se.status} hasLocalChanges={se.has_local_changes} />
-                        <button
-                          type="button"
-                          onClick={() => onRemove(se.extension_id)}
-                          className="px-2 py-1 text-xs rounded-md bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -110,10 +126,17 @@ export function SystemExtensionList({
                 <div className="space-y-1">
                   {availableByType[type].map((extension) => (
                     <div key={extension.id} className="flex items-center justify-between p-2 rounded-md bg-white/5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-white">{extension.display_name || extension.name}</span>
-                        <TypeBadge type={type} />
-                        {extension.is_required && <span className="text-xs text-cyan-400">Required</span>}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-white">{extension.display_name || extension.name}</span>
+                          <TypeBadge type={type} />
+                          {extension.is_required && <span className="text-xs text-cyan-400">Required</span>}
+                        </div>
+                        {extension.type === "skill" && (
+                          <div className="mt-1">
+                            <CodexTargetControl extension={extension} />
+                          </div>
+                        )}
                       </div>
                       <button
                         type="button"

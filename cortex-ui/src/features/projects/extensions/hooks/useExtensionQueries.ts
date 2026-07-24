@@ -121,3 +121,38 @@ export function useSetExtensionDefault() {
     },
   });
 }
+
+export function useReviewExtensionTarget() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      extensionId,
+      agent,
+      mode,
+      scope,
+      reviewedBy,
+      adaptedContent,
+      expectedSourceHash,
+    }: {
+      extensionId: string;
+      agent: string;
+      mode: "direct" | "adapted";
+      scope: "repository" | "global";
+      reviewedBy: string;
+      adaptedContent?: string;
+      expectedSourceHash: string;
+    }) =>
+      extensionService.reviewExtensionTarget(extensionId, agent, {
+        mode,
+        scope,
+        reviewed_by: reviewedBy,
+        adapted_content: adaptedContent,
+        expected_source_hash: expectedSourceHash,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: extensionKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
+}

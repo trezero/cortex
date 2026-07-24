@@ -31,6 +31,7 @@ SAMPLE_SYSTEM = {
     "name": "dev-laptop",
     "hostname": "cortex-box",
     "os": "linux",
+    "agent": "claude",
     "last_seen_at": "2026-03-04T00:00:00+00:00",
     "created_at": "2026-03-04T00:00:00+00:00",
 }
@@ -41,21 +42,32 @@ SAMPLE_SYSTEM = {
 
 class TestFindByFingerprint:
     def test_returns_system_when_found(self, service, mock_supabase):
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
-            SAMPLE_SYSTEM
-        ]
+        builder = mock_supabase.table.return_value.select.return_value
+        builder.eq.return_value = builder
+        builder.execute.return_value.data = [SAMPLE_SYSTEM]
 
         result = service.find_by_fingerprint("fp-deadbeef")
 
         assert result == SAMPLE_SYSTEM
         mock_supabase.table.assert_called_with("cortex_systems")
         mock_supabase.table.return_value.select.assert_called_once_with("*")
-        mock_supabase.table.return_value.select.return_value.eq.assert_called_once_with(
-            "fingerprint", "fp-deadbeef"
-        )
+        assert builder.eq.call_args_list[0].args == ("fingerprint", "fp-deadbeef")
+        assert builder.eq.call_args_list[1].args == ("agent", "claude")
+
+    def test_fingerprint_is_scoped_by_agent(self, service, mock_supabase):
+        builder = mock_supabase.table.return_value.select.return_value
+        builder.eq.return_value = builder
+        builder.execute.return_value.data = [{**SAMPLE_SYSTEM, "agent": "codex"}]
+
+        result = service.find_by_fingerprint("fp-deadbeef", "codex")
+
+        assert result["agent"] == "codex"
+        assert builder.eq.call_args_list[1].args == ("agent", "codex")
 
     def test_returns_none_when_not_found(self, service, mock_supabase):
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
+        builder = mock_supabase.table.return_value.select.return_value
+        builder.eq.return_value = builder
+        builder.execute.return_value.data = []
 
         result = service.find_by_fingerprint("fp-nonexistent")
 
@@ -85,6 +97,7 @@ class TestRegisterSystem:
         assert insert_arg["name"] == "dev-laptop"
         assert insert_arg["hostname"] == "cortex-box"
         assert insert_arg["os"] == "linux"
+        assert insert_arg["agent"] == "claude"
 
     def test_raises_on_empty_response(self, service, mock_supabase):
         mock_supabase.table.return_value.insert.return_value.execute.return_value.data = []

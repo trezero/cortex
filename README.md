@@ -205,6 +205,22 @@ Then use `/cortex-memory` in any Claude Code session:
 
 See the [integration README](integrations/claude-code/README.md) for full details.
 
+### Codex Skill Distribution
+
+Cortex can also publish reviewed skills to Codex's native repository and global
+skill locations. Codex targets preserve exact source digests, explicit
+direct/adapted review, and repository/global scope without changing Claude
+Code's extension flow.
+
+```bash
+curl -fsS http://localhost:8051/cortex-codex-setup.sh -o /tmp/cortex-codex-setup.sh
+bash /tmp/cortex-codex-setup.sh --project-id PROJECT_UUID
+cortex-codex sync
+```
+
+See the [Codex integration guide](integrations/codex/README.md) for target
+states, review commands, conflict handling, registry import, and rollback.
+
 ## Installing Make
 
 <details>

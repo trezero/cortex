@@ -23,6 +23,9 @@ export function SystemCard({ system, isSelected, onClick, onUnlink }: SystemCard
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${isOnline ? "bg-emerald-400" : "bg-zinc-500"}`} />
           <span className="font-medium text-sm text-white truncate">{system.name}</span>
+          <span className="ml-auto rounded border border-white/10 px-1.5 py-0.5 text-[10px] uppercase text-zinc-400">
+            {system.agent || "claude"}
+          </span>
         </div>
         <div className="mt-1 text-xs text-zinc-400">
           {extensionCount} extension{extensionCount !== 1 ? "s" : ""}

@@ -755,6 +755,24 @@ async def http_cortex_setup_sh(request: Request) -> PlainTextResponse:
     )
 
 
+async def http_cortex_codex_setup_sh(request: Request) -> PlainTextResponse:
+    """Serve the project-scoped Codex bootstrap with reachable URLs baked in."""
+    api_url, mcp_url = _get_setup_urls(request)
+    script = _render_codex_setup_sh(api_url, mcp_url)
+    return PlainTextResponse(
+        script,
+        headers={"Content-Disposition": 'attachment; filename="cortexCodexSetup.sh"'},
+    )
+
+
+async def http_cortex_codex_client(request: Request) -> PlainTextResponse:
+    """Serve the dependency-free Codex synchronization client."""
+    return PlainTextResponse(
+        _read_integration_file("codex", "cortex_codex.py"),
+        headers={"Content-Disposition": 'attachment; filename="cortex-codex"'},
+    )
+
+
 async def http_agent_work_orders_setup_sh(request: Request) -> PlainTextResponse:
     """Serve agentWorkOrderSetup.sh with URLs baked in."""
     api_url, mcp_url = _get_setup_urls(request)
@@ -811,6 +829,19 @@ def _render_setup_sh(api_url: str, mcp_url: str) -> str:
             content = content.replace("{{DEFAULT_HOST}}", default_host)
             return content
     raise FileNotFoundError("cortexSetup.sh template not found")
+
+
+def _read_integration_file(*parts: str) -> str:
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "integrations" / Path(*parts)
+        if candidate.exists():
+            return candidate.read_text()
+    raise FileNotFoundError(f"Integration file not found: {'/'.join(parts)}")
+
+
+def _render_codex_setup_sh(api_url: str, mcp_url: str) -> str:
+    content = _read_integration_file("codex", "setup", "cortexCodexSetup.sh")
+    return content.replace("{{CORTEX_API_URL}}", api_url).replace("{{CORTEX_MCP_URL}}", mcp_url)
 
 
 def _render_agent_work_orders_setup_sh(api_url: str, mcp_url: str) -> str:
@@ -1017,6 +1048,8 @@ async def http_download_commands(request: Request):
 # Register setup endpoints
 try:
     mcp.custom_route("/cortex-setup.sh", methods=["GET"])(http_cortex_setup_sh)
+    mcp.custom_route("/cortex-codex-setup.sh", methods=["GET"])(http_cortex_codex_setup_sh)
+    mcp.custom_route("/cortex-setup/codex-client.py", methods=["GET"])(http_cortex_codex_client)
     mcp.custom_route("/cortex-setup.bat", methods=["GET"])(http_cortex_setup_bat)
     mcp.custom_route("/cortex-setup.md", methods=["GET"])(http_cortex_setup_md)
     mcp.custom_route("/scan-projects.md", methods=["GET"])(http_scan_projects_md)

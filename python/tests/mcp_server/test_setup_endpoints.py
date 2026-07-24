@@ -46,6 +46,26 @@ def test_cortex_setup_sh_contains_server_url(mcp_test_client):
         assert "CORTEX_MCP_URL=" in response.text
 
 
+def test_cortex_codex_setup_sh_returns_baked_urls(mcp_test_client):
+    with patch(
+        "src.mcp_server.mcp_server._render_codex_setup_sh",
+        return_value="#!/bin/bash\nCORTEX_API_URL=http://testserver",
+    ):
+        response = mcp_test_client.get("/cortex-codex-setup.sh")
+        assert response.status_code == 200
+        assert "CORTEX_API_URL=" in response.text
+
+
+def test_cortex_codex_client_is_downloadable(mcp_test_client):
+    with patch(
+        "src.mcp_server.mcp_server._read_integration_file",
+        return_value="#!/usr/bin/env python3\nprint('client')",
+    ):
+        response = mcp_test_client.get("/cortex-setup/codex-client.py")
+        assert response.status_code == 200
+        assert response.text.startswith("#!/usr/bin/env python3")
+
+
 def test_extensions_tarball_returns_valid_gzip(mcp_test_client):
     """Extensions tarball endpoint returns a valid tar.gz with SKILL.md files."""
     mock_response = MagicMock()

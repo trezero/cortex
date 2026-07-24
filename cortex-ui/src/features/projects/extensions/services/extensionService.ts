@@ -1,5 +1,10 @@
 import { callAPIWithETag } from "@/features/shared/api/apiClient";
-import type { ExtensionsListResponse, ProjectExtensionsResponse, ProjectSystemsResponse } from "../types";
+import type {
+  ExtensionsListResponse,
+  ExtensionTarget,
+  ProjectExtensionsResponse,
+  ProjectSystemsResponse,
+} from "../types";
 
 export const extensionService = {
   async getProjectExtensions(projectId: string): Promise<ProjectExtensionsResponse> {
@@ -60,5 +65,28 @@ export const extensionService = {
       body: JSON.stringify({ is_default: isDefault }),
     });
     if (!response.ok) throw new Error(`Failed to update extension default: ${response.statusText}`);
+  },
+
+  async reviewExtensionTarget(
+    extensionId: string,
+    agent: string,
+    payload: {
+      mode: "direct" | "adapted";
+      scope: "repository" | "global";
+      reviewed_by: string;
+      adapted_content?: string;
+      expected_source_hash: string;
+    },
+  ): Promise<ExtensionTarget> {
+    const response = await fetch(`/api/extensions/${extensionId}/targets/${agent}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(`Failed to review ${agent} target: ${detail}`);
+    }
+    return response.json();
   },
 };
