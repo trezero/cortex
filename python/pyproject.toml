@@ -68,6 +68,8 @@ server = [
     "tldextract>=5.0.0",
     # Logging
     "logfire>=0.30.0",
+    # pydantic-ai 0.0.55 imports opentelemetry._events, removed in newer API releases.
+    "opentelemetry-api<1.35",
     "sse-starlette>=2.3.3",
     "python-telegram-bot>=21.0",
     # Testing (needed for UI-triggered tests)
