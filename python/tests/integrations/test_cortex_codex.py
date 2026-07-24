@@ -86,6 +86,55 @@ def test_unmanaged_conflict_is_not_overwritten(tmp_path, isolated_roots):
     assert (skill / "SKILL.md").read_text(encoding="utf-8") == "user content"
 
 
+def test_legacy_managed_install_is_migrated(tmp_path, isolated_roots):
+    cfg = config(tmp_path)
+    desired = state()
+    skill = cfg.project_root / ".agents/skills/example"
+    skill.mkdir(parents=True)
+    content = desired["target"]["payload_content"]
+    (skill / "SKILL.md").write_text(content, encoding="utf-8")
+    (skill / cortex_codex.LEGACY_MARKER).write_text(
+        json.dumps(
+            {
+                "agent": "codex",
+                "shared_skill": "example",
+                "scope": "repository",
+                "shared_digest": f"sha256:{desired['target']['reviewed_source_hash']}",
+                "payload_digest": f"sha256:{desired['target']['payload_hash']}",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    scanned = cortex_codex.scan_skills(cfg)
+    assert scanned[0]["managed"] is True
+    cortex_codex.install_state(cfg, desired)
+
+    assert (skill / cortex_codex.MARKER).is_file()
+    assert not (skill / cortex_codex.LEGACY_MARKER).exists()
+    assert list((cfg.project_root / ".cortex/backups/codex-skills").iterdir())
+
+
+def test_installs_auxiliary_payload_files(tmp_path, isolated_roots):
+    cfg = config(tmp_path)
+    desired = state()
+    desired["target"]["payload_files"] = {
+        "scripts/check.sh": "#!/usr/bin/env bash\nexit 0\n",
+        "references/notes.md": "# Notes\n",
+    }
+    desired["target"]["payload_hash"] = cortex_codex.package_digest(
+        desired["target"]["payload_content"],
+        desired["target"]["payload_files"],
+    )
+
+    cortex_codex.install_state(cfg, desired)
+
+    skill = cfg.project_root / ".agents/skills/example"
+    assert (skill / "scripts/check.sh").read_text(encoding="utf-8").endswith("exit 0\n")
+    assert (skill / "references/notes.md").is_file()
+    assert cortex_codex.scan_skills(cfg)[0]["payload_hash"] == desired["target"]["payload_hash"]
+
+
 def test_failed_install_restores_previous_version(tmp_path, isolated_roots, monkeypatch):
     cfg = config(tmp_path)
     first = state()

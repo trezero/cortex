@@ -24,6 +24,7 @@ AGENT = "codex"
 CONFIG_PATH = Path(".cortex/codex.json")
 GLOBAL_CONFIG_PATH = Path.home() / ".config/cortex/codex.json"
 MARKER = ".cortex-extension.json"
+LEGACY_MARKER = ".codex-shared-skill.json"
 SKILL_FILE = "SKILL.md"
 
 
@@ -67,7 +68,7 @@ def read_package(root: Path) -> tuple[str, dict[str, str]]:
     files: dict[str, str] = {}
     for path in sorted(root.rglob("*")):
         relative = path.relative_to(root).as_posix()
-        if path.is_file() and relative not in {SKILL_FILE, MARKER, ".codex-shared-skill.json"}:
+        if path.is_file() and relative not in {SKILL_FILE, MARKER, LEGACY_MARKER}:
             validate_relative_path(relative)
             files[relative] = path.read_text(encoding="utf-8")
     return content, files
@@ -163,6 +164,35 @@ def read_marker(skill_dir: Path) -> dict[str, Any] | None:
     return value if value.get("agent") == AGENT else None
 
 
+def read_legacy_marker(skill_dir: Path) -> dict[str, Any] | None:
+    try:
+        value = json.loads((skill_dir / LEGACY_MARKER).read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return None
+    if (
+        value.get("agent") != AGENT
+        or value.get("shared_skill") != skill_dir.name
+        or value.get("scope") not in roots_for_scope()
+    ):
+        return None
+    return {
+        "agent": AGENT,
+        "name": value["shared_skill"],
+        "scope": value["scope"],
+        "reviewed_source_hash": str(value.get("shared_digest", "")).removeprefix("sha256:"),
+        "payload_hash": str(value.get("payload_digest", "")).removeprefix("sha256:"),
+        "legacy": True,
+    }
+
+
+def roots_for_scope() -> set[str]:
+    return {"repository", "global"}
+
+
+def read_managed_marker(skill_dir: Path) -> dict[str, Any] | None:
+    return read_marker(skill_dir) or read_legacy_marker(skill_dir)
+
+
 def scan_skills(config: Config) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for scope, root in roots(config).items():
@@ -173,7 +203,7 @@ def scan_skills(config: Config) -> list[dict[str, Any]]:
             if not skill_dir.is_dir() or not skill_file.is_file():
                 continue
             content, files = read_package(skill_dir)
-            marker = read_marker(skill_dir)
+            marker = read_managed_marker(skill_dir)
             result.append(
                 {
                     "name": skill_dir.name,
@@ -232,7 +262,7 @@ def install_state(config: Config, state: dict[str, Any]) -> None:
     target = state["target"]
     scope = target["scope"]
     destination = roots(config)[scope] / state["name"]
-    existing_marker = read_marker(destination) if destination.exists() else None
+    existing_marker = read_managed_marker(destination) if destination.exists() else None
     if destination.exists() and existing_marker is None:
         raise CortexError(f"Refusing to overwrite unmanaged skill: {destination}")
 
@@ -263,7 +293,7 @@ def install_state(config: Config, state: dict[str, Any]) -> None:
             previous = archive(config, destination, scope)
         stage.replace(destination)
     except Exception:
-        if destination.exists() and read_marker(destination):
+        if destination.exists() and read_managed_marker(destination):
             shutil.rmtree(destination)
         if previous is not None and previous.exists():
             previous.replace(destination)
@@ -274,16 +304,22 @@ def install_state(config: Config, state: dict[str, Any]) -> None:
     for other_scope, other_root in roots(config).items():
         other = other_root / state["name"]
         if other_scope != scope and other.exists():
-            marker = read_marker(other)
-            if marker and marker.get("extension_id") == state["extension_id"]:
+            marker = read_managed_marker(other)
+            if marker and (
+                marker.get("extension_id") == state["extension_id"]
+                or marker.get("name") == state["name"]
+            ):
                 archive(config, other, other_scope)
 
 
 def remove_state(config: Config, state: dict[str, Any]) -> None:
     for scope, root in roots(config).items():
         skill_dir = root / state["name"]
-        marker = read_marker(skill_dir)
-        if marker and marker.get("extension_id") == state["extension_id"]:
+        marker = read_managed_marker(skill_dir)
+        if marker and (
+            marker.get("extension_id") == state["extension_id"]
+            or marker.get("name") == state["name"]
+        ):
             archive(config, skill_dir, scope)
 
 

@@ -5,11 +5,12 @@ Claude Code extension flow.
 
 ## Model
 
-- `cortex_extensions.content` is the agent-neutral source.
+- `cortex_extensions.content` plus `source_files` is the complete
+  agent-neutral skill package. `source_digest` is its deterministic tree digest.
 - `cortex_extension_targets` is the reviewed delivery contract for an agent.
 - Each target records the exact source digest, `direct` or `adapted` mode,
-  `repository` or `global` scope, payload snapshot, payload digest, reviewer,
-  and review time.
+  `repository` or `global` scope, complete payload snapshot (`payload_content`
+  plus `payload_files`), payload digest, reviewer, and review time.
 - Compatibility is derived. A target is `pending`, `stale`, `invalid`, or
   `current`; these states are not manually assigned.
 - Cortex is authoritative. External registries may be imported once but are not
@@ -66,6 +67,12 @@ Managed replacements use a staged directory and archive the prior version
 before activation. Failed activation restores the prior version. Scope changes
 install the reviewed target first and then archive the old managed copy.
 
+Installations created by the former operating-space synchronizer are recognized
+only when they have a valid `.codex-shared-skill.json` ownership marker. The
+first Cortex sync archives that directory and replaces it with a
+`.cortex-extension.json` managed installation. A directory without either
+valid marker remains an unmanaged conflict and is never overwritten.
+
 ## One-Time Registry Import
 
 The import command publishes shared sources to Cortex, links them to the
@@ -75,12 +82,17 @@ project, verifies every source digest, and creates reviewed Codex targets:
 cortex-codex --project-root "$PWD" import-registry \
   --registry config/codex/shared-skill-registry.json \
   --shared-root SHARED_SKILLS \
-  --adapted-root .codex/skills
+  --adapted-root agent-skills/codex
 ```
 
 After a successful import, retire the external registry as an active sync
 authority. Future source edits make the Cortex target `stale` until a person or
 agent explicitly reviews and republishes it.
+
+The import verifies the complete package tree digest before publishing a Codex
+target. Bundled scripts, examples, references, and templates are therefore
+versioned and installed with `SKILL.md`; an import cannot silently accept a
+matching entrypoint with different supporting files.
 
 ## Rollback
 
