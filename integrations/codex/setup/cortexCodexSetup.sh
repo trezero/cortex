@@ -37,12 +37,20 @@ if [ -z "$PROJECT_ID" ]; then
   echo "--project-id or CORTEX_PROJECT_ID is required" >&2
   exit 2
 fi
-for command in curl python3 codex; do
+for command in curl python3; do
   command -v "$command" >/dev/null || {
     echo "$command is required" >&2
     exit 2
   }
 done
+
+# Noninteractive WSL shells can see a Windows Codex wrapper before they see the
+# Linux Node runtime managed by NVM.
+if ! command -v node >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
+  # shellcheck disable=SC1091
+  . "$HOME/.nvm/nvm.sh"
+  nvm use default >/dev/null 2>&1 || nvm use node >/dev/null 2>&1 || true
+fi
 
 curl -fsS "$CORTEX_API_URL/api/projects/$PROJECT_ID" >/dev/null
 
@@ -75,8 +83,12 @@ path.write_text(
 )
 PY
 
-codex mcp remove cortex >/dev/null 2>&1 || true
-codex mcp add cortex --url "$CORTEX_MCP_URL/mcp" >/dev/null
+if command -v codex >/dev/null 2>&1 && codex --version >/dev/null 2>&1; then
+  codex mcp remove cortex >/dev/null 2>&1 || true
+  codex mcp add cortex --url "$CORTEX_MCP_URL/mcp" >/dev/null
+else
+  echo "Warning: Codex CLI is unavailable; skipped MCP registration." >&2
+fi
 
 if [ "$INSTALL_HOOK" -eq 1 ]; then
   python3 - "$HOME/.codex/hooks.json" <<'PY'
