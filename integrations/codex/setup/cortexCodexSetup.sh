@@ -103,6 +103,19 @@ except FileNotFoundError:
     data = {}
 hooks = data.setdefault("hooks", {}).setdefault("SessionStart", [])
 command = '"$HOME/.local/bin/cortex-codex" --project-root "$PWD" status --quiet'
+# Cortex becomes the active authority when this bootstrap is installed. Remove
+# only the prior operating-space synchronizer command and preserve all other
+# hooks, including mixed groups that contain unrelated commands.
+filtered_groups = []
+for group in hooks:
+    group_hooks = [
+        hook
+        for hook in group.get("hooks", [])
+        if "codex-sync-shared-skills" not in hook.get("command", "")
+    ]
+    if group_hooks:
+        filtered_groups.append({**group, "hooks": group_hooks})
+hooks[:] = filtered_groups
 entry = {
     "matcher": "startup|resume|clear",
     "hooks": [

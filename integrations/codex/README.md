@@ -41,7 +41,9 @@ The bootstrap:
 2. writes `.cortex/codex.json`;
 3. registers the Cortex MCP endpoint with `codex mcp`;
 4. merges a quiet, deterministic SessionStart status hook without replacing
-   existing hooks.
+   unrelated existing hooks;
+5. removes only the legacy `codex-sync-shared-skills` SessionStart hook so
+   Cortex and the imported JSON registry cannot compete as active authorities.
 
 Use `--no-hook` to skip the hook. The hook does not invoke a model and emits no
 routine output.
@@ -72,6 +74,10 @@ only when they have a valid `.codex-shared-skill.json` ownership marker. The
 first Cortex sync archives that directory and replaces it with a
 `.cortex-extension.json` managed installation. A directory without either
 valid marker remains an unmanaged conflict and is never overwritten.
+
+The legacy binary and JSON registry may remain on disk as rollback artifacts,
+but they are not invoked after Cortex bootstrap. Do not re-enable their startup
+hook while Cortex targets are active.
 
 ## One-Time Registry Import
 

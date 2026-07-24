@@ -2,6 +2,8 @@
 
 import importlib.util
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -133,6 +135,80 @@ def test_installs_auxiliary_payload_files(tmp_path, isolated_roots):
     assert (skill / "scripts/check.sh").read_text(encoding="utf-8").endswith("exit 0\n")
     assert (skill / "references/notes.md").is_file()
     assert cortex_codex.scan_skills(cfg)[0]["payload_hash"] == desired["target"]["payload_hash"]
+
+
+def test_setup_replaces_only_legacy_session_hook(tmp_path):
+    home = tmp_path / "home"
+    project = tmp_path / "repo"
+    fake_bin = tmp_path / "bin"
+    (home / ".codex").mkdir(parents=True)
+    project.mkdir()
+    fake_bin.mkdir()
+    hooks_path = home / ".codex/hooks.json"
+    hooks_path.write_text(
+        json.dumps(
+            {
+                "hooks": {
+                    "SessionStart": [
+                        {
+                            "matcher": "startup",
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": '"$HOME/.local/bin/codex-sync-shared-skills" sync --quiet',
+                                }
+                            ],
+                        },
+                        {
+                            "matcher": "startup",
+                            "hooks": [{"type": "command", "command": "keep-this-hook"}],
+                        },
+                    ]
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (fake_bin / "curl").write_text(
+        "#!/usr/bin/env bash\n"
+        "while [ \"$#\" -gt 0 ]; do\n"
+        "  if [ \"$1\" = -o ]; then printf '#!/usr/bin/env python3\\n' > \"$2\"; exit 0; fi\n"
+        "  shift\n"
+        "done\n",
+        encoding="utf-8",
+    )
+    (fake_bin / "codex").write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    (fake_bin / "curl").chmod(0o755)
+    (fake_bin / "codex").chmod(0o755)
+    setup = MODULE_PATH.parent / "setup/cortexCodexSetup.sh"
+
+    subprocess.run(
+        [
+            "bash",
+            str(setup),
+            "--project-id",
+            "project-1",
+            "--project-root",
+            str(project),
+            "--api-url",
+            "http://cortex.test:8181",
+            "--mcp-url",
+            "http://cortex.test:8051",
+        ],
+        check=True,
+        env={**os.environ, "HOME": str(home), "PATH": f"{fake_bin}:{os.environ['PATH']}"},
+        capture_output=True,
+        text=True,
+    )
+
+    commands = [
+        hook["command"]
+        for group in json.loads(hooks_path.read_text(encoding="utf-8"))["hooks"]["SessionStart"]
+        for hook in group["hooks"]
+    ]
+    assert "keep-this-hook" in commands
+    assert not any("codex-sync-shared-skills" in command for command in commands)
+    assert sum("cortex-codex" in command for command in commands) == 1
 
 
 def test_failed_install_restores_previous_version(tmp_path, isolated_roots, monkeypatch):
