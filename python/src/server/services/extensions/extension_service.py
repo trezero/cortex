@@ -7,6 +7,7 @@ and managing per-project overrides in cortex_project_extensions.
 
 import hashlib
 from datetime import UTC, datetime
+from pathlib import PurePosixPath
 from typing import Any
 
 from src.server.config.logfire_config import get_logger
@@ -31,6 +32,44 @@ class ExtensionService:
         """Compute SHA-256 hex digest of extension content."""
         return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
+    @staticmethod
+    def validate_package_files(files: dict[str, str] | None) -> dict[str, str]:
+        """Validate portable, relative package paths and text payloads."""
+        result: dict[str, str] = {}
+        for raw_path, content in (files or {}).items():
+            path = PurePosixPath(raw_path)
+            if (
+                not raw_path
+                or path.is_absolute()
+                or ".." in path.parts
+                or raw_path == "SKILL.md"
+                or not isinstance(content, str)
+            ):
+                raise ValueError(f"Invalid extension package path: {raw_path!r}")
+            result[path.as_posix()] = content
+        return result
+
+    @classmethod
+    def compute_package_hash(cls, content: str, files: dict[str, str] | None = None) -> str:
+        """Match the canonical tree digest used by filesystem clients."""
+        package_files = {"SKILL.md": content, **cls.validate_package_files(files)}
+        directories = {
+            PurePosixPath(*path.parts[:index]).as_posix()
+            for filename in package_files
+            for path in [PurePosixPath(filename)]
+            for index in range(1, len(path.parts))
+        }
+        digest = hashlib.sha256()
+        for relative in sorted([*directories, *package_files]):
+            digest.update(relative.encode())
+            digest.update(b"\0")
+            if relative in directories:
+                digest.update(b"dir\0")
+            else:
+                digest.update(b"file\0")
+                digest.update(package_files[relative].encode())
+        return digest.hexdigest()
+
     def create_extension(
         self,
         name: str,
@@ -40,6 +79,7 @@ class ExtensionService:
         skill_groups: list[str] | None = None,
         type: str | None = None,
         plugin_manifest: dict | None = None,
+        source_files: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Create a new extension and save version 1.
 
@@ -61,6 +101,7 @@ class ExtensionService:
             RuntimeError: If the database insert returns no data.
         """
         content_hash = self.compute_content_hash(content)
+        package_files = self.validate_package_files(source_files)
         now = datetime.now(UTC).isoformat()
 
         extension_data: dict[str, Any] = {
@@ -69,6 +110,8 @@ class ExtensionService:
             "description": description,
             "content": content,
             "content_hash": content_hash,
+            "source_files": package_files,
+            "source_digest": self.compute_package_hash(content, package_files),
             "current_version": 1,
             "created_by": created_by,
             "created_at": now,
@@ -119,7 +162,7 @@ class ExtensionService:
         """
         query = (
             self.supabase_client.table(EXTENSIONS_TABLE)
-            .select("id, name, display_name, description, current_version, content_hash, type, skill_groups, is_required, is_default, is_validated, tags, created_by, created_at, updated_at")
+            .select("id, name, display_name, description, current_version, content_hash, source_digest, type, skill_groups, is_required, is_default, is_validated, tags, created_by, created_at, updated_at")
         )
         if skill_group is not None:
             query = query.contains("skill_groups", [skill_group])
@@ -152,7 +195,7 @@ class ExtensionService:
         else:
             query = (
                 self.supabase_client.table(EXTENSIONS_TABLE)
-                .select("id, name, display_name, description, current_version, content_hash, type, skill_groups, is_required, is_default, is_validated, tags, created_by, created_at, updated_at")
+                .select("id, name, display_name, description, current_version, content_hash, source_digest, type, skill_groups, is_required, is_default, is_validated, tags, created_by, created_at, updated_at")
             )
         query = query.overlaps("skill_groups", [project_id])
         if type is not None:
@@ -226,6 +269,7 @@ class ExtensionService:
         new_version: int,
         updated_by: str,
         description: str | None = None,
+        source_files: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Update an extension's content and bump its version.
 
@@ -243,11 +287,14 @@ class ExtensionService:
             RuntimeError: If the database update returns no data (e.g., extension not found).
         """
         content_hash = self.compute_content_hash(content)
+        package_files = self.validate_package_files(source_files)
         now = datetime.now(UTC).isoformat()
 
         update_data: dict[str, Any] = {
             "content": content,
             "content_hash": content_hash,
+            "source_files": package_files,
+            "source_digest": self.compute_package_hash(content, package_files),
             "current_version": new_version,
             "updated_at": now,
         }

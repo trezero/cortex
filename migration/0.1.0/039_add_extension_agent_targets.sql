@@ -6,6 +6,10 @@ BEGIN;
 ALTER TABLE cortex_systems
   ADD COLUMN IF NOT EXISTS agent TEXT NOT NULL DEFAULT 'claude';
 
+ALTER TABLE cortex_extensions
+  ADD COLUMN IF NOT EXISTS source_files JSONB NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS source_digest TEXT;
+
 ALTER TABLE cortex_systems
   DROP CONSTRAINT IF EXISTS cortex_systems_fingerprint_key;
 
@@ -19,13 +23,19 @@ CREATE TABLE IF NOT EXISTS cortex_extension_targets (
   mode TEXT NOT NULL CHECK (mode IN ('direct', 'adapted')),
   scope TEXT NOT NULL CHECK (scope IN ('repository', 'global')),
   reviewed_source_hash TEXT NOT NULL,
+  reviewed_extension_hash TEXT NOT NULL,
   payload_content TEXT NOT NULL,
+  payload_files JSONB NOT NULL DEFAULT '{}'::jsonb,
   payload_hash TEXT NOT NULL,
   reviewed_by TEXT NOT NULL,
   reviewed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (extension_id, agent)
 );
+
+ALTER TABLE cortex_extension_targets
+  ADD COLUMN IF NOT EXISTS reviewed_extension_hash TEXT,
+  ADD COLUMN IF NOT EXISTS payload_files JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 CREATE INDEX IF NOT EXISTS idx_cortex_extension_targets_agent
   ON cortex_extension_targets (agent);

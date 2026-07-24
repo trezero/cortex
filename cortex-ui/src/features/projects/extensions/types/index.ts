@@ -20,6 +20,7 @@ export interface ExtensionTarget {
   mode: "direct" | "adapted";
   scope: "repository" | "global";
   reviewed_source_hash: string;
+  reviewed_extension_hash: string;
   payload_hash: string;
   reviewed_by: string;
   reviewed_at: string;
@@ -33,6 +34,7 @@ export interface Extension {
   description: string;
   content?: string;
   content_hash: string;
+  source_digest?: string;
   current_version: number;
   is_required: boolean;
   is_default: boolean;

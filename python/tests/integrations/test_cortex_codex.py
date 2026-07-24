@@ -25,7 +25,7 @@ def config(tmp_path: Path):
 
 def state(name: str = "example", scope: str = "repository") -> dict:
     content = f"---\nname: {name}\ndescription: Example test skill content.\n---\n# Example\n"
-    payload_hash = cortex_codex.digest(content)
+    payload_hash = cortex_codex.package_digest(content)
     return {
         "extension_id": "ext-1",
         "name": name,
@@ -95,7 +95,7 @@ def test_failed_install_restores_previous_version(tmp_path, isolated_roots, monk
 
     replacement = state()
     replacement["target"]["payload_content"] += "\nUpdated.\n"
-    replacement["target"]["payload_hash"] = cortex_codex.digest(replacement["target"]["payload_content"])
+    replacement["target"]["payload_hash"] = cortex_codex.package_digest(replacement["target"]["payload_content"])
     original_replace = Path.replace
 
     def fail_stage_replace(path, target):

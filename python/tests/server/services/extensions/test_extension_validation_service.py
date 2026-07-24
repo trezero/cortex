@@ -185,19 +185,19 @@ description: A skill with underscores in the name field.
         assert any("kebab" in e.lower() for e in result["errors"])
 
     def test_name_starting_with_number(self, validator):
-        """Names starting with a number should fail."""
+        """Numeric-leading names used by native skills such as 1password are valid."""
         content = """\
 ---
-name: 1-bad-skill
-description: A skill whose name starts with a number.
+name: 1password
+description: A numeric-leading native skill name.
 ---
 
 ## Body
 """
         result = validator.validate(content)
 
-        assert result["valid"] is False
-        assert any("kebab" in e.lower() for e in result["errors"])
+        assert result["valid"] is True
+        assert result["errors"] == []
 
     def test_name_with_uppercase(self, validator):
         """Names with uppercase letters should fail."""

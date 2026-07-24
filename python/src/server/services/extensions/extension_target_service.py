@@ -35,9 +35,21 @@ class ExtensionTargetService:
             return "invalid"
         if not target.get("payload_content") or not target.get("payload_hash"):
             return "invalid"
-        if target.get("reviewed_source_hash") != extension.get("content_hash"):
+        source_digest = extension.get("source_digest") or ExtensionService.compute_package_hash(
+            extension["content"],
+            extension.get("source_files"),
+        )
+        if target.get("reviewed_source_hash") != source_digest:
             return "stale"
-        expected_payload_hash = ExtensionService.compute_content_hash(target["payload_content"])
+        if target.get("reviewed_extension_hash") != extension.get("content_hash"):
+            return "stale"
+        try:
+            expected_payload_hash = ExtensionService.compute_package_hash(
+                target["payload_content"],
+                target.get("payload_files"),
+            )
+        except ValueError:
+            return "invalid"
         if target.get("payload_hash") != expected_payload_hash:
             return "invalid"
         return "current"
@@ -76,6 +88,7 @@ class ExtensionTargetService:
         scope: str,
         reviewed_by: str,
         adapted_content: str | None = None,
+        adapted_files: dict[str, str] | None = None,
         expected_source_hash: str | None = None,
     ) -> dict[str, Any]:
         """Record a reviewed payload snapshot against the current source hash."""
@@ -88,14 +101,18 @@ class ExtensionTargetService:
         if scope not in SUPPORTED_SCOPES:
             raise ValueError(f"Unsupported target scope: {scope}")
 
-        source_hash = extension["content_hash"]
+        source_hash = extension.get("source_digest") or ExtensionService.compute_package_hash(
+            extension["content"],
+            extension.get("source_files"),
+        )
         if expected_source_hash is not None and expected_source_hash != source_hash:
             raise ValueError("Extension source changed during review; reload and review the new source")
 
         if mode == "direct":
-            if adapted_content is not None:
-                raise ValueError("adapted_content is not allowed in direct mode")
+            if adapted_content is not None or adapted_files is not None:
+                raise ValueError("adapted content or files are not allowed in direct mode")
             payload_content = extension["content"]
+            payload_files = ExtensionService.validate_package_files(extension.get("source_files"))
         else:
             if not adapted_content:
                 raise ValueError("adapted_content is required in adapted mode")
@@ -106,6 +123,7 @@ class ExtensionTargetService:
             if not validation["valid"]:
                 raise ValueError(f"Adapted content validation failed: {validation['errors']}")
             payload_content = adapted_content
+            payload_files = ExtensionService.validate_package_files(adapted_files)
 
         now = datetime.now(UTC).isoformat()
         row = {
@@ -114,8 +132,10 @@ class ExtensionTargetService:
             "mode": mode,
             "scope": scope,
             "reviewed_source_hash": source_hash,
+            "reviewed_extension_hash": extension["content_hash"],
             "payload_content": payload_content,
-            "payload_hash": ExtensionService.compute_content_hash(payload_content),
+            "payload_files": payload_files,
+            "payload_hash": ExtensionService.compute_package_hash(payload_content, payload_files),
             "reviewed_by": reviewed_by,
             "reviewed_at": now,
             "updated_at": now,

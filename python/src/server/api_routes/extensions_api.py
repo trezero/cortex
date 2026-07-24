@@ -35,12 +35,14 @@ class CreateExtensionRequest(BaseModel):
     skill_groups: list[str] | None = None
     type: str | None = None
     plugin_manifest: dict | None = None
+    source_files: dict[str, str] | None = None
 
 
 class UpdateExtensionRequest(BaseModel):
     content: str
     updated_by: str
     description: str | None = None
+    source_files: dict[str, str] | None = None
 
 
 class ValidateExtensionRequest(BaseModel):
@@ -87,6 +89,7 @@ class ReviewExtensionTargetRequest(BaseModel):
     scope: str = "repository"
     reviewed_by: str
     adapted_content: str | None = None
+    adapted_files: dict[str, str] | None = None
     expected_source_hash: str | None = None
 
 
@@ -205,6 +208,7 @@ async def create_extension(request: CreateExtensionRequest):
             skill_groups=request.skill_groups,
             type=request.type,
             plugin_manifest=request.plugin_manifest,
+            source_files=request.source_files,
         )
 
         logfire.info(f"Extension created | extension_id={extension.get('id')} | name={request.name}")
@@ -249,6 +253,7 @@ async def update_extension(extension_id: str, request: UpdateExtensionRequest):
             new_version=new_version,
             updated_by=request.updated_by,
             description=request.description,
+            source_files=request.source_files if request.source_files is not None else existing.get("source_files"),
         )
 
         logfire.info(f"Extension updated | extension_id={extension_id} | version={new_version}")
@@ -483,6 +488,7 @@ async def review_extension_target(
             scope=request.scope,
             reviewed_by=request.reviewed_by,
             adapted_content=request.adapted_content,
+            adapted_files=request.adapted_files,
             expected_source_hash=request.expected_source_hash,
         )
         return {

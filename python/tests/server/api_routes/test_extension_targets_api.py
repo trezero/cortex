@@ -74,6 +74,7 @@ def test_review_codex_target_uses_exact_source_digest():
         scope="repository",
         reviewed_by="tester",
         adapted_content=None,
+        adapted_files=None,
         expected_source_hash="source-hash",
     )
     assert result["compatibility_state"] == "current"

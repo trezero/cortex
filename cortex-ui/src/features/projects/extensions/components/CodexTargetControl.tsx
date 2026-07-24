@@ -40,7 +40,7 @@ export function CodexTargetControl({ extension }: { extension: Extension }) {
         scope,
         reviewedBy: "cortex-ui",
         adaptedContent: mode === "adapted" ? adaptedContent : undefined,
-        expectedSourceHash: extension.content_hash,
+        expectedSourceHash: extension.source_digest ?? extension.content_hash,
       });
       showToast(`Published Codex target for ${extension.name}`, "success");
       setOpen(false);
@@ -80,7 +80,8 @@ export function CodexTargetControl({ extension }: { extension: Extension }) {
           <DialogHeader>
             <DialogTitle>Codex Target: {extension.display_name || extension.name}</DialogTitle>
             <DialogDescription>
-              Publish a reviewed Codex payload tied to source digest {extension.content_hash.slice(0, 12)}.
+              Publish a reviewed Codex payload tied to source digest{" "}
+              {(extension.source_digest ?? extension.content_hash).slice(0, 12)}.
             </DialogDescription>
           </DialogHeader>
 

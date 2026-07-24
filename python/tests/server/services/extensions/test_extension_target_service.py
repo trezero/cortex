@@ -40,9 +40,14 @@ def target(source: dict, *, mode: str = "direct", scope: str = "repository", pay
         "agent": "codex",
         "mode": mode,
         "scope": scope,
-        "reviewed_source_hash": source["content_hash"],
+        "reviewed_source_hash": ExtensionService.compute_package_hash(
+            source["content"],
+            source.get("source_files"),
+        ),
+        "reviewed_extension_hash": source["content_hash"],
         "payload_content": content,
-        "payload_hash": ExtensionService.compute_content_hash(content),
+        "payload_files": {},
+        "payload_hash": ExtensionService.compute_package_hash(content),
     }
 
 

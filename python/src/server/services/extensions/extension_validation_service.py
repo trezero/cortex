@@ -15,8 +15,8 @@ MAX_EXTENSION_SIZE_BYTES = 50 * 1024
 # Minimum description length to avoid a quality warning
 MIN_DESCRIPTION_LENGTH = 20
 
-# Kebab-case: lowercase letters, digits, hyphens; must start with a letter
-KEBAB_CASE_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+# Kebab-case: lowercase letters, digits, and hyphens.
+KEBAB_CASE_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 # Secret detection patterns (compiled for performance)
 SECRET_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
@@ -180,8 +180,8 @@ class ExtensionValidationService:
         if not KEBAB_CASE_PATTERN.match(name):
             errors.append(
                 f"Invalid name format '{name}'. Must be kebab-case "
-                "(lowercase letters, digits, and hyphens; must start with a letter). "
-                "Examples: 'my-extension', 'cortex-memory', 'code-review'."
+                "(lowercase letters, digits, and hyphens). "
+                "Examples: '1password', 'cortex-memory', 'code-review'."
             )
 
     def _check_description(self, description: Any, warnings: list[str]) -> None:

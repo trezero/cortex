@@ -35,6 +35,44 @@ def digest(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
+def validate_relative_path(raw_path: str) -> Path:
+    path = Path(raw_path)
+    if not raw_path or path.is_absolute() or ".." in path.parts or raw_path == SKILL_FILE:
+        raise CortexError(f"Invalid skill package path: {raw_path!r}")
+    return path
+
+
+def package_digest(content: str, files: dict[str, str] | None = None) -> str:
+    package_files = {SKILL_FILE: content, **(files or {})}
+    directories = {
+        Path(*path.parts[:index]).as_posix()
+        for filename in package_files
+        for path in [validate_relative_path(filename) if filename != SKILL_FILE else Path(filename)]
+        for index in range(1, len(path.parts))
+    }
+    result = hashlib.sha256()
+    for relative in sorted([*directories, *package_files]):
+        result.update(relative.encode())
+        result.update(b"\0")
+        if relative in directories:
+            result.update(b"dir\0")
+        else:
+            result.update(b"file\0")
+            result.update(package_files[relative].encode())
+    return result.hexdigest()
+
+
+def read_package(root: Path) -> tuple[str, dict[str, str]]:
+    content = (root / SKILL_FILE).read_text(encoding="utf-8")
+    files: dict[str, str] = {}
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root).as_posix()
+        if path.is_file() and relative not in {SKILL_FILE, MARKER, ".codex-shared-skill.json"}:
+            validate_relative_path(relative)
+            files[relative] = path.read_text(encoding="utf-8")
+    return content, files
+
+
 def json_dump(path: Path, value: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.tmp")
@@ -134,13 +172,13 @@ def scan_skills(config: Config) -> list[dict[str, Any]]:
             skill_file = skill_dir / SKILL_FILE
             if not skill_dir.is_dir() or not skill_file.is_file():
                 continue
-            content = skill_file.read_text(encoding="utf-8")
+            content, files = read_package(skill_dir)
             marker = read_marker(skill_dir)
             result.append(
                 {
                     "name": skill_dir.name,
                     "scope": scope,
-                    "payload_hash": digest(content),
+                    "payload_hash": package_digest(content, files),
                     "reviewed_source_hash": marker.get("reviewed_source_hash") if marker else None,
                     "extension_id": marker.get("extension_id") if marker else None,
                     "managed": marker is not None,
@@ -203,6 +241,10 @@ def install_state(config: Config, state: dict[str, Any]) -> None:
     previous: Path | None = None
     try:
         (stage / SKILL_FILE).write_text(target["payload_content"], encoding="utf-8")
+        for relative, content in target.get("payload_files", {}).items():
+            file_path = stage / validate_relative_path(relative)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_text(content, encoding="utf-8")
         json_dump(
             stage / MARKER,
             {
@@ -328,7 +370,9 @@ def command_review(config: Config, api: Api, args: argparse.Namespace) -> int:
             "scope": args.scope,
             "reviewed_by": args.reviewed_by,
             "adapted_content": adapted_content,
-            "expected_source_hash": extension["content_hash"],
+            "adapted_files": None,
+            "expected_source_hash": extension.get("source_digest")
+            or package_digest(extension["content"], extension.get("source_files")),
         },
     )
     print(
@@ -345,10 +389,12 @@ def publish_shared_skill(
     content: str,
     entry: dict[str, Any],
     adapted_root: Path | None,
+    source_files: dict[str, str],
 ) -> None:
+    source_digest = package_digest(content, source_files)
     try:
         extension = find_extension(api, name)
-        if extension["content_hash"] != digest(content):
+        if extension.get("source_digest") != source_digest:
             extension = api.request(
                 "PUT",
                 f"/api/extensions/{extension['id']}",
@@ -356,6 +402,7 @@ def publish_shared_skill(
                     "content": content,
                     "description": None,
                     "updated_by": entry.get("reviewed_by", AGENT),
+                    "source_files": source_files,
                 },
             )
     except CortexError as exc:
@@ -372,17 +419,19 @@ def publish_shared_skill(
                 "created_by": entry.get("reviewed_by", AGENT),
                 "skill_groups": [project_id],
                 "type": "skill",
+                "source_files": source_files,
             },
         )
     api.request("POST", f"/api/projects/{project_id}/extensions/{extension['id']}/link")
     expected = entry["shared_digest"].removeprefix("sha256:")
-    if expected != digest(content):
+    if expected != source_digest:
         raise CortexError(f"Registry digest does not match shared source for {name}")
     adapted_content = None
+    adapted_files = None
     if entry["mode"] == "adapted":
         if adapted_root is None:
             raise CortexError("--adapted-root is required when importing adapted skills")
-        adapted_content = (adapted_root / name / SKILL_FILE).read_text(encoding="utf-8")
+        adapted_content, adapted_files = read_package(adapted_root / name)
     api.request(
         "PUT",
         f"/api/extensions/{extension['id']}/targets/{AGENT}",
@@ -391,7 +440,8 @@ def publish_shared_skill(
             "scope": entry["scope"],
             "reviewed_by": entry.get("reviewed_by", AGENT),
             "adapted_content": adapted_content,
-            "expected_source_hash": digest(content),
+            "adapted_files": adapted_files,
+            "expected_source_hash": source_digest,
         },
     )
 
@@ -403,7 +453,7 @@ def command_import_registry(config: Config, api: Api, args: argparse.Namespace) 
     failures = 0
     for name, entry in sorted(registry["skills"].items()):
         try:
-            content = (args.shared_root / name / SKILL_FILE).read_text(encoding="utf-8")
+            content, source_files = read_package(args.shared_root / name)
             publish_shared_skill(
                 api,
                 config.project_id,
@@ -411,6 +461,7 @@ def command_import_registry(config: Config, api: Api, args: argparse.Namespace) 
                 content,
                 entry,
                 args.adapted_root,
+                source_files,
             )
             print(f"imported {name}: {entry['mode']}/{entry['scope']}")
         except (CortexError, OSError) as exc:
