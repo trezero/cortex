@@ -123,43 +123,32 @@ Cortex can be used directly by AI coding agents to ingest, search, and manage pr
 
 ### Connecting Any MCP Client
 
-Add Cortex as an MCP server in your client's configuration:
+Connect to the private VPN, load `CORTEX_MCP_AUTH_TOKEN` from the approved
+Atlas 1Password item, and preserve the runtime placeholder in client config.
 
-**Claude Code** (`.mcp.json` or `~/.claude/mcp.json`):
-```json
-{
-  "mcpServers": {
-    "cortex": {
-      "type": "streamable-http",
-      "url": "https://cortex.persalto.io/mcp",
-      "headers": {
-        "CF-Access-Client-Id": "${CF_ACCESS_CLIENT_ID}",
-        "CF-Access-Client-Secret": "${CF_ACCESS_CLIENT_SECRET}",
-        "X-Cortex-Service-Token": "${CORTEX_MCP_AUTH_TOKEN}"
-      }
-    }
-  }
-}
+**Claude Code**:
+```bash
+claude mcp add --transport http -s local cortex http://172.16.1.230:8051/mcp \
+  --header 'X-Cortex-Service-Token: ${CORTEX_MCP_AUTH_TOKEN}'
 ```
 
-**Cursor / Windsurf / Kiro** (MCP settings):
+**Other MCP clients**:
 ```json
 {
   "cortex": {
-    "url": "https://cortex.persalto.io/mcp",
+    "url": "http://172.16.1.230:8051/mcp",
     "transport": "streamable-http",
     "headers": {
-      "CF-Access-Client-Id": "${CF_ACCESS_CLIENT_ID}",
-      "CF-Access-Client-Secret": "${CF_ACCESS_CLIENT_SECRET}",
       "X-Cortex-Service-Token": "${CORTEX_MCP_AUTH_TOKEN}"
     }
   }
 }
 ```
 
-Resolve these variables at client startup from the approved secret manager. Do not write their
-values into MCP configuration. Direct LAN HTTP is intentionally unsupported; use the HTTPS Access
-endpoint or a separately approved encrypted tunnel.
+Use only clients that resolve the environment placeholder at startup. Do not write
+the token value into configuration. This HTTP endpoint is supported only inside the
+private VPN; `CORTEX_VPN_BIND_ADDRESS` must be the host's VPN interface, never a
+wildcard address.
 
 ### MCP Tools for Agents
 
