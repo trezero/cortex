@@ -7,10 +7,10 @@ set -e
 CORTEX_API_URL="{{CORTEX_API_URL}}"
 CORTEX_MCP_URL="{{CORTEX_MCP_URL}}"
 
-# If placeholders were not substituted, ask for the Cortex host
+# If placeholders were not substituted, ask for the private VPN host.
 if [ "$CORTEX_API_URL" = "{{CORTEX_API_URL}}" ]; then
   DEFAULT_HOST="{{DEFAULT_HOST}}"
-  printf "  URLs not pre-configured. Please enter your Cortex server address.\n\n"
+  printf "  URLs not pre-configured. Enter the Cortex host on the private VPN.\n\n"
   printf "  Cortex host [%s]: " "$DEFAULT_HOST"
   read -r CORTEX_HOST < /dev/tty
   CORTEX_HOST="${CORTEX_HOST:-$DEFAULT_HOST}"
@@ -20,6 +20,21 @@ if [ "$CORTEX_API_URL" = "{{CORTEX_API_URL}}" ]; then
 fi
 
 API_BASE="$CORTEX_API_URL"
+
+for secret_name in CORTEX_MCP_AUTH_TOKEN; do
+  if [ -z "$(printenv "$secret_name" 2>/dev/null)" ]; then
+    echo "ERROR: $secret_name must be loaded at runtime from the approved secret manager." >&2
+    exit 1
+  fi
+done
+
+CORTEX_ACCESS_HEADERS=(
+  -H "X-Cortex-Service-Token: ${CORTEX_MCP_AUTH_TOKEN}"
+)
+
+cortex_curl() {
+  curl "${CORTEX_ACCESS_HEADERS[@]}" "$@"
+}
 
 # ── UI helpers ────────────────────────────────────────────────────────────────
 
@@ -199,7 +214,7 @@ echo
 ui_step 2 "Project"
 
 # Verify API is reachable before attempting any project operations
-if ! curl -sf "$API_BASE/api/projects?include_content=false&q=" >/dev/null 2>&1; then
+if ! cortex_curl -sf "$API_BASE/api/projects?include_content=false&q=" >/dev/null 2>&1; then
   ui_error "Cannot reach Cortex API at $API_BASE"
   ui_info "Check that Cortex is running and the URL is correct, then re-run this script."
   exit 1
@@ -210,7 +225,7 @@ PROJECT_ID=""
 PROJECT_TITLE=""
 
 ui_info "Searching for \"$DIR_NAME\"..."
-SEARCH_RESULT=$(curl -sf "$API_BASE/api/projects?include_content=false&q=$(url_encode "$DIR_NAME")" 2>/dev/null || echo '{"projects":[]}')
+SEARCH_RESULT=$(cortex_curl -sf "$API_BASE/api/projects?include_content=false&q=$(url_encode "$DIR_NAME")" 2>/dev/null || echo '{"projects":[]}')
 MATCH_COUNT=$("$PYTHON" -c "import json,sys; print(len(json.loads(sys.argv[1]).get('projects',[])))" "$SEARCH_RESULT")
 
 if [ "$MATCH_COUNT" -eq 1 ]; then
@@ -224,7 +239,7 @@ elif [ "$MATCH_COUNT" -eq 0 ]; then
   ui_info "No match found. Creating project \"$DIR_NAME\"..."
   CREATE_PAYLOAD=$("$PYTHON" -c "import json,sys; print(json.dumps({'title': sys.argv[1]}))" "$DIR_NAME")
   TMPFILE=$(mktemp)
-  HTTP_STATUS=$(curl -s -o "$TMPFILE" -w "%{http_code}" -X POST "$API_BASE/api/projects" \
+  HTTP_STATUS=$(cortex_curl -s -o "$TMPFILE" -w "%{http_code}" -X POST "$API_BASE/api/projects" \
     -H "Content-Type: application/json" \
     -d "$CREATE_PAYLOAD" 2>/dev/null || echo "000")
   CREATE_RESULT=$(cat "$TMPFILE" 2>/dev/null || echo "")
@@ -290,11 +305,13 @@ claude mcp remove cortex -s local   >/dev/null 2>&1 || true
 claude mcp remove cortex -s user    >/dev/null 2>&1 || true
 claude mcp remove cortex -s project >/dev/null 2>&1 || true
 
-if claude mcp add --transport http -s local cortex "$MCP_URL" >/dev/null 2>&1; then
+if claude mcp add --transport http -s local cortex "$MCP_URL" \
+  --header 'X-Cortex-Service-Token: ${CORTEX_MCP_AUTH_TOKEN}' \
+  >/dev/null 2>&1; then
   ui_success "MCP server configured: $MCP_URL"
 else
   ui_warn "Could not configure MCP automatically."
-  ui_info "Run manually: claude mcp add --transport http cortex $MCP_URL"
+  ui_info "Configure the three secret-backed headers documented in the Cortex README, then retry."
 fi
 echo
 
@@ -360,7 +377,7 @@ PLUGIN_DIR="$INSTALL_DIR/plugins/cortex-memory"
 if [ "$SKIP_PLUGIN_INSTALL" = "false" ]; then
   ui_info "Installing cortex-memory plugin..."
   mkdir -p "$INSTALL_DIR/plugins"
-  if curl -sf "${CORTEX_MCP_URL}/cortex-setup/plugin/cortex-memory.tar.gz" | \
+  if cortex_curl -sf "${CORTEX_MCP_URL}/cortex-setup/plugin/cortex-memory.tar.gz" | \
     tar xz -C "$INSTALL_DIR/plugins/" 2>/dev/null; then
     ui_success "Plugin installed to $PLUGIN_DIR/"
 
@@ -546,7 +563,7 @@ fi
 
 ui_info "Installing extensions..."
 mkdir -p "$INSTALL_DIR/skills"
-if curl -sf "${CORTEX_MCP_URL}/cortex-setup/extensions.tar.gz" | \
+if cortex_curl -sf "${CORTEX_MCP_URL}/cortex-setup/extensions.tar.gz" | \
     tar xz -C "$INSTALL_DIR/skills/" 2>/dev/null; then
   EXT_COUNT=$(find "$INSTALL_DIR/skills" -maxdepth 2 -name "SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
   ui_success "Installed $EXT_COUNT extension(s) to $INSTALL_DIR/skills/"
@@ -589,7 +606,7 @@ MARKER_START="<!-- cortex-rules-start -->"
 MARKER_END="<!-- cortex-rules-end -->"
 
 ui_info "Configuring CLAUDE.md project rules..."
-SNIPPET=$(curl -sf "${CORTEX_MCP_URL}/cortex-setup/claude-md-snippet.md" 2>/dev/null || echo "")
+SNIPPET=$(cortex_curl -sf "${CORTEX_MCP_URL}/cortex-setup/claude-md-snippet.md" 2>/dev/null || echo "")
 
 if [ -n "$SNIPPET" ]; then
   if [ ! -f "$CLAUDE_MD" ]; then
@@ -637,12 +654,12 @@ echo
 
 ui_step 4 "Install slash commands"
 mkdir -p "$INSTALL_DIR/commands"
-if curl -sf "${CORTEX_MCP_URL}/cortex-setup/commands.tar.gz" | tar xz -C "$INSTALL_DIR/commands/"; then
+if cortex_curl -sf "${CORTEX_MCP_URL}/cortex-setup/commands.tar.gz" | tar xz -C "$INSTALL_DIR/commands/"; then
   ui_success "Slash commands installed from registry"
 else
   ui_warn "Could not download commands from registry, trying individual files..."
-  curl -sf "$CORTEX_MCP_URL/cortex-setup.md" -o "$INSTALL_DIR/commands/cortex-setup.md" 2>/dev/null || true
-  curl -sf "$CORTEX_MCP_URL/scan-projects.md" -o "$INSTALL_DIR/commands/scan-projects.md" 2>/dev/null || true
+  cortex_curl -sf "$CORTEX_MCP_URL/cortex-setup.md" -o "$INSTALL_DIR/commands/cortex-setup.md" 2>/dev/null || true
+  cortex_curl -sf "$CORTEX_MCP_URL/scan-projects.md" -o "$INSTALL_DIR/commands/scan-projects.md" 2>/dev/null || true
 fi
 echo
 

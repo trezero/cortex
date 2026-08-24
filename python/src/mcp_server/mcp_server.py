@@ -14,6 +14,7 @@ Note: Crawling and document upload operations are handled directly by the
 API service and frontend, not through MCP tools.
 """
 
+import hmac
 import json
 import logging
 import os
@@ -29,6 +30,8 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
+from mcp.server.auth.provider import AccessToken
+from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import Context, FastMCP
 from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse
@@ -79,6 +82,53 @@ if not mcp_port:
         "Default value: 8051"
     )
 server_port = int(mcp_port)
+
+mcp_auth_token = os.getenv("CORTEX_MCP_AUTH_TOKEN", "")
+if len(mcp_auth_token) < 32:
+    raise ValueError(
+        "CORTEX_MCP_AUTH_TOKEN is required and must contain at least 32 characters. "
+        "Load it from the approved secret manager before starting Cortex MCP."
+    )
+
+mcp_resource_url = os.getenv("CORTEX_MCP_RESOURCE_URL", f"http://localhost:{server_port}")
+
+
+class CortexServiceTokenVerifier:
+    """Validate the single service token supplied by the approved secret manager."""
+
+    async def verify_token(self, token: str) -> AccessToken | None:
+        if not hmac.compare_digest(token, mcp_auth_token):
+            return None
+        return AccessToken(
+            token=token,
+            client_id="cortex-service-client",
+            scopes=["cortex:use"],
+        )
+
+
+class ServiceTokenHeaderMiddleware:
+    """Translate the Codex helper header into the standard bearer scheme."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            headers = list(scope.get("headers", []))
+            if not any(name.lower() == b"authorization" for name, _ in headers):
+                for name, value in headers:
+                    if name.lower() == b"x-cortex-service-token":
+                        scope = dict(scope)
+                        scope["headers"] = headers + [(b"authorization", b"Bearer " + value)]
+                        break
+        await self.app(scope, receive, send)
+
+
+class CortexFastMCP(FastMCP):
+    """FastMCP server with support for Codex's secret header helper."""
+
+    def streamable_http_app(self):
+        return ServiceTokenHeaderMiddleware(super().streamable_http_app())
 
 
 @dataclass
@@ -357,11 +407,17 @@ try:
     logger.info("   Server Name: cortex-mcp-server")
     logger.info("   Description: MCP server using HTTP calls")
 
-    mcp = FastMCP(
+    mcp = CortexFastMCP(
         "cortex-mcp-server",
         description="MCP server for Cortex - uses HTTP calls to other services",
         instructions=MCP_INSTRUCTIONS,
         lifespan=lifespan,
+        token_verifier=CortexServiceTokenVerifier(),
+        auth=AuthSettings(
+            issuer_url=mcp_resource_url,
+            resource_server_url=None,
+            required_scopes=["cortex:use"],
+        ),
         host=server_host,
         port=server_port,
     )
@@ -726,20 +782,13 @@ except Exception as e:
 
 
 def _get_setup_urls(request: Request) -> tuple[str, str]:
-    """Derive (api_url, mcp_url) for baking into setup scripts.
-
-    When the request comes through the Vite proxy, X-Forwarded-Host
-    carries the external hostname (e.g. '192.168.1.10:3737').
-    We extract just the hostname and combine with the known service ports
-    so users outside Docker get reachable URLs.
-    Falls back to CORTEX_HOST env var (the externally-reachable address).
-    """
+    """Derive the private-VPN API and MCP URLs for generated clients."""
     forwarded_host = request.headers.get("x-forwarded-host", "")
-    if forwarded_host:
-        hostname = forwarded_host.split(":")[0]
-    else:
-        hostname = request.url.hostname or os.environ.get("CORTEX_HOST", "localhost")
-
+    hostname = (
+        forwarded_host.split(":")[0]
+        if forwarded_host
+        else request.url.hostname or os.environ.get("CORTEX_HOST", "localhost")
+    )
     mcp_port = os.environ.get("CORTEX_MCP_PORT", "8051")
     api_port = os.environ.get("CORTEX_SERVER_PORT", "8181")
     return f"http://{hostname}:{api_port}", f"http://{hostname}:{mcp_port}"

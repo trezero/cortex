@@ -11,7 +11,13 @@ from starlette.testclient import TestClient
 @pytest.fixture
 def mcp_test_client():
     """TestClient using the FastMCP app directly."""
-    with patch.dict("os.environ", {"CORTEX_MCP_PORT": "8051"}):
+    with patch.dict(
+        "os.environ",
+        {
+            "CORTEX_MCP_PORT": "8051",
+            "CORTEX_MCP_AUTH_TOKEN": "test-cortex-service-token-with-32-characters",
+        },
+    ):
         from src.mcp_server.mcp_server import mcp
         return TestClient(mcp.streamable_http_app())
 
@@ -44,6 +50,19 @@ def test_cortex_setup_sh_contains_server_url(mcp_test_client):
     with patch("src.mcp_server.mcp_server._render_setup_sh", return_value="#!/bin/bash\nCORTEX_MCP_URL=http://testserver"):
         response = mcp_test_client.get("/cortex-setup.sh")
         assert "CORTEX_MCP_URL=" in response.text
+
+
+def test_generated_setup_urls_use_private_vpn_ports():
+    from src.mcp_server.mcp_server import _get_setup_urls
+
+    request = MagicMock()
+    request.headers = {"x-forwarded-host": "172.16.1.230:3737"}
+    request.url.hostname = "ignored"
+
+    assert _get_setup_urls(request) == (
+        "http://172.16.1.230:8181",
+        "http://172.16.1.230:8051",
+    )
 
 
 def test_extensions_tarball_returns_valid_gzip(mcp_test_client):

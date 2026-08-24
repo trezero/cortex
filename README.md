@@ -123,31 +123,32 @@ Cortex can be used directly by AI coding agents to ingest, search, and manage pr
 
 ### Connecting Any MCP Client
 
-Add Cortex as an MCP server in your client's configuration:
+Connect to the private VPN, load `CORTEX_MCP_AUTH_TOKEN` from the approved
+Atlas 1Password item, and preserve the runtime placeholder in client config.
 
-**Claude Code** (`.mcp.json` or `~/.claude/mcp.json`):
+**Claude Code**:
+```bash
+claude mcp add --transport http -s local cortex http://172.16.1.230:8051/mcp \
+  --header 'X-Cortex-Service-Token: ${CORTEX_MCP_AUTH_TOKEN}'
+```
+
+**Other MCP clients**:
 ```json
 {
-  "mcpServers": {
-    "cortex": {
-      "type": "streamable-http",
-      "url": "http://localhost:8051/mcp"
+  "cortex": {
+    "url": "http://172.16.1.230:8051/mcp",
+    "transport": "streamable-http",
+    "headers": {
+      "X-Cortex-Service-Token": "${CORTEX_MCP_AUTH_TOKEN}"
     }
   }
 }
 ```
 
-**Cursor / Windsurf / Kiro** (MCP settings):
-```json
-{
-  "cortex": {
-    "url": "http://localhost:8051/mcp",
-    "transport": "streamable-http"
-  }
-}
-```
-
-Replace `localhost` with the Cortex server's hostname/IP if running on a different machine.
+Use only clients that resolve the environment placeholder at startup. Do not write
+the token value into configuration. This HTTP endpoint is supported only inside the
+private VPN; `CORTEX_VPN_BIND_ADDRESS` must be the host's VPN interface, never a
+wildcard address.
 
 ### MCP Tools for Agents
 

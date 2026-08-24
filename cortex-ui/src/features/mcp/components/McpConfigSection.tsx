@@ -12,6 +12,11 @@ interface McpConfigSectionProps {
   className?: string;
 }
 
+const CORTEX_MCP_URL = "http://172.16.1.230:8051/mcp";
+const SECRET_BACKED_HEADERS = {
+  "X-Cortex-Service-Token": "${CORTEX_MCP_AUTH_TOKEN}",
+};
+
 const ideConfigurations: Record<
   SupportedIDE,
   {
@@ -25,12 +30,13 @@ const ideConfigurations: Record<
   claudecode: {
     title: "Claude Code Configuration",
     steps: ["Open a terminal and run the following command:", "The connection will be established automatically"],
-    configGenerator: (config) =>
+    configGenerator: (_config) =>
       JSON.stringify(
         {
           name: "cortex",
           transport: "http",
-          url: `http://${config.host}:${config.port}/mcp`,
+          url: CORTEX_MCP_URL,
+          headers: SECRET_BACKED_HEADERS,
         },
         null,
         2,
@@ -44,12 +50,13 @@ const ideConfigurations: Record<
       "Launch Gemini CLI in your terminal",
       "Test the connection by typing /mcp to list available tools",
     ],
-    configGenerator: (config) =>
+    configGenerator: (_config) =>
       JSON.stringify(
         {
           mcpServers: {
             cortex: {
-              httpUrl: `http://${config.host}:${config.port}/mcp`,
+              httpUrl: CORTEX_MCP_URL,
+              headers: SECRET_BACKED_HEADERS,
             },
           },
         },
@@ -65,32 +72,8 @@ const ideConfigurations: Record<
       "Step 3: Find your exact mcp-remote path by running: npm root -g",
       "Step 4: Replace the path in the configuration with your actual path + /mcp-remote/dist/proxy.js",
     ],
-    configGenerator: (config) => {
-      const isWindows = navigator.platform.toLowerCase().includes("win");
-
-      if (isWindows) {
-        return `[mcp_servers.cortex]
-command = 'node'
-args = [
-    'C:/Users/YOUR_USERNAME/AppData/Roaming/npm/node_modules/mcp-remote/dist/proxy.js',
-    'http://${config.host}:${config.port}/mcp'
-]
-env = {
-    APPDATA = 'C:\\Users\\YOUR_USERNAME\\AppData\\Roaming',
-    LOCALAPPDATA = 'C:\\Users\\YOUR_USERNAME\\AppData\\Local',
-    SystemRoot = 'C:\\WINDOWS',
-    COMSPEC = 'C:\\WINDOWS\\system32\\cmd.exe'
-}`;
-      } else {
-        return `[mcp_servers.cortex]
-command = 'node'
-args = [
-    '/usr/local/lib/node_modules/mcp-remote/dist/proxy.js',
-    'http://${config.host}:${config.port}/mcp'
-]
-env = { }`;
-      }
-    },
+    configGenerator: (_config) =>
+      "Run the operating-space portable setup. It installs the managed private-VPN Cortex entry in ~/.codex/config.toml and a runtime 1Password-backed header helper without persisting secrets.",
     platformSpecific: true,
   },
   cursor: {
@@ -101,19 +84,20 @@ env = { }`;
       "Add the configuration shown below",
       "Restart Cursor for changes to take effect",
     ],
-    configGenerator: (config) =>
+    configGenerator: (_config) =>
       JSON.stringify(
         {
           mcpServers: {
             cortex: {
-              url: `http://${config.host}:${config.port}/mcp`,
+              url: CORTEX_MCP_URL,
+              headers: SECRET_BACKED_HEADERS,
             },
           },
         },
         null,
         2,
       ),
-    supportsOneClick: true,
+    supportsOneClick: false,
   },
   windsurf: {
     title: "Windsurf Configuration",
@@ -123,12 +107,13 @@ env = { }`;
       "Add the configuration shown below to the mcpServers object",
       'Click "Refresh" to connect to the server',
     ],
-    configGenerator: (config) =>
+    configGenerator: (_config) =>
       JSON.stringify(
         {
           mcpServers: {
             cortex: {
-              serverUrl: `http://${config.host}:${config.port}/mcp`,
+              serverUrl: CORTEX_MCP_URL,
+              headers: SECRET_BACKED_HEADERS,
             },
           },
         },
@@ -145,19 +130,8 @@ env = { }`;
       "Add the configuration shown below",
       "Restart VS Code for changes to take effect",
     ],
-    configGenerator: (config) =>
-      JSON.stringify(
-        {
-          mcpServers: {
-            cortex: {
-              command: "npx",
-              args: ["mcp-remote", `http://${config.host}:${config.port}/mcp`, "--allow-http"],
-            },
-          },
-        },
-        null,
-        2,
-      ),
+    configGenerator: (_config) =>
+      "Use an MCP client that supports runtime environment-variable headers, then configure the private-VPN endpoint and the secret-backed service-token header shown in the Cortex integration guide.",
   },
   kiro: {
     title: "Kiro Configuration",
@@ -167,19 +141,8 @@ env = { }`;
       "Add the configuration shown below",
       "Save and restart Kiro",
     ],
-    configGenerator: (config) =>
-      JSON.stringify(
-        {
-          mcpServers: {
-            cortex: {
-              command: "npx",
-              args: ["mcp-remote", `http://${config.host}:${config.port}/mcp`, "--allow-http"],
-            },
-          },
-        },
-        null,
-        2,
-      ),
+    configGenerator: (_config) =>
+      "Use an MCP client that supports runtime environment-variable headers, then configure the private-VPN endpoint and the secret-backed service-token header shown in the Cortex integration guide.",
   },
 };
 
@@ -215,9 +178,7 @@ export const McpConfigSection: React.FC<McpConfigSectionProps> = ({ config, stat
   };
 
   const handleCursorOneClick = () => {
-    const httpConfig = {
-      url: `http://${config.host}:${config.port}/mcp`,
-    };
+    const httpConfig = { url: CORTEX_MCP_URL, headers: SECRET_BACKED_HEADERS };
     const configString = JSON.stringify(httpConfig);
     const base64Config = btoa(configString);
     const deeplink = `cursor://anysphere.cursor-deeplink/mcp/install?name=cortex&config=${base64Config}`;
@@ -226,7 +187,7 @@ export const McpConfigSection: React.FC<McpConfigSectionProps> = ({ config, stat
   };
 
   const handleClaudeCodeCommand = async () => {
-    const command = `claude mcp add --transport http cortex http://${config.host}:${config.port}/mcp`;
+    const command = `claude mcp add --transport http -s local cortex ${CORTEX_MCP_URL} --header 'X-Cortex-Service-Token: \${CORTEX_MCP_AUTH_TOKEN}'`;
     const result = await copyToClipboard(command);
 
     if (result.success) {
@@ -309,7 +270,7 @@ export const McpConfigSection: React.FC<McpConfigSectionProps> = ({ config, stat
               )}
             >
               <code className="text-sm font-mono text-cyan-600 dark:text-cyan-400">
-                claude mcp add --transport http cortex http://{config.host}:{config.port}/mcp
+                claude mcp add --transport http -s local cortex http://172.16.1.230:8051/mcp --header ...
               </code>
               <Button variant="outline" size="sm" onClick={handleClaudeCodeCommand}>
                 <Copy className="w-3 h-3 mr-1" />

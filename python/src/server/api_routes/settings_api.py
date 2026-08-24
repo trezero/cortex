@@ -7,6 +7,7 @@ Handles:
 - Settings storage and retrieval
 """
 
+import re
 from datetime import datetime
 from typing import Any
 
@@ -137,6 +138,218 @@ OPTIONAL_SETTINGS_WITH_DEFAULTS = {
     "LOGFIRE_ENABLED": "false",  # Enable Pydantic Logfire integration
     "POSTMAN_SYNC_MODE": "disabled",  # Postman integration mode: api, git, or disabled
 }
+
+# Browser clients may manage non-secret application preferences, but they never
+# receive or mutate provider keys, tokens, passwords, or encrypted records.
+SAFE_PREFERENCE_CATEGORIES = {
+    "features",
+    "monitoring",
+    "rag_strategy",
+    "code_extraction",
+    "ollama_instances",
+}
+SAFE_PREFERENCE_KEYS = {
+    # Browser feature toggles
+    "DISCONNECT_SCREEN_ENABLED": "features",
+    "PROJECTS_ENABLED": "features",
+    "STYLE_GUIDE_ENABLED": "features",
+    "AGENT_WORK_ORDERS_ENABLED": "features",
+    "POSTMAN_SYNC_MODE": "features",
+    "LOGFIRE_ENABLED": "monitoring",
+    # RAG/provider preferences (never provider credentials)
+    "USE_CONTEXTUAL_EMBEDDINGS": "rag_strategy",
+    "CONTEXTUAL_EMBEDDINGS_MAX_WORKERS": "rag_strategy",
+    "USE_HYBRID_SEARCH": "rag_strategy",
+    "USE_AGENTIC_RAG": "rag_strategy",
+    "USE_RERANKING": "rag_strategy",
+    "MODEL_CHOICE": "rag_strategy",
+    "LLM_PROVIDER": "rag_strategy",
+    "LLM_BASE_URL": "rag_strategy",
+    "LLM_INSTANCE_NAME": "rag_strategy",
+    "OLLAMA_EMBEDDING_URL": "rag_strategy",
+    "OLLAMA_EMBEDDING_INSTANCE_NAME": "rag_strategy",
+    "EMBEDDING_MODEL": "rag_strategy",
+    "EMBEDDING_PROVIDER": "rag_strategy",
+    "CRAWL_BATCH_SIZE": "rag_strategy",
+    "CRAWL_MAX_CONCURRENT": "rag_strategy",
+    "CRAWL_WAIT_STRATEGY": "rag_strategy",
+    "CRAWL_PAGE_TIMEOUT": "rag_strategy",
+    "CRAWL_DELAY_BEFORE_HTML": "rag_strategy",
+    "DOCUMENT_STORAGE_BATCH_SIZE": "rag_strategy",
+    "EMBEDDING_BATCH_SIZE": "rag_strategy",
+    "DELETE_BATCH_SIZE": "rag_strategy",
+    "ENABLE_PARALLEL_BATCHES": "rag_strategy",
+    "MEMORY_THRESHOLD_PERCENT": "rag_strategy",
+    "DISPATCHER_CHECK_INTERVAL": "rag_strategy",
+    "CODE_EXTRACTION_BATCH_SIZE": "rag_strategy",
+    "CODE_SUMMARY_MAX_WORKERS": "rag_strategy",
+    # Code extraction preferences
+    "MIN_CODE_BLOCK_LENGTH": "code_extraction",
+    "MAX_CODE_BLOCK_LENGTH": "code_extraction",
+    "ENABLE_COMPLETE_BLOCK_DETECTION": "code_extraction",
+    "ENABLE_LANGUAGE_SPECIFIC_PATTERNS": "code_extraction",
+    "ENABLE_PROSE_FILTERING": "code_extraction",
+    "MAX_PROSE_RATIO": "code_extraction",
+    "MIN_CODE_INDICATORS": "code_extraction",
+    "ENABLE_DIAGRAM_FILTERING": "code_extraction",
+    "ENABLE_CONTEXTUAL_LENGTH": "code_extraction",
+    "CODE_EXTRACTION_MAX_WORKERS": "code_extraction",
+    "CONTEXT_WINDOW_SIZE": "code_extraction",
+    "ENABLE_CODE_SUMMARIES": "code_extraction",
+}
+OLLAMA_PREFERENCE_KEY = re.compile(
+    r"^ollama_instance_[A-Za-z0-9_-]+_"
+    r"(name|baseUrl|isEnabled|isPrimary|instanceType|loadBalancingWeight|"
+    r"isHealthy|responseTimeMs|modelsAvailable|lastHealthCheck)$"
+)
+PROVIDER_CREDENTIAL_STATUS_KEYS = {
+    "ANTHROPIC_API_KEY",
+    "GOOGLE_API_KEY",
+    "GROK_API_KEY",
+    "OPENAI_API_KEY",
+    "OPENROUTER_API_KEY",
+}
+
+
+def _serialize_preference(credential) -> dict[str, Any]:
+    return {
+        "key": credential.key,
+        "value": credential.value,
+        "is_encrypted": False,
+        "category": credential.category,
+        "description": credential.description,
+    }
+
+
+def _is_safe_preference_key(key: str, category: str | None) -> bool:
+    expected_category = SAFE_PREFERENCE_KEYS.get(key)
+    if expected_category is not None:
+        return category == expected_category
+    return category == "ollama_instances" and OLLAMA_PREFERENCE_KEY.fullmatch(key) is not None
+
+
+def _require_safe_preference_key(key: str, category: str | None) -> None:
+    if not _is_safe_preference_key(key, category):
+        raise HTTPException(status_code=400, detail={"error": "Unsupported preference key"})
+
+
+async def _find_safe_preference(key: str):
+    credentials = await credential_service.list_all_credentials()
+    credential = next((item for item in credentials if item.key == key), None)
+    if credential is None:
+        return None
+    if credential.is_encrypted or not _is_safe_preference_key(
+        credential.key, credential.category
+    ):
+        raise HTTPException(status_code=404, detail={"error": f"Preference {key} not found"})
+    return credential
+
+
+@router.get("/preferences")
+async def list_preferences(category: str | None = None):
+    """List browser-safe, non-secret preferences only."""
+    if category is not None and category not in SAFE_PREFERENCE_CATEGORIES:
+        raise HTTPException(status_code=400, detail={"error": "Unsupported preference category"})
+    credentials = await credential_service.list_all_credentials()
+    return [
+        _serialize_preference(credential)
+        for credential in credentials
+        if not credential.is_encrypted
+        and _is_safe_preference_key(credential.key, credential.category)
+        and (category is None or credential.category == category)
+    ]
+
+
+@router.get("/preferences/categories/{category}")
+async def get_preferences_by_category(category: str):
+    """Return one allowlisted category without exposing encrypted records."""
+    if category not in SAFE_PREFERENCE_CATEGORIES:
+        raise HTTPException(status_code=400, detail={"error": "Unsupported preference category"})
+    return {"preferences": await list_preferences(category)}
+
+
+@router.post("/preferences/secret-status")
+async def browser_secret_status(request: dict[str, list[str]]):
+    """Return presence booleans for the fixed provider-key set, never values."""
+    requested = request.get("keys", [])
+    if any(key not in PROVIDER_CREDENTIAL_STATUS_KEYS for key in requested):
+        raise HTTPException(status_code=400, detail={"error": "Unsupported credential status key"})
+    result = {}
+    for key in requested:
+        value = await credential_service.get_credential(key, decrypt=True)
+        result[key] = {"key": key, "has_value": bool(str(value).strip()) if value else False}
+    return result
+
+
+@router.get("/preferences/{key}")
+async def get_preference(key: str):
+    """Return one non-secret preference or its documented default."""
+    credential = await _find_safe_preference(key)
+    if credential is not None:
+        return _serialize_preference(credential)
+    if key in OPTIONAL_SETTINGS_WITH_DEFAULTS:
+        return {
+            "key": key,
+            "value": OPTIONAL_SETTINGS_WITH_DEFAULTS[key],
+            "is_default": True,
+            "is_encrypted": False,
+            "category": "features",
+            "description": f"Default value for {key}",
+        }
+    raise HTTPException(status_code=404, detail={"error": f"Preference {key} not found"})
+
+
+@router.post("/preferences")
+async def create_preference(request: CredentialRequest):
+    """Create a non-secret preference in an allowlisted category."""
+    if request.is_encrypted:
+        raise HTTPException(status_code=400, detail={"error": "Secrets are managed in 1Password"})
+    _require_safe_preference_key(request.key, request.category)
+    success = await credential_service.set_credential(
+        key=request.key,
+        value=request.value,
+        is_encrypted=False,
+        category=request.category,
+        description=request.description,
+    )
+    if not success:
+        raise HTTPException(status_code=500, detail={"error": "Failed to save preference"})
+    return {"success": True, "message": f"Preference {request.key} saved successfully"}
+
+
+@router.put("/preferences/{key}")
+async def update_preference(key: str, request: dict[str, Any]):
+    """Update or create a non-secret preference without opening credential routes."""
+    if request.get("is_encrypted"):
+        raise HTTPException(status_code=400, detail={"error": "Secrets are managed in 1Password"})
+    category = request.get("category")
+    if category is not None:
+        _require_safe_preference_key(key, category)
+    existing = await _find_safe_preference(key)
+    if existing is not None and category is None:
+        category = existing.category
+    _require_safe_preference_key(key, category)
+    success = await credential_service.set_credential(
+        key=key,
+        value=str(request.get("value", "")),
+        is_encrypted=False,
+        category=category,
+        description=request.get("description"),
+    )
+    if not success:
+        raise HTTPException(status_code=500, detail={"error": "Failed to save preference"})
+    return {"success": True, "message": f"Preference {key} saved successfully"}
+
+
+@router.delete("/preferences/{key}")
+async def delete_preference(key: str):
+    """Delete a record only after proving it is a browser-safe preference."""
+    credential = await _find_safe_preference(key)
+    if credential is None:
+        raise HTTPException(status_code=404, detail={"error": f"Preference {key} not found"})
+    if not await credential_service.delete_credential(key):
+        raise HTTPException(status_code=500, detail={"error": "Failed to delete preference"})
+    return {"success": True, "message": f"Preference {key} deleted successfully"}
 
 
 @router.get("/credentials/{key}")
@@ -346,11 +559,7 @@ async def settings_health():
 
 @router.post("/credentials/status-check")
 async def check_credential_status(request: dict[str, list[str]]):
-    """Check status of API credentials by actually decrypting and validating them.
-    
-    This endpoint is specifically for frontend status indicators and returns
-    decrypted credential values for connectivity testing.
-    """
+    """Report whether credentials are populated without returning their values."""
     try:
         credential_keys = request.get("keys", [])
         logfire.info(f"Checking status for credentials: {credential_keys}")
@@ -359,19 +568,17 @@ async def check_credential_status(request: dict[str, list[str]]):
         
         for key in credential_keys:
             try:
-                # Get decrypted value for status checking
+                # Decrypt only to determine presence. Never return the value.
                 decrypted_value = await credential_service.get_credential(key, decrypt=True)
                 
                 if decrypted_value and isinstance(decrypted_value, str) and decrypted_value.strip():
                     result[key] = {
                         "key": key,
-                        "value": decrypted_value,
                         "has_value": True
                     }
                 else:
                     result[key] = {
                         "key": key,
-                        "value": None,
                         "has_value": False
                     }
                     
@@ -379,7 +586,6 @@ async def check_credential_status(request: dict[str, list[str]]):
                 logfire.warning(f"Failed to get credential for status check: {key} | error={str(e)}")
                 result[key] = {
                     "key": key,
-                    "value": None,
                     "has_value": False,
                     "error": str(e)
                 }

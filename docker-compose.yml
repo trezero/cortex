@@ -15,7 +15,7 @@ services:
     container_name: cortex-server
     restart: unless-stopped
     ports:
-      - "${CORTEX_SERVER_PORT:-8181}:${CORTEX_SERVER_PORT:-8181}"
+      - "${CORTEX_VPN_BIND_ADDRESS:-127.0.0.1}:${CORTEX_SERVER_PORT:-8181}:${CORTEX_SERVER_PORT:-8181}"
     environment:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
@@ -24,10 +24,12 @@ services:
       - SERVICE_DISCOVERY_MODE=docker_compose
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - CORTEX_SERVER_PORT=${CORTEX_SERVER_PORT:-8181}
+      - CORTEX_SETTINGS_API_TOKEN=${CORTEX_SETTINGS_API_TOKEN:?CORTEX_SETTINGS_API_TOKEN must be loaded from the approved secret manager}
       - CORTEX_MCP_PORT=${CORTEX_MCP_PORT:-8051}
       - CORTEX_AGENTS_PORT=${CORTEX_AGENTS_PORT:-8052}
       - AGENTS_ENABLED=${AGENTS_ENABLED:-false}
       - CORTEX_HOST=${CORTEX_HOST:-localhost}
+      - CORTEX_ALLOWED_ORIGINS=${CORTEX_ALLOWED_ORIGINS:-http://localhost:3737,http://127.0.0.1:3737}
     networks:
       - app-network
       - default  # Connects to supabase_default network
@@ -81,7 +83,7 @@ services:
     container_name: cortex-mcp
     restart: unless-stopped
     ports:
-      - "${CORTEX_MCP_PORT:-8051}:${CORTEX_MCP_PORT:-8051}"
+      - "${CORTEX_VPN_BIND_ADDRESS:-127.0.0.1}:${CORTEX_MCP_PORT:-8051}:${CORTEX_MCP_PORT:-8051}"
     environment:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
@@ -94,6 +96,8 @@ services:
       - AGENTS_ENABLED=${AGENTS_ENABLED:-false}
       - AGENTS_SERVICE_URL=${AGENTS_SERVICE_URL:-http://cortex-agents:${CORTEX_AGENTS_PORT:-8052}}
       - CORTEX_MCP_PORT=${CORTEX_MCP_PORT:-8051}
+      - CORTEX_MCP_AUTH_TOKEN=${CORTEX_MCP_AUTH_TOKEN:?CORTEX_MCP_AUTH_TOKEN must be loaded from the approved secret manager}
+      - CORTEX_MCP_RESOURCE_URL=${CORTEX_MCP_RESOURCE_URL:-http://${CORTEX_HOST:-localhost}:${CORTEX_MCP_PORT:-8051}}
       - CORTEX_SERVER_PORT=${CORTEX_SERVER_PORT:-8181}
       - CORTEX_AGENTS_PORT=${CORTEX_AGENTS_PORT:-8052}
       - CORTEX_HOST=${CORTEX_HOST:-localhost}
@@ -134,7 +138,7 @@ services:
     container_name: cortex-agents
     restart: unless-stopped
     ports:
-      - "${CORTEX_AGENTS_PORT:-8052}:${CORTEX_AGENTS_PORT:-8052}"
+      - "127.0.0.1:${CORTEX_AGENTS_PORT:-8052}:${CORTEX_AGENTS_PORT:-8052}"
     environment:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
@@ -144,6 +148,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - CORTEX_AGENTS_PORT=${CORTEX_AGENTS_PORT:-8052}
       - CORTEX_SERVER_PORT=${CORTEX_SERVER_PORT:-8181}
+      - CORTEX_SETTINGS_API_TOKEN=${CORTEX_SETTINGS_API_TOKEN:?CORTEX_SETTINGS_API_TOKEN must be loaded from the approved secret manager}
     networks:
       - app-network
       - default  # Connects to supabase_default network
@@ -168,7 +173,7 @@ services:
     container_name: cortex-ui
     restart: unless-stopped
     ports:
-      - "${CORTEX_UI_PORT:-3737}:3737"
+      - "${CORTEX_VPN_BIND_ADDRESS:-127.0.0.1}:${CORTEX_UI_PORT:-3737}:3737"
     environment:
       # Don't set VITE_API_URL so frontend uses relative URLs through proxy
       # - VITE_API_URL=http://${HOST:-localhost}:${CORTEX_SERVER_PORT:-8181}

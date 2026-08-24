@@ -106,7 +106,7 @@ class CredentialsService {
   }
 
   async getAllCredentials(): Promise<Credential[]> {
-    const response = await fetch(`${this.baseUrl}/api/credentials`);
+    const response = await fetch(`${this.baseUrl}/api/preferences`);
     if (!response.ok) {
       throw new Error("Failed to fetch credentials");
     }
@@ -115,7 +115,7 @@ class CredentialsService {
 
   async getCredentialsByCategory(category: string): Promise<Credential[]> {
     const response = await fetch(
-      `${this.baseUrl}/api/credentials/categories/${category}`,
+      `${this.baseUrl}/api/preferences/categories/${category}`,
     );
     if (!response.ok) {
       throw new Error(`Failed to fetch credentials for category: ${category}`);
@@ -124,30 +124,8 @@ class CredentialsService {
 
     // The API returns {credentials: {...}} where credentials is a dict
     // Convert to array format expected by frontend
-    if (result.credentials && typeof result.credentials === "object") {
-      return Object.entries(result.credentials).map(
-        ([key, value]: [string, any]) => {
-          if (value && typeof value === "object" && value.is_encrypted) {
-            return {
-              key,
-              value: "[ENCRYPTED]",
-              encrypted_value: undefined,
-              is_encrypted: true,
-              category,
-              description: value.description,
-            };
-          } else {
-            return {
-              key,
-              value: value,
-              encrypted_value: undefined,
-              is_encrypted: false,
-              category,
-              description: "",
-            };
-          }
-        },
-      );
+    if (Array.isArray(result.preferences)) {
+      return result.preferences;
     }
 
     return [];
@@ -156,7 +134,7 @@ class CredentialsService {
   async getCredential(
     key: string,
   ): Promise<{ key: string; value?: string; is_encrypted?: boolean }> {
-    const response = await fetch(`${this.baseUrl}/api/credentials/${key}`);
+    const response = await fetch(`${this.baseUrl}/api/preferences/${key}`);
     if (!response.ok) {
       if (response.status === 404) {
         // Return empty object if credential not found
@@ -170,7 +148,7 @@ class CredentialsService {
   async checkCredentialStatus(
     keys: string[]
   ): Promise<{ [key: string]: { key: string; value?: string; has_value: boolean; error?: string } }> {
-    const response = await fetch(`${this.baseUrl}/api/credentials/status-check`, {
+    const response = await fetch(`${this.baseUrl}/api/preferences/secret-status`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -187,7 +165,6 @@ class CredentialsService {
 
   async getRagSettings(): Promise<RagSettings> {
     const ragCredentials = await this.getCredentialsByCategory("rag_strategy");
-    const apiKeysCredentials = await this.getCredentialsByCategory("api_keys");
 
     const settings: RagSettings = {
       USE_CONTEXTUAL_EMBEDDINGS: false,
@@ -222,7 +199,7 @@ class CredentialsService {
     };
 
     // Map credentials to settings
-    [...ragCredentials, ...apiKeysCredentials].forEach((cred) => {
+    ragCredentials.forEach((cred) => {
       if (cred.key in settings) {
         // String fields
         if (
@@ -275,8 +252,11 @@ class CredentialsService {
 
   async updateCredential(credential: Credential): Promise<Credential> {
     try {
+      if (credential.is_encrypted || credential.category === "api_keys") {
+        throw new Error("Provider secrets are managed in the approved Atlas 1Password vault");
+      }
       const response = await fetch(
-        `${this.baseUrl}/api/credentials/${credential.key}`,
+        `${this.baseUrl}/api/preferences/${credential.key}`,
         {
           method: "PUT",
           headers: {
@@ -304,7 +284,10 @@ class CredentialsService {
 
   async createCredential(credential: Credential): Promise<Credential> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/credentials`, {
+      if (credential.is_encrypted || credential.category === "api_keys") {
+        throw new Error("Provider secrets are managed in the approved Atlas 1Password vault");
+      }
+      const response = await fetch(`${this.baseUrl}/api/preferences`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -330,7 +313,7 @@ class CredentialsService {
 
   async deleteCredential(key: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/credentials/${key}`, {
+      const response = await fetch(`${this.baseUrl}/api/preferences/${key}`, {
         method: "DELETE",
       });
 

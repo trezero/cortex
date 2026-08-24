@@ -15,6 +15,8 @@ os.environ["SUPABASE_SERVICE_KEY"] = "test-key"
 # Set required port environment variables for ServiceDiscovery
 os.environ["CORTEX_SERVER_PORT"] = "8181"
 os.environ["CORTEX_MCP_PORT"] = "8051"
+os.environ["CORTEX_MCP_AUTH_TOKEN"] = "test-cortex-service-token-with-32-characters"
+os.environ["CORTEX_SETTINGS_API_TOKEN"] = "test-cortex-settings-token-with-32-characters"
 os.environ["CORTEX_AGENTS_PORT"] = "8052"
 
 # Global patches that need to be active during module imports and app initialization
@@ -52,6 +54,8 @@ def ensure_test_environment():
     os.environ["SUPABASE_SERVICE_KEY"] = "test-key"
     os.environ["CORTEX_SERVER_PORT"] = "8181"
     os.environ["CORTEX_MCP_PORT"] = "8051"
+    os.environ["CORTEX_MCP_AUTH_TOKEN"] = "test-cortex-service-token-with-32-characters"
+    os.environ["CORTEX_SETTINGS_API_TOKEN"] = "test-cortex-settings-token-with-32-characters"
     os.environ["CORTEX_AGENTS_PORT"] = "8052"
     yield
     
