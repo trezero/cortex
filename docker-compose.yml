@@ -29,6 +29,7 @@ services:
       - AGENTS_ENABLED=${AGENTS_ENABLED:-false}
       - CORTEX_HOST=${CORTEX_HOST:-localhost}
       - CORTEX_ALLOWED_ORIGINS=${CORTEX_ALLOWED_ORIGINS:-http://localhost:3737,http://127.0.0.1:3737}
+      - CORTEX_SETTINGS_API_TOKEN=${CORTEX_SETTINGS_API_TOKEN:?CORTEX_SETTINGS_API_TOKEN must be loaded from the approved secret manager}
     networks:
       - app-network
       - default  # Connects to supabase_default network
@@ -82,7 +83,7 @@ services:
     container_name: cortex-mcp
     restart: unless-stopped
     ports:
-      - "0.0.0.0:${CORTEX_MCP_PORT:-8051}:${CORTEX_MCP_PORT:-8051}"
+      - "127.0.0.1:${CORTEX_MCP_PORT:-8051}:${CORTEX_MCP_PORT:-8051}"
     environment:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
@@ -96,7 +97,7 @@ services:
       - AGENTS_SERVICE_URL=${AGENTS_SERVICE_URL:-http://cortex-agents:${CORTEX_AGENTS_PORT:-8052}}
       - CORTEX_MCP_PORT=${CORTEX_MCP_PORT:-8051}
       - CORTEX_MCP_AUTH_TOKEN=${CORTEX_MCP_AUTH_TOKEN:?CORTEX_MCP_AUTH_TOKEN must be loaded from the approved secret manager}
-      - CORTEX_MCP_RESOURCE_URL=${CORTEX_MCP_RESOURCE_URL:-http://${CORTEX_HOST:-localhost}:${CORTEX_MCP_PORT:-8051}}
+      - CORTEX_MCP_RESOURCE_URL=${CORTEX_MCP_RESOURCE_URL:-https://cortex.persalto.io}
       - CORTEX_SERVER_PORT=${CORTEX_SERVER_PORT:-8181}
       - CORTEX_AGENTS_PORT=${CORTEX_AGENTS_PORT:-8052}
       - CORTEX_HOST=${CORTEX_HOST:-localhost}

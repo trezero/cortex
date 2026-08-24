@@ -346,11 +346,7 @@ async def settings_health():
 
 @router.post("/credentials/status-check")
 async def check_credential_status(request: dict[str, list[str]]):
-    """Check status of API credentials by actually decrypting and validating them.
-    
-    This endpoint is specifically for frontend status indicators and returns
-    decrypted credential values for connectivity testing.
-    """
+    """Report whether credentials are populated without returning their values."""
     try:
         credential_keys = request.get("keys", [])
         logfire.info(f"Checking status for credentials: {credential_keys}")
@@ -359,19 +355,17 @@ async def check_credential_status(request: dict[str, list[str]]):
         
         for key in credential_keys:
             try:
-                # Get decrypted value for status checking
+                # Decrypt only to determine presence. Never return the value.
                 decrypted_value = await credential_service.get_credential(key, decrypt=True)
                 
                 if decrypted_value and isinstance(decrypted_value, str) and decrypted_value.strip():
                     result[key] = {
                         "key": key,
-                        "value": decrypted_value,
                         "has_value": True
                     }
                 else:
                     result[key] = {
                         "key": key,
-                        "value": None,
                         "has_value": False
                     }
                     
@@ -379,7 +373,6 @@ async def check_credential_status(request: dict[str, list[str]]):
                 logfire.warning(f"Failed to get credential for status check: {key} | error={str(e)}")
                 result[key] = {
                     "key": key,
-                    "value": None,
                     "has_value": False,
                     "error": str(e)
                 }

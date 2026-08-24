@@ -290,11 +290,15 @@ claude mcp remove cortex -s local   >/dev/null 2>&1 || true
 claude mcp remove cortex -s user    >/dev/null 2>&1 || true
 claude mcp remove cortex -s project >/dev/null 2>&1 || true
 
-if claude mcp add --transport http -s local cortex "$MCP_URL" >/dev/null 2>&1; then
+if claude mcp add --transport http -s local \
+  --header 'CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}' \
+  --header 'CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}' \
+  --header 'X-Cortex-Service-Token: ${CORTEX_MCP_AUTH_TOKEN}' \
+  cortex "$MCP_URL" >/dev/null 2>&1; then
   ui_success "MCP server configured: $MCP_URL"
 else
   ui_warn "Could not configure MCP automatically."
-  ui_info "Run manually: claude mcp add --transport http cortex $MCP_URL"
+  ui_info "Configure the three secret-backed headers documented in the Cortex README, then retry."
 fi
 echo
 

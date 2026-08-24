@@ -63,6 +63,17 @@ def test_mcp_initialize_rejects_missing_token(authenticated_mcp_client):
     assert "mcp-session-id" not in response.headers
 
 
+def test_mcp_initialize_rejects_invalid_helper_header(authenticated_mcp_client):
+    response = authenticated_mcp_client.post(
+        "/mcp",
+        json=INITIALIZE,
+        headers={"X-Cortex-Service-Token": "not-the-configured-token"},
+    )
+
+    assert response.status_code in {401, 403}
+    assert "mcp-session-id" not in response.headers
+
+
 def test_mcp_initialize_accepts_bearer_token(authenticated_mcp_client):
     response = authenticated_mcp_client.post(
         "/mcp",

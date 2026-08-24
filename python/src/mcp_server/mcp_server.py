@@ -415,7 +415,7 @@ try:
         token_verifier=CortexServiceTokenVerifier(),
         auth=AuthSettings(
             issuer_url=mcp_resource_url,
-            resource_server_url=mcp_resource_url,
+            resource_server_url=None,
             required_scopes=["cortex:use"],
         ),
         host=server_host,

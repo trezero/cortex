@@ -11,12 +11,14 @@ Modules:
 - projects_api: Project and task management with streaming
 """
 
+import hmac
 import logging
 import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
 
 from .api_routes.auto_research_api import router as auto_research_router
 from .api_routes.chat_api import router as chat_router
@@ -204,6 +206,8 @@ allowed_origins = [
     ).split(",")
     if origin.strip()
 ]
+if "*" in allowed_origins:
+    raise ValueError("CORTEX_ALLOWED_ORIGINS must contain exact origins; wildcard access is forbidden")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -211,6 +215,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+settings_api_token = os.getenv("CORTEX_SETTINGS_API_TOKEN", "")
+if len(settings_api_token) < 32:
+    raise ValueError(
+        "CORTEX_SETTINGS_API_TOKEN is required and must contain at least 32 characters. "
+        "Load it from the approved secret manager before starting the Cortex API."
+    )
+
+
+@app.middleware("http")
+async def protect_credential_routes(request, call_next):
+    """Keep credential reads and mutations behind a separate administrative token."""
+    if request.url.path.startswith("/api/credentials"):
+        supplied = request.headers.get("X-Cortex-Settings-Token", "")
+        if not hmac.compare_digest(supplied, settings_api_token):
+            return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+    return await call_next(request)
 
 
 # Add middleware to skip logging for health checks

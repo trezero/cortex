@@ -131,7 +131,12 @@ Add Cortex as an MCP server in your client's configuration:
   "mcpServers": {
     "cortex": {
       "type": "streamable-http",
-      "url": "http://localhost:8051/mcp"
+      "url": "https://cortex.persalto.io/mcp",
+      "headers": {
+        "CF-Access-Client-Id": "${CF_ACCESS_CLIENT_ID}",
+        "CF-Access-Client-Secret": "${CF_ACCESS_CLIENT_SECRET}",
+        "X-Cortex-Service-Token": "${CORTEX_MCP_AUTH_TOKEN}"
+      }
     }
   }
 }
@@ -141,13 +146,20 @@ Add Cortex as an MCP server in your client's configuration:
 ```json
 {
   "cortex": {
-    "url": "http://localhost:8051/mcp",
-    "transport": "streamable-http"
+    "url": "https://cortex.persalto.io/mcp",
+    "transport": "streamable-http",
+    "headers": {
+      "CF-Access-Client-Id": "${CF_ACCESS_CLIENT_ID}",
+      "CF-Access-Client-Secret": "${CF_ACCESS_CLIENT_SECRET}",
+      "X-Cortex-Service-Token": "${CORTEX_MCP_AUTH_TOKEN}"
+    }
   }
 }
 ```
 
-Replace `localhost` with the Cortex server's hostname/IP if running on a different machine.
+Resolve these variables at client startup from the approved secret manager. Do not write their
+values into MCP configuration. Direct LAN HTTP is intentionally unsupported; use the HTTPS Access
+endpoint or a separately approved encrypted tunnel.
 
 ### MCP Tools for Agents
 

@@ -157,8 +157,9 @@ MCP_JSON="$(cat <<EOF
       "type": "http",
       "url": "$CORTEX_URL/mcp",
       "headers": {
-        "CF-Access-Client-Id": "$CID",
-        "CF-Access-Client-Secret": "$CSECRET"
+        "CF-Access-Client-Id": "\${CF_ACCESS_CLIENT_ID}",
+        "CF-Access-Client-Secret": "\${CF_ACCESS_CLIENT_SECRET}",
+        "X-Cortex-Service-Token": "\${CORTEX_MCP_AUTH_TOKEN}"
       }
     }
   }
