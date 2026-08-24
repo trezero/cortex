@@ -77,6 +77,20 @@ def test_mcp_initialize_accepts_bearer_token(authenticated_mcp_client):
     assert response.status_code == 200
 
 
+def test_mcp_initialize_accepts_codex_helper_header(authenticated_mcp_client):
+    response = authenticated_mcp_client.post(
+        "/mcp",
+        content=json.dumps(INITIALIZE),
+        headers={
+            "X-Cortex-Service-Token": TOKEN,
+            "Accept": "application/json, text/event-stream",
+            "Content-Type": "application/json",
+        },
+    )
+
+    assert response.status_code == 200
+
+
 def test_health_remains_available_without_credentials(authenticated_mcp_client):
     response = authenticated_mcp_client.get("/health")
 

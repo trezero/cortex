@@ -106,6 +106,31 @@ class CortexServiceTokenVerifier:
         )
 
 
+class ServiceTokenHeaderMiddleware:
+    """Translate the Codex helper header into the standard bearer scheme."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            headers = list(scope.get("headers", []))
+            if not any(name.lower() == b"authorization" for name, _ in headers):
+                for name, value in headers:
+                    if name.lower() == b"x-cortex-service-token":
+                        scope = dict(scope)
+                        scope["headers"] = headers + [(b"authorization", b"Bearer " + value)]
+                        break
+        await self.app(scope, receive, send)
+
+
+class CortexFastMCP(FastMCP):
+    """FastMCP server with support for Codex's secret header helper."""
+
+    def streamable_http_app(self):
+        return ServiceTokenHeaderMiddleware(super().streamable_http_app())
+
+
 @dataclass
 class CortexContext:
     """
@@ -382,7 +407,7 @@ try:
     logger.info("   Server Name: cortex-mcp-server")
     logger.info("   Description: MCP server using HTTP calls")
 
-    mcp = FastMCP(
+    mcp = CortexFastMCP(
         "cortex-mcp-server",
         description="MCP server for Cortex - uses HTTP calls to other services",
         instructions=MCP_INSTRUCTIONS,
