@@ -16,37 +16,24 @@ This replaces the pattern of reading 40+ documentation files per session with ta
 
 - **Transport**: `streamable-http`
 - **Default port**: `8051`
-- **URL**: `http://<cortex-host>:8051/mcp`
+- **URL**: `http://172.16.1.230:8051/mcp` on the private VPN
 
 ### Claude Code Configuration
 
-Add to your project's `.mcp.json` or `~/.claude/mcp.json`:
+Load `CORTEX_MCP_AUTH_TOKEN` from the approved Atlas 1Password item at runtime, then run:
 
-```json
-{
-  "mcpServers": {
-    "cortex": {
-      "type": "streamable-http",
-      "url": "http://localhost:8051/mcp"
-    }
-  }
-}
+```bash
+claude mcp add --transport http -s local cortex http://172.16.1.230:8051/mcp \
+  --header 'X-Cortex-Service-Token: ${CORTEX_MCP_AUTH_TOKEN}'
 ```
 
-Replace `localhost` with the Cortex server's hostname/IP if running on a different machine.
+Never persist the token value. The private-VPN boundary is required for this HTTP endpoint.
 
 ### Cursor / Windsurf Configuration
 
 Add to your MCP settings:
 
-```json
-{
-  "cortex": {
-    "url": "http://localhost:8051/mcp",
-    "transport": "streamable-http"
-  }
-}
-```
+Use the same VPN URL and configure `X-Cortex-Service-Token` from a runtime environment variable. Clients that cannot resolve a secret-backed header are unsupported.
 
 ---
 

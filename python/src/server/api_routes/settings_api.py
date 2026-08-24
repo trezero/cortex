@@ -138,6 +138,148 @@ OPTIONAL_SETTINGS_WITH_DEFAULTS = {
     "POSTMAN_SYNC_MODE": "disabled",  # Postman integration mode: api, git, or disabled
 }
 
+# Browser clients may manage non-secret application preferences, but they never
+# receive or mutate provider keys, tokens, passwords, or encrypted records.
+SAFE_PREFERENCE_CATEGORIES = {
+    "features",
+    "monitoring",
+    "rag_strategy",
+    "code_extraction",
+    "ollama_instances",
+}
+PROVIDER_CREDENTIAL_STATUS_KEYS = {
+    "ANTHROPIC_API_KEY",
+    "GOOGLE_API_KEY",
+    "GROK_API_KEY",
+    "OPENAI_API_KEY",
+    "OPENROUTER_API_KEY",
+}
+
+
+def _serialize_preference(credential) -> dict[str, Any]:
+    return {
+        "key": credential.key,
+        "value": credential.value,
+        "is_encrypted": False,
+        "category": credential.category,
+        "description": credential.description,
+    }
+
+
+async def _find_safe_preference(key: str):
+    credentials = await credential_service.list_all_credentials()
+    credential = next((item for item in credentials if item.key == key), None)
+    if credential is None:
+        return None
+    if credential.is_encrypted or credential.category not in SAFE_PREFERENCE_CATEGORIES:
+        raise HTTPException(status_code=404, detail={"error": f"Preference {key} not found"})
+    return credential
+
+
+@router.get("/preferences")
+async def list_preferences(category: str | None = None):
+    """List browser-safe, non-secret preferences only."""
+    if category is not None and category not in SAFE_PREFERENCE_CATEGORIES:
+        raise HTTPException(status_code=400, detail={"error": "Unsupported preference category"})
+    credentials = await credential_service.list_all_credentials()
+    return [
+        _serialize_preference(credential)
+        for credential in credentials
+        if not credential.is_encrypted
+        and credential.category in SAFE_PREFERENCE_CATEGORIES
+        and (category is None or credential.category == category)
+    ]
+
+
+@router.get("/preferences/categories/{category}")
+async def get_preferences_by_category(category: str):
+    """Return one allowlisted category without exposing encrypted records."""
+    if category not in SAFE_PREFERENCE_CATEGORIES:
+        raise HTTPException(status_code=400, detail={"error": "Unsupported preference category"})
+    return {"preferences": await list_preferences(category)}
+
+
+@router.post("/preferences/secret-status")
+async def browser_secret_status(request: dict[str, list[str]]):
+    """Return presence booleans for the fixed provider-key set, never values."""
+    requested = request.get("keys", [])
+    if any(key not in PROVIDER_CREDENTIAL_STATUS_KEYS for key in requested):
+        raise HTTPException(status_code=400, detail={"error": "Unsupported credential status key"})
+    result = {}
+    for key in requested:
+        value = await credential_service.get_credential(key, decrypt=True)
+        result[key] = {"key": key, "has_value": bool(str(value).strip()) if value else False}
+    return result
+
+
+@router.get("/preferences/{key}")
+async def get_preference(key: str):
+    """Return one non-secret preference or its documented default."""
+    credential = await _find_safe_preference(key)
+    if credential is not None:
+        return _serialize_preference(credential)
+    if key in OPTIONAL_SETTINGS_WITH_DEFAULTS:
+        return {
+            "key": key,
+            "value": OPTIONAL_SETTINGS_WITH_DEFAULTS[key],
+            "is_default": True,
+            "is_encrypted": False,
+            "category": "features",
+            "description": f"Default value for {key}",
+        }
+    raise HTTPException(status_code=404, detail={"error": f"Preference {key} not found"})
+
+
+@router.post("/preferences")
+async def create_preference(request: CredentialRequest):
+    """Create a non-secret preference in an allowlisted category."""
+    if request.is_encrypted or request.category not in SAFE_PREFERENCE_CATEGORIES:
+        raise HTTPException(status_code=400, detail={"error": "Secrets are managed in 1Password"})
+    success = await credential_service.set_credential(
+        key=request.key,
+        value=request.value,
+        is_encrypted=False,
+        category=request.category,
+        description=request.description,
+    )
+    if not success:
+        raise HTTPException(status_code=500, detail={"error": "Failed to save preference"})
+    return {"success": True, "message": f"Preference {request.key} saved successfully"}
+
+
+@router.put("/preferences/{key}")
+async def update_preference(key: str, request: dict[str, Any]):
+    """Update or create a non-secret preference without opening credential routes."""
+    if request.get("is_encrypted"):
+        raise HTTPException(status_code=400, detail={"error": "Secrets are managed in 1Password"})
+    category = request.get("category")
+    existing = await _find_safe_preference(key)
+    if existing is not None and category is None:
+        category = existing.category
+    if category not in SAFE_PREFERENCE_CATEGORIES:
+        raise HTTPException(status_code=400, detail={"error": "Unsupported preference category"})
+    success = await credential_service.set_credential(
+        key=key,
+        value=str(request.get("value", "")),
+        is_encrypted=False,
+        category=category,
+        description=request.get("description"),
+    )
+    if not success:
+        raise HTTPException(status_code=500, detail={"error": "Failed to save preference"})
+    return {"success": True, "message": f"Preference {key} saved successfully"}
+
+
+@router.delete("/preferences/{key}")
+async def delete_preference(key: str):
+    """Delete a record only after proving it is a browser-safe preference."""
+    credential = await _find_safe_preference(key)
+    if credential is None:
+        raise HTTPException(status_code=404, detail={"error": f"Preference {key} not found"})
+    if not await credential_service.delete_credential(key):
+        raise HTTPException(status_code=500, detail={"error": "Failed to delete preference"})
+    return {"success": True, "message": f"Preference {key} deleted successfully"}
+
 
 @router.get("/credentials/{key}")
 async def get_credential(key: str):

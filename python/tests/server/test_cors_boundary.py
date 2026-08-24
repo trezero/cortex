@@ -1,8 +1,9 @@
-"""CORS tests for the loopback-only Cortex API."""
+"""CORS tests for the private-VPN Cortex API."""
 
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -44,6 +45,7 @@ def test_wildcard_origin_configuration_fails_fast():
         capture_output=True,
         text=True,
         env=environment,
+        cwd=Path(__file__).resolve().parents[2],
     )
 
     assert result.returncode != 0

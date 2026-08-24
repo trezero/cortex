@@ -9,15 +9,15 @@ const PLATFORMS: { key: Platform; label: string }[] = [
   { key: "powershell", label: "PowerShell" },
 ];
 
-function getSetupCommand(platform: Platform, mcpHost: string): string {
-  const mcpUrl = `http://${mcpHost}:8051`;
+function getSetupCommand(platform: Platform): string {
+  const mcpUrl = "http://172.16.1.230:8051";
   switch (platform) {
     case "unix":
-      return `curl -s ${mcpUrl}/cortex-setup.sh | bash`;
+      return `curl -sS -H "X-Cortex-Service-Token: \${CORTEX_MCP_AUTH_TOKEN}" ${mcpUrl}/cortex-setup.sh | bash`;
     case "cmd":
-      return `curl.exe -o cortexSetup.bat ${mcpUrl}/cortex-setup.bat`;
+      return `curl.exe -H "X-Cortex-Service-Token: %CORTEX_MCP_AUTH_TOKEN%" -o cortexSetup.bat ${mcpUrl}/cortex-setup.bat`;
     case "powershell":
-      return `curl.exe -o cortexSetup.bat ${mcpUrl}/cortex-setup.bat; cmd /c cortexSetup.bat`;
+      return `curl.exe -H "X-Cortex-Service-Token: $env:CORTEX_MCP_AUTH_TOKEN" -o cortexSetup.bat ${mcpUrl}/cortex-setup.bat; cmd /c cortexSetup.bat`;
   }
 }
 
@@ -25,8 +25,7 @@ export function CortexSetupDownload() {
   const [platform, setPlatform] = useState<Platform>("unix");
   const [copied, setCopied] = useState(false);
 
-  const mcpHost = window.location.hostname || "localhost";
-  const command = getSetupCommand(platform, mcpHost);
+  const command = getSetupCommand(platform);
 
   const handleCopy = async () => {
     try {
@@ -117,6 +116,7 @@ export function CortexSetupDownload() {
           </div>
 
           <p className="text-xs text-zinc-500 mt-3">
+            Load the service-token environment variable from the approved Atlas 1Password item before running the command. {" "}
             Then open Claude Code in your project and run{" "}
             <code className="text-cyan-400">/cortex-setup</code> to register your system and install
             extensions.

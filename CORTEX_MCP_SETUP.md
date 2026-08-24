@@ -1,54 +1,27 @@
-# Cortex MCP Server - Connection Instructions
+# Cortex MCP connection
 
-## Quick Setup
+Cortex MCP is an authenticated service available only on the private VPN.
 
-Add this to your `~/.config/kiro-cli/mcp_config.json`:
+- MCP URL: `http://172.16.1.230:8051/mcp`
+- Health URL: `http://172.16.1.230:8051/health`
+- Transport: streamable HTTP
+- Authentication: bearer token or `X-Cortex-Service-Token`
 
-```json
-{
-  "mcpServers": {
-    "cortex": {
-      "command": "npx",
-      "args": [
-        "mcp-remote",
-        "http://172.16.1.203:8051/mcp",
-        "--allow-http"
-      ]
-    }
-  }
-}
+Load `CORTEX_MCP_AUTH_TOKEN` at runtime from the `Cortex MCP Service Token`
+item in the approved Atlas 1Password vault. Never paste or render its value into
+configuration, Markdown, logs, or shell history.
+
+For Claude Code, preserve the environment placeholder:
+
+```bash
+claude mcp add --transport http -s local cortex http://172.16.1.230:8051/mcp \
+  --header 'X-Cortex-Service-Token: ${CORTEX_MCP_AUTH_TOKEN}'
 ```
 
-Then restart your Kiro CLI session.
+For Codex, run the operating-space portable setup. It merges one managed
+`[mcp_servers.cortex]` table into the host-wide configuration and installs a
+runtime 1Password-backed header helper. It does not persist the token.
 
-## What You Get
-
-Once connected, Kiro will have access to:
-
-- **Knowledge Base Search**: Search crawled documentation and uploaded documents
-- **Code Examples**: Find code snippets from the knowledge base
-- **Project Management**: Create and manage projects
-- **Task Management**: Create, update, and track tasks
-- **Document Management**: Version-controlled project documents
-
-## Verify Connection
-
-After restarting Kiro, you can verify the connection by asking:
-```
-"Search the Cortex knowledge base for [topic]"
-```
-
-## Server Details
-
-- **Host**: 172.16.1.203
-- **Port**: 8051
-- **Protocol**: HTTP (local network)
-- **UI**: http://172.16.1.203:3737
-- **API**: http://172.16.1.203:8181
-
-## Troubleshooting
-
-If connection fails:
-1. Verify Cortex services are running: `docker ps --filter "name=cortex"`
-2. Check network connectivity: `curl http://172.16.1.203:8051/health`
-3. Ensure `mcp-remote` is available: `npx mcp-remote --version`
+Unauthorized MCP initialization must return `401`. Health remains public inside
+the VPN. If the VPN or Cortex is unavailable, use repository-local plans,
+documentation, and task records; Cortex is optional support tooling.

@@ -10,7 +10,7 @@ If the tool is not found (MCP not configured), do the following:
 
 1. Check if `cortex-config.json` exists in `.claude/` or `~/.claude/`. If found, read
    `cortex_mcp_url` from it. Otherwise, ask the user:
-   > "What is your Cortex MCP URL? (e.g., http://172.16.1.230:8051)"
+   > "What is your Cortex MCP URL on the private VPN? (default: http://172.16.1.230:8051)"
 
    Store the answer as `<cortex_mcp_url>`.
 
@@ -21,10 +21,11 @@ If the tool is not found (MCP not configured), do the following:
 
 3. Run:
    ```bash
-   claude mcp add --transport http cortex <cortex_mcp_url>/mcp
+   claude mcp add --transport http -s local cortex <cortex_mcp_url>/mcp \
+     --header 'X-Cortex-Service-Token: ${CORTEX_MCP_AUTH_TOKEN}'
    ```
 
-4. Tell the user:
+4. The token must be loaded at runtime from the approved Atlas 1Password item. Never paste it into the command or a config file. Tell the user:
    ```
    Cortex MCP has been added. Please restart Claude Code for the new MCP
    connection to take effect, then run /cortex-setup again.

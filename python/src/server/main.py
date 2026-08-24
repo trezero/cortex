@@ -227,7 +227,7 @@ if len(settings_api_token) < 32:
 @app.middleware("http")
 async def protect_credential_routes(request, call_next):
     """Keep credential reads and mutations behind a separate administrative token."""
-    if request.url.path.startswith("/api/credentials"):
+    if request.url.path.startswith(("/api/credentials", "/internal/credentials")):
         supplied = request.headers.get("X-Cortex-Settings-Token", "")
         if not hmac.compare_digest(supplied, settings_api_token):
             return JSONResponse({"detail": "Unauthorized"}, status_code=401)

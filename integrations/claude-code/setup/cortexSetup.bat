@@ -12,11 +12,12 @@ echo    Server: %CORTEX_MCP_URL%
 echo  =============================================
 echo.
 
-:: If placeholders were not substituted, ask for the Cortex host
+:: If placeholders were not substituted, ask for the private VPN host.
 echo %CORTEX_API_URL% | findstr /C:"{{" >nul 2>&1 && (
-  echo  URLs not pre-configured. Please enter your Cortex server address.
+  echo  URLs not pre-configured. Please enter the Cortex VPN host.
   echo.
-  set /p "CORTEX_HOST=  Cortex host (e.g. 192.168.1.10 or localhost): "
+  set /p "CORTEX_HOST=  Cortex host [172.16.1.230]: "
+  if not defined CORTEX_HOST set "CORTEX_HOST=172.16.1.230"
   set "CORTEX_API_URL=http://!CORTEX_HOST!:8181"
   set "CORTEX_MCP_URL=http://!CORTEX_HOST!:8051"
   echo.
@@ -24,6 +25,8 @@ echo %CORTEX_API_URL% | findstr /C:"{{" >nul 2>&1 && (
   echo  Using MCP: !CORTEX_MCP_URL!
   echo.
 )
+
+if not defined CORTEX_MCP_AUTH_TOKEN (echo Error: CORTEX_MCP_AUTH_TOKEN must be loaded from the approved secret manager. & exit /b 1)
 
 :: Check dependencies
 where curl >nul 2>&1 || (echo Error: curl is required. Install from https://curl.se & exit /b 1)
@@ -82,7 +85,7 @@ set "PROJECT_TITLE="
 set "ENCODED_DIR="
 for /f "delims=" %%E in ('powershell -Command "[uri]::EscapeDataString('!DIR_NAME!')"') do set "ENCODED_DIR=%%E"
 set "MATCH_FILE=%TEMP%\cortex_match.json"
-curl -sf "%CORTEX_API_URL%/api/projects?include_content=false&q=!ENCODED_DIR!" -o "%MATCH_FILE%" 2>nul
+call :cortex_curl -sf "%CORTEX_API_URL%/api/projects?include_content=false&q=!ENCODED_DIR!" -o "%MATCH_FILE%" 2>nul
 
 set "MATCH_COUNT=0"
 for /f "delims=" %%C in ('powershell -Command "$d = Get-Content '%MATCH_FILE%' | ConvertFrom-Json; $d.projects.Count" 2^>nul') do set "MATCH_COUNT=%%C"
@@ -112,7 +115,7 @@ set "ENCODED_TERM="
 for /f "delims=" %%E in ('powershell -Command "[uri]::EscapeDataString('%SEARCH_TERM%')"') do set "ENCODED_TERM=%%E"
 
 set "RESULTS_FILE=%TEMP%\cortex_projects.json"
-curl -sf "%CORTEX_API_URL%/api/projects?include_content=false&q=!ENCODED_TERM!" -o "%RESULTS_FILE%" 2>nul
+call :cortex_curl -sf "%CORTEX_API_URL%/api/projects?include_content=false&q=!ENCODED_TERM!" -o "%RESULTS_FILE%" 2>nul
 
 powershell -Command ^
   "$data = Get-Content '%RESULTS_FILE%' | ConvertFrom-Json; " ^
@@ -167,7 +170,7 @@ powershell -Command ^
   "@{ title = $n; description = $d } | ConvertTo-Json | Set-Content '%BODY_FILE%'"
 
 powershell -Command ^
-  "try { $r = Invoke-RestMethod -Uri '%CORTEX_API_URL%/api/projects' -Method POST -Body (Get-Content '%BODY_FILE%' -Raw) -ContentType 'application/json'; $r.id } catch { '' }" ^
+  "try { $h = @{'X-Cortex-Service-Token'=$env:CORTEX_MCP_AUTH_TOKEN}; $r = Invoke-RestMethod -Uri '%CORTEX_API_URL%/api/projects' -Headers $h -Method POST -Body (Get-Content '%BODY_FILE%' -Raw) -ContentType 'application/json'; $r.id } catch { '' }" ^
   > "%CREATE_FILE%" 2>nul
 
 set "PROJECT_ID="
@@ -184,7 +187,7 @@ echo.
 
 :: -- Step 3/4: Add MCP -----------------------------------------------------
 echo [3/4] Setting up Claude Code MCP...
-claude mcp add --transport http cortex "%CORTEX_MCP_URL%/mcp" 2>nul || echo       (Already configured)
+claude mcp add --transport http -s local cortex "%CORTEX_MCP_URL%/mcp" --header "X-Cortex-Service-Token: ${CORTEX_MCP_AUTH_TOKEN}" 2>nul || echo       (Already configured)
 echo       Added cortex MCP server
 echo.
 
@@ -244,7 +247,7 @@ set "PLUGIN_DIR=!INSTALL_DIR!\plugins\cortex-memory"
 echo Installing cortex-memory plugin...
 if not exist "!PLUGIN_DIR!" mkdir "!PLUGIN_DIR!"
 set "PLUGIN_TMP=%TEMP%\cortex-memory.tar.gz"
-curl -sf "%CORTEX_MCP_URL%/cortex-setup/plugin/cortex-memory.tar.gz" -o "%PLUGIN_TMP%" 2>nul
+call :cortex_curl -sf "%CORTEX_MCP_URL%/cortex-setup/plugin/cortex-memory.tar.gz" -o "%PLUGIN_TMP%" 2>nul
 if %errorlevel%==0 (
     powershell -Command "tar -xzf '%PLUGIN_TMP%' -C '!INSTALL_DIR!\plugins\'" 2>nul
     echo       ^✓ Plugin installed to !PLUGIN_DIR!\
@@ -368,7 +371,7 @@ echo.
 echo Installing extensions...
 if not exist "!INSTALL_DIR!\skills" mkdir "!INSTALL_DIR!\skills"
 set "EXT_TMP=%TEMP%\cortex-extensions.tar.gz"
-curl -sf "%CORTEX_MCP_URL%/cortex-setup/extensions.tar.gz" -o "%EXT_TMP%" 2>nul
+call :cortex_curl -sf "%CORTEX_MCP_URL%/cortex-setup/extensions.tar.gz" -o "%EXT_TMP%" 2>nul
 if %errorlevel%==0 (
     powershell -Command "tar -xzf '%EXT_TMP%' -C '!INSTALL_DIR!\skills\'" 2>nul
     for /f %%C in ('dir /b /s "!INSTALL_DIR!\skills\SKILL.md" 2^>nul ^| find /c /v ""') do echo       ^✓ Installed %%C extension^(s^) to !INSTALL_DIR!\skills\
@@ -419,7 +422,7 @@ for %%G in (".claude/plugins/" ".claude/skills/" ".claude/cortex-config.json" ".
 :: -- Inject Cortex rules into CLAUDE.md ------------------------------------
 echo Configuring CLAUDE.md project rules...
 set "SNIPPET_FILE=%TEMP%\cortex_claude_md_snippet.md"
-curl -sf "%CORTEX_MCP_URL%/cortex-setup/claude-md-snippet.md" -o "%SNIPPET_FILE%" 2>nul
+call :cortex_curl -sf "%CORTEX_MCP_URL%/cortex-setup/claude-md-snippet.md" -o "%SNIPPET_FILE%" 2>nul
 
 if %errorlevel%==0 if exist "%SNIPPET_FILE%" (
     set "MARKER_START=<!-- cortex-rules-start -->"
@@ -472,15 +475,15 @@ echo.
 :: -- Step 4/4: Install slash commands ---------------------------------------
 echo [4/4] Installing slash commands...
 if not exist "!INSTALL_DIR!\commands" mkdir "!INSTALL_DIR!\commands"
-curl -sf "%CORTEX_MCP_URL%/cortex-setup/commands.tar.gz" -o "%TEMP%\commands.tar.gz"
+call :cortex_curl -sf "%CORTEX_MCP_URL%/cortex-setup/commands.tar.gz" -o "%TEMP%\commands.tar.gz"
 if %ERRORLEVEL% equ 0 (
     tar xzf "%TEMP%\commands.tar.gz" -C "!INSTALL_DIR!\commands\"
     del "%TEMP%\commands.tar.gz" 2>nul
     echo       Slash commands installed from registry
 ) else (
     echo       Could not download commands from registry, trying individual files...
-    curl -sf "%CORTEX_MCP_URL%/cortex-setup.md" -o "!INSTALL_DIR!\commands\cortex-setup.md" 2>nul
-    curl -sf "%CORTEX_MCP_URL%/scan-projects.md" -o "!INSTALL_DIR!\commands\scan-projects.md" 2>nul
+    call :cortex_curl -sf "%CORTEX_MCP_URL%/cortex-setup.md" -o "!INSTALL_DIR!\commands\cortex-setup.md" 2>nul
+    call :cortex_curl -sf "%CORTEX_MCP_URL%/scan-projects.md" -o "!INSTALL_DIR!\commands\scan-projects.md" 2>nul
 )
 echo.
 
@@ -512,3 +515,8 @@ echo.
 echo  This will sync extensions and project context.
 echo =============================================
 echo.
+exit /b 0
+
+:cortex_curl
+curl -H "X-Cortex-Service-Token: %CORTEX_MCP_AUTH_TOKEN%" %*
+exit /b %ERRORLEVEL%

@@ -10,10 +10,10 @@ def test_optional_setting_returns_default(client, mock_supabase_client):
     """Test that optional settings return default values with is_default flag."""
     # Mock the entire credential_service instance
     mock_service = MagicMock()
-    mock_service.get_credential = AsyncMock(return_value=None)
+    mock_service.list_all_credentials = AsyncMock(return_value=[])
 
     with patch("src.server.api_routes.settings_api.credential_service", mock_service):
-        response = client.get("/api/credentials/DISCONNECT_SCREEN_ENABLED")
+        response = client.get("/api/preferences/DISCONNECT_SCREEN_ENABLED")
 
         assert response.status_code == 200
         data = response.json()
@@ -28,10 +28,10 @@ def test_unknown_credential_returns_404(client, mock_supabase_client):
     """Test that unknown credentials still return 404."""
     # Mock the entire credential_service instance
     mock_service = MagicMock()
-    mock_service.get_credential = AsyncMock(return_value=None)
+    mock_service.list_all_credentials = AsyncMock(return_value=[])
 
     with patch("src.server.api_routes.settings_api.credential_service", mock_service):
-        response = client.get("/api/credentials/UNKNOWN_KEY_THAT_DOES_NOT_EXIST")
+        response = client.get("/api/preferences/UNKNOWN_KEY_THAT_DOES_NOT_EXIST")
 
         assert response.status_code == 404
         data = response.json()
@@ -44,10 +44,17 @@ def test_existing_credential_returns_normally(client, mock_supabase_client):
     mock_value = "user_configured_value"
     # Mock the entire credential_service instance
     mock_service = MagicMock()
-    mock_service.get_credential = AsyncMock(return_value=mock_value)
+    credential = MagicMock(
+        key="SOME_EXISTING_KEY",
+        value=mock_value,
+        is_encrypted=False,
+        category="features",
+        description="Configured preference",
+    )
+    mock_service.list_all_credentials = AsyncMock(return_value=[credential])
 
     with patch("src.server.api_routes.settings_api.credential_service", mock_service):
-        response = client.get("/api/credentials/SOME_EXISTING_KEY")
+        response = client.get("/api/preferences/SOME_EXISTING_KEY")
 
         assert response.status_code == 200
         data = response.json()
@@ -56,5 +63,4 @@ def test_existing_credential_returns_normally(client, mock_supabase_client):
         assert data["is_encrypted"] is False
         # Should not have is_default flag for real credentials
         assert "is_default" not in data
-
 

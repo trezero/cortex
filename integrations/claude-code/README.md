@@ -17,26 +17,20 @@ Claude Code skills for managing knowledge and project ecosystems via Cortex's RA
 
 ## Prerequisites
 
-1. **Cortex server** running and accessible (default: `http://localhost:8051/mcp`)
+1. **Private VPN connection** to the Cortex host (default: `http://172.16.1.230:8051/mcp`)
 2. **Cortex MCP connection** configured in Claude Code
 3. **Claude Code** installed
 
 ### Configure Cortex MCP Connection
 
-Add to your project's `.mcp.json` or `~/.claude/mcp.json`:
+Load `CORTEX_MCP_AUTH_TOKEN` from the approved Atlas 1Password item at runtime, then register Cortex with Claude Code:
 
-```json
-{
-  "mcpServers": {
-    "cortex": {
-      "type": "streamable-http",
-      "url": "http://localhost:8051/mcp"
-    }
-  }
-}
+```bash
+claude mcp add --transport http -s local cortex http://172.16.1.230:8051/mcp \
+  --header 'X-Cortex-Service-Token: ${CORTEX_MCP_AUTH_TOKEN}'
 ```
 
-Replace `localhost` with the Cortex server's hostname/IP if it runs on a different machine.
+The placeholder is stored, not the secret value. Cortex HTTP is permitted only inside the private VPN.
 
 ## Installation
 
@@ -148,7 +142,7 @@ All Cortex data is shared across agents. When Claude Code ingests docs, Cursor, 
 ## Troubleshooting
 
 **"Cortex server is not reachable"**
-- Check that Cortex is running: `curl http://localhost:8051/mcp`
+- Check that Cortex is running: `curl http://172.16.1.230:8051/health`
 - Verify MCP config in `.mcp.json`
 - Run `/mcp` in Claude Code to reconnect
 

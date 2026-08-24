@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 from starlette.testclient import TestClient
@@ -50,6 +51,7 @@ def test_server_fails_fast_without_auth_token():
         capture_output=True,
         text=True,
         env=environment,
+        cwd=Path(__file__).resolve().parents[2],
     )
 
     assert result.returncode != 0

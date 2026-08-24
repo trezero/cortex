@@ -782,20 +782,13 @@ except Exception as e:
 
 
 def _get_setup_urls(request: Request) -> tuple[str, str]:
-    """Derive (api_url, mcp_url) for baking into setup scripts.
-
-    When the request comes through the Vite proxy, X-Forwarded-Host
-    carries the external hostname (e.g. '192.168.1.10:3737').
-    We extract just the hostname and combine with the known service ports
-    so users outside Docker get reachable URLs.
-    Falls back to CORTEX_HOST env var (the externally-reachable address).
-    """
+    """Derive the private-VPN API and MCP URLs for generated clients."""
     forwarded_host = request.headers.get("x-forwarded-host", "")
-    if forwarded_host:
-        hostname = forwarded_host.split(":")[0]
-    else:
-        hostname = request.url.hostname or os.environ.get("CORTEX_HOST", "localhost")
-
+    hostname = (
+        forwarded_host.split(":")[0]
+        if forwarded_host
+        else request.url.hostname or os.environ.get("CORTEX_HOST", "localhost")
+    )
     mcp_port = os.environ.get("CORTEX_MCP_PORT", "8051")
     api_port = os.environ.get("CORTEX_SERVER_PORT", "8181")
     return f"http://{hostname}:{api_port}", f"http://{hostname}:{mcp_port}"

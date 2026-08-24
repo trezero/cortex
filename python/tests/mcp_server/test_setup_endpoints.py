@@ -52,6 +52,19 @@ def test_cortex_setup_sh_contains_server_url(mcp_test_client):
         assert "CORTEX_MCP_URL=" in response.text
 
 
+def test_generated_setup_urls_use_private_vpn_ports():
+    from src.mcp_server.mcp_server import _get_setup_urls
+
+    request = MagicMock()
+    request.headers = {"x-forwarded-host": "172.16.1.230:3737"}
+    request.url.hostname = "ignored"
+
+    assert _get_setup_urls(request) == (
+        "http://172.16.1.230:8181",
+        "http://172.16.1.230:8051",
+    )
+
+
 def test_extensions_tarball_returns_valid_gzip(mcp_test_client):
     """Extensions tarball endpoint returns a valid tar.gz with SKILL.md files."""
     mock_response = MagicMock()
