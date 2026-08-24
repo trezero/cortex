@@ -194,10 +194,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Configure CORS
+# Configure browser access for the local Cortex UI. Additional trusted origins
+# must be declared explicitly as a comma-separated runtime setting.
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORTEX_ALLOWED_ORIGINS",
+        "http://localhost:3737,http://127.0.0.1:3737",
+    ).split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

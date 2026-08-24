@@ -11,7 +11,13 @@ from starlette.testclient import TestClient
 @pytest.fixture
 def mcp_test_client():
     """TestClient using the FastMCP app directly."""
-    with patch.dict("os.environ", {"CORTEX_MCP_PORT": "8051"}):
+    with patch.dict(
+        "os.environ",
+        {
+            "CORTEX_MCP_PORT": "8051",
+            "CORTEX_MCP_AUTH_TOKEN": "test-cortex-service-token-with-32-characters",
+        },
+    ):
         from src.mcp_server.mcp_server import mcp
         return TestClient(mcp.streamable_http_app())
 

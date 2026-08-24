@@ -14,6 +14,7 @@ Note: Crawling and document upload operations are handled directly by the
 API service and frontend, not through MCP tools.
 """
 
+import hmac
 import json
 import logging
 import os
@@ -29,6 +30,8 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
+from mcp.server.auth.provider import AccessToken
+from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import Context, FastMCP
 from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse
@@ -79,6 +82,28 @@ if not mcp_port:
         "Default value: 8051"
     )
 server_port = int(mcp_port)
+
+mcp_auth_token = os.getenv("CORTEX_MCP_AUTH_TOKEN", "")
+if len(mcp_auth_token) < 32:
+    raise ValueError(
+        "CORTEX_MCP_AUTH_TOKEN is required and must contain at least 32 characters. "
+        "Load it from the approved secret manager before starting Cortex MCP."
+    )
+
+mcp_resource_url = os.getenv("CORTEX_MCP_RESOURCE_URL", f"http://localhost:{server_port}")
+
+
+class CortexServiceTokenVerifier:
+    """Validate the single service token supplied by the approved secret manager."""
+
+    async def verify_token(self, token: str) -> AccessToken | None:
+        if not hmac.compare_digest(token, mcp_auth_token):
+            return None
+        return AccessToken(
+            token=token,
+            client_id="cortex-service-client",
+            scopes=["cortex:use"],
+        )
 
 
 @dataclass
@@ -362,6 +387,12 @@ try:
         description="MCP server for Cortex - uses HTTP calls to other services",
         instructions=MCP_INSTRUCTIONS,
         lifespan=lifespan,
+        token_verifier=CortexServiceTokenVerifier(),
+        auth=AuthSettings(
+            issuer_url=mcp_resource_url,
+            resource_server_url=mcp_resource_url,
+            required_scopes=["cortex:use"],
+        ),
         host=server_host,
         port=server_port,
     )
