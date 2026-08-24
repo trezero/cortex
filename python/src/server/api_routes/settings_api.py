@@ -7,6 +7,7 @@ Handles:
 - Settings storage and retrieval
 """
 
+import re
 from datetime import datetime
 from typing import Any
 
@@ -147,6 +148,60 @@ SAFE_PREFERENCE_CATEGORIES = {
     "code_extraction",
     "ollama_instances",
 }
+SAFE_PREFERENCE_KEYS = {
+    # Browser feature toggles
+    "DISCONNECT_SCREEN_ENABLED": "features",
+    "PROJECTS_ENABLED": "features",
+    "STYLE_GUIDE_ENABLED": "features",
+    "AGENT_WORK_ORDERS_ENABLED": "features",
+    "POSTMAN_SYNC_MODE": "features",
+    "LOGFIRE_ENABLED": "monitoring",
+    # RAG/provider preferences (never provider credentials)
+    "USE_CONTEXTUAL_EMBEDDINGS": "rag_strategy",
+    "CONTEXTUAL_EMBEDDINGS_MAX_WORKERS": "rag_strategy",
+    "USE_HYBRID_SEARCH": "rag_strategy",
+    "USE_AGENTIC_RAG": "rag_strategy",
+    "USE_RERANKING": "rag_strategy",
+    "MODEL_CHOICE": "rag_strategy",
+    "LLM_PROVIDER": "rag_strategy",
+    "LLM_BASE_URL": "rag_strategy",
+    "LLM_INSTANCE_NAME": "rag_strategy",
+    "OLLAMA_EMBEDDING_URL": "rag_strategy",
+    "OLLAMA_EMBEDDING_INSTANCE_NAME": "rag_strategy",
+    "EMBEDDING_MODEL": "rag_strategy",
+    "EMBEDDING_PROVIDER": "rag_strategy",
+    "CRAWL_BATCH_SIZE": "rag_strategy",
+    "CRAWL_MAX_CONCURRENT": "rag_strategy",
+    "CRAWL_WAIT_STRATEGY": "rag_strategy",
+    "CRAWL_PAGE_TIMEOUT": "rag_strategy",
+    "CRAWL_DELAY_BEFORE_HTML": "rag_strategy",
+    "DOCUMENT_STORAGE_BATCH_SIZE": "rag_strategy",
+    "EMBEDDING_BATCH_SIZE": "rag_strategy",
+    "DELETE_BATCH_SIZE": "rag_strategy",
+    "ENABLE_PARALLEL_BATCHES": "rag_strategy",
+    "MEMORY_THRESHOLD_PERCENT": "rag_strategy",
+    "DISPATCHER_CHECK_INTERVAL": "rag_strategy",
+    "CODE_EXTRACTION_BATCH_SIZE": "rag_strategy",
+    "CODE_SUMMARY_MAX_WORKERS": "rag_strategy",
+    # Code extraction preferences
+    "MIN_CODE_BLOCK_LENGTH": "code_extraction",
+    "MAX_CODE_BLOCK_LENGTH": "code_extraction",
+    "ENABLE_COMPLETE_BLOCK_DETECTION": "code_extraction",
+    "ENABLE_LANGUAGE_SPECIFIC_PATTERNS": "code_extraction",
+    "ENABLE_PROSE_FILTERING": "code_extraction",
+    "MAX_PROSE_RATIO": "code_extraction",
+    "MIN_CODE_INDICATORS": "code_extraction",
+    "ENABLE_DIAGRAM_FILTERING": "code_extraction",
+    "ENABLE_CONTEXTUAL_LENGTH": "code_extraction",
+    "CODE_EXTRACTION_MAX_WORKERS": "code_extraction",
+    "CONTEXT_WINDOW_SIZE": "code_extraction",
+    "ENABLE_CODE_SUMMARIES": "code_extraction",
+}
+OLLAMA_PREFERENCE_KEY = re.compile(
+    r"^ollama_instance_[A-Za-z0-9_-]+_"
+    r"(name|baseUrl|isEnabled|isPrimary|instanceType|loadBalancingWeight|"
+    r"isHealthy|responseTimeMs|modelsAvailable|lastHealthCheck)$"
+)
 PROVIDER_CREDENTIAL_STATUS_KEYS = {
     "ANTHROPIC_API_KEY",
     "GOOGLE_API_KEY",
@@ -166,12 +221,26 @@ def _serialize_preference(credential) -> dict[str, Any]:
     }
 
 
+def _is_safe_preference_key(key: str, category: str | None) -> bool:
+    expected_category = SAFE_PREFERENCE_KEYS.get(key)
+    if expected_category is not None:
+        return category == expected_category
+    return category == "ollama_instances" and OLLAMA_PREFERENCE_KEY.fullmatch(key) is not None
+
+
+def _require_safe_preference_key(key: str, category: str | None) -> None:
+    if not _is_safe_preference_key(key, category):
+        raise HTTPException(status_code=400, detail={"error": "Unsupported preference key"})
+
+
 async def _find_safe_preference(key: str):
     credentials = await credential_service.list_all_credentials()
     credential = next((item for item in credentials if item.key == key), None)
     if credential is None:
         return None
-    if credential.is_encrypted or credential.category not in SAFE_PREFERENCE_CATEGORIES:
+    if credential.is_encrypted or not _is_safe_preference_key(
+        credential.key, credential.category
+    ):
         raise HTTPException(status_code=404, detail={"error": f"Preference {key} not found"})
     return credential
 
@@ -186,7 +255,7 @@ async def list_preferences(category: str | None = None):
         _serialize_preference(credential)
         for credential in credentials
         if not credential.is_encrypted
-        and credential.category in SAFE_PREFERENCE_CATEGORIES
+        and _is_safe_preference_key(credential.key, credential.category)
         and (category is None or credential.category == category)
     ]
 
@@ -233,8 +302,9 @@ async def get_preference(key: str):
 @router.post("/preferences")
 async def create_preference(request: CredentialRequest):
     """Create a non-secret preference in an allowlisted category."""
-    if request.is_encrypted or request.category not in SAFE_PREFERENCE_CATEGORIES:
+    if request.is_encrypted:
         raise HTTPException(status_code=400, detail={"error": "Secrets are managed in 1Password"})
+    _require_safe_preference_key(request.key, request.category)
     success = await credential_service.set_credential(
         key=request.key,
         value=request.value,
@@ -253,11 +323,12 @@ async def update_preference(key: str, request: dict[str, Any]):
     if request.get("is_encrypted"):
         raise HTTPException(status_code=400, detail={"error": "Secrets are managed in 1Password"})
     category = request.get("category")
+    if category is not None:
+        _require_safe_preference_key(key, category)
     existing = await _find_safe_preference(key)
     if existing is not None and category is None:
         category = existing.category
-    if category not in SAFE_PREFERENCE_CATEGORIES:
-        raise HTTPException(status_code=400, detail={"error": "Unsupported preference category"})
+    _require_safe_preference_key(key, category)
     success = await credential_service.set_credential(
         key=key,
         value=str(request.get("value", "")),

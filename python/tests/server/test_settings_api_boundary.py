@@ -74,6 +74,50 @@ def test_browser_preference_write_rejects_secret_categories():
     assert "must-not-be-stored" not in response.text
 
 
+def test_browser_preference_write_cannot_relabel_or_overwrite_provider_key():
+    service = AsyncMock()
+    with patch("src.server.api_routes.settings_api.credential_service", service):
+        create = TestClient(app).post(
+            "/api/preferences",
+            json={
+                "key": "OPENAI_API_KEY",
+                "value": "must-not-be-stored",
+                "is_encrypted": False,
+                "category": "features",
+            },
+        )
+        update = TestClient(app).put(
+            "/api/preferences/CORTEX_SETTINGS_API_TOKEN",
+            json={
+                "value": "must-not-be-stored",
+                "is_encrypted": False,
+                "category": "rag_strategy",
+            },
+        )
+
+    assert create.status_code == 400
+    assert update.status_code == 400
+    service.set_credential.assert_not_awaited()
+
+
+def test_browser_preference_write_accepts_exact_safe_key_category_pair():
+    service = AsyncMock()
+    service.set_credential.return_value = True
+    with patch("src.server.api_routes.settings_api.credential_service", service):
+        response = TestClient(app).post(
+            "/api/preferences",
+            json={
+                "key": "PROJECTS_ENABLED",
+                "value": "true",
+                "is_encrypted": False,
+                "category": "features",
+            },
+        )
+
+    assert response.status_code == 200
+    service.set_credential.assert_awaited_once()
+
+
 def test_status_check_never_returns_decrypted_value():
     with patch(
         "src.server.api_routes.settings_api.credential_service.get_credential",

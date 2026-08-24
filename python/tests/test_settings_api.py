@@ -45,7 +45,7 @@ def test_existing_credential_returns_normally(client, mock_supabase_client):
     # Mock the entire credential_service instance
     mock_service = MagicMock()
     credential = MagicMock(
-        key="SOME_EXISTING_KEY",
+        key="STYLE_GUIDE_ENABLED",
         value=mock_value,
         is_encrypted=False,
         category="features",
@@ -54,13 +54,12 @@ def test_existing_credential_returns_normally(client, mock_supabase_client):
     mock_service.list_all_credentials = AsyncMock(return_value=[credential])
 
     with patch("src.server.api_routes.settings_api.credential_service", mock_service):
-        response = client.get("/api/preferences/SOME_EXISTING_KEY")
+        response = client.get("/api/preferences/STYLE_GUIDE_ENABLED")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["key"] == "SOME_EXISTING_KEY"
+        assert data["key"] == "STYLE_GUIDE_ENABLED"
         assert data["value"] == "user_configured_value"
         assert data["is_encrypted"] is False
         # Should not have is_default flag for real credentials
         assert "is_default" not in data
-
